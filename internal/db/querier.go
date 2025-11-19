@@ -6,30 +6,24 @@ package db
 
 import (
 	"context"
-	"time"
 )
 
 type Querier interface {
-	CleanupChecks(ctx context.Context, checkedAt time.Time) error
+	CleanupChecks(ctx context.Context, days *string) error
 	CreateCheck(ctx context.Context, arg *CreateCheckParams) (*Check, error)
 	CreateIncident(ctx context.Context, arg *CreateIncidentParams) (*Incident, error)
 	CreateMonitor(ctx context.Context, arg *CreateMonitorParams) (*Monitor, error)
 	DeleteIncident(ctx context.Context, id int64) error
 	DeleteMonitor(ctx context.Context, id int64) error
-	GetCheck(ctx context.Context, id int64) (*Check, error)
-	GetCheckStats(ctx context.Context, arg *GetCheckStatsParams) ([]*GetCheckStatsRow, error)
 	GetChecks(ctx context.Context, arg *GetChecksParams) ([]*Check, error)
 	GetIncident(ctx context.Context, id int64) (*Incident, error)
 	GetIncidents(ctx context.Context, monitorID int64) ([]*Incident, error)
 	GetMonitor(ctx context.Context, id int64) (*Monitor, error)
 	GetMonitorIncidents(ctx context.Context, arg *GetMonitorIncidentsParams) ([]*Incident, error)
-	GetMonitorStatus(ctx context.Context, id int64) (*GetMonitorStatusRow, error)
 	GetMonitors(ctx context.Context) ([]*Monitor, error)
-	GetUptimeStats(ctx context.Context, monitorID int64) (*GetUptimeStatsRow, error)
 	ResolveIncident(ctx context.Context, id int64) (*Incident, error)
 	UpdateIncident(ctx context.Context, arg *UpdateIncidentParams) (*Incident, error)
 	UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (*Monitor, error)
-	UpsertCheckStats(ctx context.Context, arg *UpsertCheckStatsParams) error
 }
 
 var _ Querier = (*Queries)(nil)

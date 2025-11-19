@@ -7,17 +7,16 @@ package db
 
 import (
 	"context"
-	"time"
 )
 
 const cleanupChecks = `-- name: CleanupChecks :exec
 DELETE FROM checks
 WHERE
-  checked_at < ?
+  checked_at < datetime ('now', '-' || ?1 || ' days')
 `
 
-func (q *Queries) CleanupChecks(ctx context.Context, checkedAt time.Time) error {
-	_, err := q.exec(ctx, q.cleanupChecksStmt, cleanupChecks, checkedAt)
+func (q *Queries) CleanupChecks(ctx context.Context, days *string) error {
+	_, err := q.exec(ctx, q.cleanupChecksStmt, cleanupChecks, days)
 	return err
 }
 
@@ -63,30 +62,6 @@ func (q *Queries) CreateCheck(ctx context.Context, arg *CreateCheckParams) (*Che
 	return &i, err
 }
 
-const getCheck = `-- name: GetCheck :one
-SELECT
-  id, monitor_id, status_code, response_time, error, is_up, checked_at
-FROM
-  checks
-WHERE
-  id = ?
-`
-
-func (q *Queries) GetCheck(ctx context.Context, id int64) (*Check, error) {
-	row := q.queryRow(ctx, q.getCheckStmt, getCheck, id)
-	var i Check
-	err := row.Scan(
-		&i.ID,
-		&i.MonitorID,
-		&i.StatusCode,
-		&i.ResponseTime,
-		&i.Error,
-		&i.IsUp,
-		&i.CheckedAt,
-	)
-	return &i, err
-}
-
 const getChecks = `-- name: GetChecks :many
 SELECT
   id, monitor_id, status_code, response_time, error, is_up, checked_at
@@ -94,19 +69,18 @@ FROM
   checks
 WHERE
   monitor_id = ?
+  AND checked_at >= datetime ('now', '-' || ?2 || ' seconds')
 ORDER BY
   checked_at DESC
-LIMIT
-  ?
 `
 
 type GetChecksParams struct {
-	MonitorID int64 `json:"monitorId"`
-	Limit     int64 `json:"limit"`
+	MonitorID int64   `json:"monitorId"`
+	Seconds   *string `json:"seconds"`
 }
 
 func (q *Queries) GetChecks(ctx context.Context, arg *GetChecksParams) ([]*Check, error) {
-	rows, err := q.query(ctx, q.getChecksStmt, getChecks, arg.MonitorID, arg.Limit)
+	rows, err := q.query(ctx, q.getChecksStmt, getChecks, arg.MonitorID, arg.Seconds)
 	if err != nil {
 		return nil, err
 	}

@@ -42,12 +42,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteMonitorStmt, err = db.PrepareContext(ctx, deleteMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteMonitor: %w", err)
 	}
-	if q.getCheckStmt, err = db.PrepareContext(ctx, getCheck); err != nil {
-		return nil, fmt.Errorf("error preparing query GetCheck: %w", err)
-	}
-	if q.getCheckStatsStmt, err = db.PrepareContext(ctx, getCheckStats); err != nil {
-		return nil, fmt.Errorf("error preparing query GetCheckStats: %w", err)
-	}
 	if q.getChecksStmt, err = db.PrepareContext(ctx, getChecks); err != nil {
 		return nil, fmt.Errorf("error preparing query GetChecks: %w", err)
 	}
@@ -63,14 +57,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getMonitorIncidentsStmt, err = db.PrepareContext(ctx, getMonitorIncidents); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMonitorIncidents: %w", err)
 	}
-	if q.getMonitorStatusStmt, err = db.PrepareContext(ctx, getMonitorStatus); err != nil {
-		return nil, fmt.Errorf("error preparing query GetMonitorStatus: %w", err)
-	}
 	if q.getMonitorsStmt, err = db.PrepareContext(ctx, getMonitors); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMonitors: %w", err)
-	}
-	if q.getUptimeStatsStmt, err = db.PrepareContext(ctx, getUptimeStats); err != nil {
-		return nil, fmt.Errorf("error preparing query GetUptimeStats: %w", err)
 	}
 	if q.resolveIncidentStmt, err = db.PrepareContext(ctx, resolveIncident); err != nil {
 		return nil, fmt.Errorf("error preparing query ResolveIncident: %w", err)
@@ -80,9 +68,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.updateMonitorStmt, err = db.PrepareContext(ctx, updateMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateMonitor: %w", err)
-	}
-	if q.upsertCheckStatsStmt, err = db.PrepareContext(ctx, upsertCheckStats); err != nil {
-		return nil, fmt.Errorf("error preparing query UpsertCheckStats: %w", err)
 	}
 	return &q, nil
 }
@@ -119,16 +104,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteMonitorStmt: %w", cerr)
 		}
 	}
-	if q.getCheckStmt != nil {
-		if cerr := q.getCheckStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getCheckStmt: %w", cerr)
-		}
-	}
-	if q.getCheckStatsStmt != nil {
-		if cerr := q.getCheckStatsStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getCheckStatsStmt: %w", cerr)
-		}
-	}
 	if q.getChecksStmt != nil {
 		if cerr := q.getChecksStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getChecksStmt: %w", cerr)
@@ -154,19 +129,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getMonitorIncidentsStmt: %w", cerr)
 		}
 	}
-	if q.getMonitorStatusStmt != nil {
-		if cerr := q.getMonitorStatusStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getMonitorStatusStmt: %w", cerr)
-		}
-	}
 	if q.getMonitorsStmt != nil {
 		if cerr := q.getMonitorsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getMonitorsStmt: %w", cerr)
-		}
-	}
-	if q.getUptimeStatsStmt != nil {
-		if cerr := q.getUptimeStatsStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getUptimeStatsStmt: %w", cerr)
 		}
 	}
 	if q.resolveIncidentStmt != nil {
@@ -182,11 +147,6 @@ func (q *Queries) Close() error {
 	if q.updateMonitorStmt != nil {
 		if cerr := q.updateMonitorStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateMonitorStmt: %w", cerr)
-		}
-	}
-	if q.upsertCheckStatsStmt != nil {
-		if cerr := q.upsertCheckStatsStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing upsertCheckStatsStmt: %w", cerr)
 		}
 	}
 	return err
@@ -234,20 +194,15 @@ type Queries struct {
 	createMonitorStmt       *sql.Stmt
 	deleteIncidentStmt      *sql.Stmt
 	deleteMonitorStmt       *sql.Stmt
-	getCheckStmt            *sql.Stmt
-	getCheckStatsStmt       *sql.Stmt
 	getChecksStmt           *sql.Stmt
 	getIncidentStmt         *sql.Stmt
 	getIncidentsStmt        *sql.Stmt
 	getMonitorStmt          *sql.Stmt
 	getMonitorIncidentsStmt *sql.Stmt
-	getMonitorStatusStmt    *sql.Stmt
 	getMonitorsStmt         *sql.Stmt
-	getUptimeStatsStmt      *sql.Stmt
 	resolveIncidentStmt     *sql.Stmt
 	updateIncidentStmt      *sql.Stmt
 	updateMonitorStmt       *sql.Stmt
-	upsertCheckStatsStmt    *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -260,19 +215,14 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createMonitorStmt:       q.createMonitorStmt,
 		deleteIncidentStmt:      q.deleteIncidentStmt,
 		deleteMonitorStmt:       q.deleteMonitorStmt,
-		getCheckStmt:            q.getCheckStmt,
-		getCheckStatsStmt:       q.getCheckStatsStmt,
 		getChecksStmt:           q.getChecksStmt,
 		getIncidentStmt:         q.getIncidentStmt,
 		getIncidentsStmt:        q.getIncidentsStmt,
 		getMonitorStmt:          q.getMonitorStmt,
 		getMonitorIncidentsStmt: q.getMonitorIncidentsStmt,
-		getMonitorStatusStmt:    q.getMonitorStatusStmt,
 		getMonitorsStmt:         q.getMonitorsStmt,
-		getUptimeStatsStmt:      q.getUptimeStatsStmt,
 		resolveIncidentStmt:     q.resolveIncidentStmt,
 		updateIncidentStmt:      q.updateIncidentStmt,
 		updateMonitorStmt:       q.updateMonitorStmt,
-		upsertCheckStatsStmt:    q.upsertCheckStatsStmt,
 	}
 }

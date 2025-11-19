@@ -1,30 +1,27 @@
 <script lang="ts">
-	import { Telescope } from '@lucide/svelte';
+	import { Bell, Orbit } from '@lucide/svelte';
+	import Button from '../ui/button/button.svelte';
 </script>
 
-<header class="fixed top-0 right-0 left-0 z-50 flex justify-center px-4">
+<header class="fixed top-4 right-0 left-0 z-50 flex justify-center px-4">
 	<div
-		class="flex min-h-12 items-center gap-1 rounded-b-xl border border-border/40 bg-background/80 px-5 py-2 shadow-lg backdrop-blur-md"
+		class="flex min-h-12 items-center justify-between rounded-full border-x border-b px-4 py-2 shadow-lg backdrop-blur-md sm:min-w-xl"
 	>
 		<a href="/" class="flex items-center gap-4">
-			<Telescope class="size-6 text-primary" />
+			<Orbit class="size-6 text-primary" />
 			<!-- <Logo class="size-6" /> -->
-			<span class="font-mono text-sm font-semibold">Beacon</span>
 		</a>
 
-		<nav class="ml-4 flex items-center">
-			<a
-				href="/"
-				class="relative rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-200 hover:bg-card/80"
-			>
-				Status
-			</a>
-			<a
-				href="/events"
-				class="relative rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-200 hover:bg-card/80"
-			>
-				Events
-			</a>
+		<nav class="ml-8 flex items-center font-mono">
+			<Button variant="ghost" href="/" class="rounded-full" size="sm">Status</Button>
+			<Button variant="ghost" href="/events" class="rounded-full" size="sm">Events</Button>
 		</nav>
+
+		<div class="flex items-center gap-2">
+			<Button variant="outline" href="/" class="rounded-full hover:text-primary" size="sm">
+				<Bell />
+				Subscribe
+			</Button>
+		</div>
 	</div>
 </header>

@@ -23,7 +23,9 @@
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.1.17",
 		"@tanstack/svelte-query": "^6.0.8",
-		"bits-ui": "^2.14.3",
+		"@types/d3-scale": "^4.0.9",
+		"@types/d3-shape": "^3.1.7",
+		"bits-ui": "^2.14.4",
 		"clsx": "^2.1.1",
 		"layerchart": "2.0.0-next.43",
 		"mode-watcher": "^1.1.0",
@@ -42,6 +44,8 @@
 		"vite-plugin-compression2": "^2.3.1"
 	},
 	"dependencies": {
+		"@fontsource-variable/manrope": "^5.2.8",
+		"@fontsource-variable/victor-mono": "^5.2.8",
 		"d3-array": "^3.2.4",
 		"d3-scale": "^4.0.2",
 		"d3-shape": "^3.2.0"

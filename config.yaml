@@ -1,7 +1,13 @@
 monitors:
   - name: "Mizuchi Labs"
     url: "https://mizuchi.dev"
-    check_interval: 5
+    check_interval: 60
   - name: "Google"
     url: "https://google.com"
-    check_interval: 5
+    check_interval: 60
+  - name: "GitHub"
+    url: "https://github.com"
+    check_interval: 60
+  - name: "Twitter"
+    url: "https://twitter.com"
+    check_interval: 60

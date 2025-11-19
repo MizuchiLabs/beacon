@@ -10,14 +10,6 @@ INSERT INTO
 VALUES
   (?, ?, ?, ?, ?) RETURNING *;
 
--- name: GetCheck :one
-SELECT
-  *
-FROM
-  checks
-WHERE
-  id = ?;
-
 -- name: GetChecks :many
 SELECT
   *
@@ -25,12 +17,11 @@ FROM
   checks
 WHERE
   monitor_id = ?
+  AND checked_at >= datetime ('now', '-' || sqlc.arg (seconds) || ' seconds')
 ORDER BY
-  checked_at DESC
-LIMIT
-  ?;
+  checked_at DESC;
 
 -- name: CleanupChecks :exec
 DELETE FROM checks
 WHERE
-  checked_at < ?;
+  checked_at < datetime ('now', '-' || sqlc.arg (days) || ' days')

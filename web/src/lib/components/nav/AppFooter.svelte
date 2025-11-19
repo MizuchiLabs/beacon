@@ -1,34 +1,37 @@
 <script lang="ts">
-	import { DotIcon, Github, Moon, Sun } from '@lucide/svelte';
-	import { theme } from '$lib/stores/theme';
+	import { Github, Moon, Sun } from '@lucide/svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { mode, toggleMode } from 'mode-watcher';
 </script>
 
-<footer class="flex justify-center">
+<footer class="fixed right-0 bottom-0 left-0 z-50 flex justify-center">
 	<div
-		class="flex min-h-12 min-w-3xl items-center justify-between gap-1 rounded-t-xl border border-border/40 bg-background/80 px-5 py-2 shadow-lg backdrop-blur-md"
+		class="flex min-h-12 w-full items-center justify-between rounded-t-xl border-x border-t px-4 py-1 text-sm backdrop-blur-md sm:max-w-3xl"
 	>
-		<!-- Copyright -->
-		<p class="flex items-center text-sm text-muted-foreground">
+		<p class="flex items-center text-muted-foreground">
 			&copy; {new Date().getFullYear()} MizuchiLabs
-			<DotIcon />
-			All rights reserved.
 		</p>
 
-		<!-- Social Links -->
-		<div class="flex items-center gap-4">
-			<a
-				href="https://github.com/mizuchilabs"
-				target="_blank"
+		<div class="flex items-center pl-12">
+			<Button
+				variant="ghost"
+				size="icon"
+				href="https://github.com/mizuchilabs/beacon"
 				rel="noopener noreferrer"
-				class="text-muted-foreground transition-colors hover:text-foreground"
+				target="_blank"
+				class="rounded-full hover:text-primary/80"
 				aria-label="GitHub"
 			>
 				<Github size={20} />
-			</a>
+			</Button>
 
-			<Button variant="ghost" size="icon" onclick={() => theme.toggle()}>
-				{#if $theme === 'light'}
+			<Button
+				variant="ghost"
+				size="icon"
+				onclick={toggleMode}
+				class="rounded-full hover:text-primary/80"
+			>
+				{#if mode.current === 'light'}
 					<Moon size={20} />
 				{:else}
 					<Sun size={20} />

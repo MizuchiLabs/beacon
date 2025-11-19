@@ -7,7 +7,6 @@ package db
 
 import (
 	"context"
-	"time"
 )
 
 const createMonitor = `-- name: CreateMonitor :one
@@ -71,59 +70,6 @@ func (q *Queries) GetMonitor(ctx context.Context, id int64) (*Monitor, error) {
 	return &i, err
 }
 
-const getMonitorStatus = `-- name: GetMonitorStatus :one
-SELECT
-  m.id, m.name, m.url, m.check_interval, m.created_at, m.updated_at,
-  c.is_up,
-  c.checked_at,
-  c.response_time
-FROM
-  monitors m
-  LEFT JOIN checks c ON c.id = (
-    SELECT
-      id
-    FROM
-      checks
-    WHERE
-      monitor_id = m.id
-    ORDER BY
-      checked_at DESC
-    LIMIT
-      1
-  )
-WHERE
-  m.id = ?
-`
-
-type GetMonitorStatusRow struct {
-	ID            int64      `json:"id"`
-	Name          string     `json:"name"`
-	Url           string     `json:"url"`
-	CheckInterval int64      `json:"checkInterval"`
-	CreatedAt     time.Time  `json:"createdAt"`
-	UpdatedAt     time.Time  `json:"updatedAt"`
-	IsUp          *bool      `json:"isUp"`
-	CheckedAt     *time.Time `json:"checkedAt"`
-	ResponseTime  *int64     `json:"responseTime"`
-}
-
-func (q *Queries) GetMonitorStatus(ctx context.Context, id int64) (*GetMonitorStatusRow, error) {
-	row := q.queryRow(ctx, q.getMonitorStatusStmt, getMonitorStatus, id)
-	var i GetMonitorStatusRow
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Url,
-		&i.CheckInterval,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.IsUp,
-		&i.CheckedAt,
-		&i.ResponseTime,
-	)
-	return &i, err
-}
-
 const getMonitors = `-- name: GetMonitors :many
 SELECT
   id, name, url, check_interval, created_at, updated_at
@@ -159,36 +105,6 @@ func (q *Queries) GetMonitors(ctx context.Context) ([]*Monitor, error) {
 		return nil, err
 	}
 	return items, nil
-}
-
-const getUptimeStats = `-- name: GetUptimeStats :one
-SELECT
-  COUNT(*) as total_checks,
-  SUM(
-    CASE
-      WHEN is_up THEN 1
-      ELSE 0
-    END
-  ) as successful_checks,
-  AVG(response_time) as avg_response_time
-FROM
-  checks
-WHERE
-  monitor_id = ?
-  AND checked_at > datetime ('now', '-24 hours')
-`
-
-type GetUptimeStatsRow struct {
-	TotalChecks      int64    `json:"totalChecks"`
-	SuccessfulChecks *float64 `json:"successfulChecks"`
-	AvgResponseTime  *float64 `json:"avgResponseTime"`
-}
-
-func (q *Queries) GetUptimeStats(ctx context.Context, monitorID int64) (*GetUptimeStatsRow, error) {
-	row := q.queryRow(ctx, q.getUptimeStatsStmt, getUptimeStats, monitorID)
-	var i GetUptimeStatsRow
-	err := row.Scan(&i.TotalChecks, &i.SuccessfulChecks, &i.AvgResponseTime)
-	return &i, err
 }
 
 const updateMonitor = `-- name: UpdateMonitor :one

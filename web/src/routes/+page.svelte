@@ -1,33 +1,78 @@
 <script lang="ts">
-	import { useMonitors } from '$lib/api/queries';
+	import { useMonitorStats } from '$lib/api/queries';
+	import * as Select from '$lib/components/ui/select';
+	import * as Empty from '$lib/components/ui/empty/index.js';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import StatusCard from '$lib/components/util/StatusCard.svelte';
-	import { LoaderCircle } from '@lucide/svelte';
+	import { GlobeIcon } from '@lucide/svelte';
 
-	const monitorsQuery = useMonitors();
-	const monitors = $derived(monitorsQuery.data || []);
+	let timeRange = $state('86400'); // 24 hours in seconds
+
+	const timeRanges = [
+		{ label: 'Last 24 hours', value: '86400' },
+		{ label: 'Last 7 days', value: '604800' },
+		{ label: 'Last 14 days', value: '1209600' },
+		{ label: 'Last 30 days', value: '2592000' }
+	];
+
+	let selectedRange = $derived(timeRanges.find((t) => t.value === timeRange));
+	const statsQuery = $derived(useMonitorStats(timeRange));
 </script>
 
-<div class="container mx-auto py-8">
-	<div class="mb-8 text-center">
-		<h1 class="text-3xl font-bold">System Status</h1>
-		<p class="mt-2 text-muted-foreground">
-			Monitoring {monitors.length}
-			{monitors.length === 1 ? 'service' : 'services'}
-		</p>
+<div class="mx-auto w-full space-y-6 p-6 sm:max-w-3xl">
+	<!-- Header with Global Time Selector -->
+	<div class="flex items-center justify-between">
+		<div>
+			<h1 class="text-3xl font-bold tracking-tight">Monitor Dashboard</h1>
+			<p class="text-muted-foreground">Track uptime and response times across all monitors</p>
+		</div>
+
+		<Select.Root type="single" bind:value={timeRange}>
+			<Select.Trigger class="w-[150px] rounded-lg bg-card" aria-label="Select time range">
+				{selectedRange ? selectedRange.label : 'Last 24 hours'}
+			</Select.Trigger>
+			<Select.Content class="rounded-xl">
+				{#each timeRanges as { label, value }}
+					<Select.Item {value} class="rounded-lg">{label}</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
 	</div>
 
-	<div class="flex flex-col items-center gap-6">
-		{#if monitorsQuery.isLoading}
-			<div class="flex items-center gap-2 text-muted-foreground">
-				<LoaderCircle class="size-4 animate-spin" />
-				Loading monitors...
-			</div>
-		{:else if monitors.length === 0}
-			<p class="text-muted-foreground">No monitors configured yet.</p>
-		{:else}
-			{#each monitors as monitor (monitor.id)}
-				<StatusCard monitorId={monitor.id} />
+	<!-- Monitor Grid -->
+	{#if statsQuery.isPending}
+		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+			{#each Array(6) as _}
+				<Skeleton class="h-[300px] rounded-lg" />
 			{/each}
-		{/if}
-	</div>
+		</div>
+	{:else if statsQuery.isError}
+		<Empty.Root class="border border-dashed">
+			<Empty.Header>
+				<Empty.Media variant="icon">
+					<GlobeIcon />
+				</Empty.Media>
+				<Empty.Title>Failed to load monitors</Empty.Title>
+				<Empty.Description>
+					{statsQuery.error.message}
+				</Empty.Description>
+			</Empty.Header>
+		</Empty.Root>
+	{:else if statsQuery.data?.length === 0}
+		<Empty.Root class="border border-dashed">
+			<Empty.Header>
+				<Empty.Media variant="icon">
+					<GlobeIcon />
+				</Empty.Media>
+				<Empty.Title>No monitors configured</Empty.Title>
+				<Empty.Description>Add your first monitor to get started</Empty.Description>
+			</Empty.Header>
+		</Empty.Root>
+	{:else}
+		<div class="flex flex-col gap-4">
+			{#each statsQuery.data || [] as monitor (monitor.id)}
+				<StatusCard {monitor} {timeRange} />
+			{/each}
+		</div>
+	{/if}
 </div>

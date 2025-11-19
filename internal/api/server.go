@@ -95,14 +95,11 @@ func (s *Server) Start(ctx context.Context) error {
 func (s *Server) setupRoutes() {
 	s.mux.Route("/api", func(r chi.Router) {
 		// Monitor endpoints (read-only)
-		r.Get("/monitors", s.handleListMonitors)
-		r.Get("/monitors/{id}", s.handleGetMonitor)
+		r.Get("/monitors", s.ListMonitors)
+		r.Get("/monitors/{id}", s.GetMonitor)
 
 		// Status and stats endpoints
-		r.Get("/monitors/{id}/status", s.handleGetMonitorStatus)
-		r.Get("/monitors/{id}/uptime", s.handleGetUptimeStats)
-		r.Get("/monitors/{id}/checks", s.handleGetCheckHistory)
-		r.Get("/monitors/{id}/stats", s.handleGetMonitorStats)
+		r.Get("/monitors/stats", s.GetMonitorStats)
 
 		// Health check endpoint
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {

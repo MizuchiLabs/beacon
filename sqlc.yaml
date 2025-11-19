@@ -14,3 +14,4 @@ sql:
         emit_pointers_for_null_types: true # Pointers for null types
         emit_result_struct_pointers: true # More efficient for large result sets
         emit_params_struct_pointers: true # More efficient parameter passing
+

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"sync"
 	"time"
 
@@ -106,11 +107,11 @@ func (s *Scheduler) performCheck(ctx context.Context, monitor *db.Monitor) {
 	}
 
 	// Track incidents
-	errorMsg := ""
-	if result.Error != nil {
-		errorMsg = *result.Error
-	}
-	s.incidentTracker.Track(ctx, monitor.ID, result.IsUp, errorMsg)
+	// errorMsg := ""
+	// if result.Error != nil {
+	// 	errorMsg = *result.Error
+	// }
+	// s.incidentTracker.Track(ctx, monitor.ID, result.IsUp, errorMsg)
 
 	slog.Debug("check completed",
 		"monitor_id", monitor.ID,
@@ -131,8 +132,8 @@ func (s *Scheduler) cleanupJob(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			cutoff := time.Now().AddDate(0, 0, -s.retentionDays)
-			if err := s.conn.Queries.CleanupChecks(ctx, cutoff); err != nil {
+			daysStr := strconv.Itoa(s.retentionDays)
+			if err := s.conn.Queries.CleanupChecks(ctx, &daysStr); err != nil {
 				slog.Error("Failed to cleanup old checks", "error", err)
 			}
 		case <-ctx.Done():
