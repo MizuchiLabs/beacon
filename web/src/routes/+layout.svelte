@@ -4,6 +4,8 @@
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import { QueryClientProvider } from '@tanstack/svelte-query';
 	import { queryClient } from '$lib/api/client';
+	import AppHeader from '$lib/components/nav/AppHeader.svelte';
+	import AppFooter from '$lib/components/nav/AppFooter.svelte';
 
 	let { children } = $props();
 </script>
@@ -12,8 +14,16 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<Toaster />
+<div class="flex min-h-screen flex-col">
+	<AppHeader />
 
-<QueryClientProvider client={queryClient}>
-	{@render children?.()}
-</QueryClientProvider>
+	<main class="flex-1">
+		<Toaster />
+
+		<QueryClientProvider client={queryClient}>
+			{@render children?.()}
+		</QueryClientProvider>
+	</main>
+
+	<AppFooter />
+</div>
