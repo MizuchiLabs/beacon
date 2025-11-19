@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mizuchilabs/beacon/internal/api"
+	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/urfave/cli/v3"
 )
 
@@ -28,7 +30,8 @@ func main() {
 		Usage:                 "beacon [command]",
 		Description:           `Beacon is a simple uptime monitoring tool for websites.`,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return nil
+			cfg := config.New(ctx, cmd)
+			return api.NewServer(cfg).Start(ctx)
 		},
 		Commands: []*cli.Command{},
 		Flags: []cli.Flag{

@@ -35,6 +35,8 @@ CREATE TABLE incidents (
 -- indexes for common queries
 CREATE INDEX idx_checks_monitor_id ON checks (monitor_id, checked_at DESC);
 
+CREATE INDEX idx_checks_checked_at ON checks (checked_at);
+
 CREATE INDEX idx_incidents_monitor_id ON incidents (monitor_id);
 
 CREATE INDEX idx_incidents_active ON incidents (monitor_id, resolved_at)

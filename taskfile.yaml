@@ -1,0 +1,82 @@
+version: "3"
+
+output: prefixed
+
+env:
+  IMAGE_DEV: ko.local/beacon
+  IMAGE_PROD: ghcr.io/mizuchilabs/beacon
+
+tasks:
+  dev:
+    desc: Run backend and frontend concurrently
+    deps: [backend, frontend]
+
+  backend:
+    desc: Run backend
+    cmds:
+      - go run main.go
+    dir: cmd
+    silent: false
+
+  frontend:
+    desc: Run frontend
+    cmds:
+      - pnpm run dev
+    dir: web
+    silent: false
+
+  docs:
+    desc: Run docs
+    cmds:
+      - pnpm run dev
+    dir: web/docs
+    silent: false
+
+  # 󰚰 Update deps
+  update:
+    desc: Update dependencies
+    cmds:
+      - go get -u ./...
+      - cd web && pnpm update --latest
+
+  #  Generate code
+  gen:
+    desc: Generate sqlc
+    cmds:
+      - sqlc generate
+
+  # 󰉠  Lint / static checks
+  lint:
+    desc: Run go vet & lint
+    cmds:
+      - go mod tidy
+      - go fmt ./...
+      - go vet ./...
+
+  build:web:
+    desc: Build frontends
+    dir: web
+    cmds:
+      - cd web; pnpm install; pnpm build
+
+  snapshot:
+    desc: Test snapshot
+    cmds:
+      - goreleaser --snapshot --clean --skip=validate
+
+  # 󰡨  Build container with ko
+  docker:dev:
+    desc: Build OCI image with ko
+    deps: [build:web]
+    dir: cmd/server
+    cmds:
+      - KO_DOCKER_REPO=$IMAGE_DEV ko build --bare .
+      - grype $IMAGE_DEV
+
+  docker:prod:
+    desc: Build OCI image with ko
+    deps: [build:web]
+    dir: cmd/server
+    cmds:
+      - KO_DOCKER_REPO=$IMAGE_PROD ko build --bare .
+      - grype $IMAGE_PROD

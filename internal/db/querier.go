@@ -6,9 +6,11 @@ package db
 
 import (
 	"context"
+	"time"
 )
 
 type Querier interface {
+	CleanupChecks(ctx context.Context, checkedAt time.Time) error
 	CreateCheck(ctx context.Context, arg *CreateCheckParams) (*Check, error)
 	CreateIncident(ctx context.Context, arg *CreateIncidentParams) (*Incident, error)
 	CreateMonitor(ctx context.Context, arg *CreateMonitorParams) (*Monitor, error)
@@ -16,7 +18,7 @@ type Querier interface {
 	DeleteIncident(ctx context.Context, id int64) error
 	DeleteMonitor(ctx context.Context, id int64) error
 	GetCheck(ctx context.Context, id int64) (*Check, error)
-	GetChecks(ctx context.Context, monitorID int64) ([]*Check, error)
+	GetChecks(ctx context.Context, arg *GetChecksParams) ([]*Check, error)
 	GetIncident(ctx context.Context, id int64) (*Incident, error)
 	GetIncidents(ctx context.Context, monitorID int64) ([]*Incident, error)
 	GetMonitor(ctx context.Context, id int64) (*Monitor, error)
@@ -25,7 +27,6 @@ type Querier interface {
 	GetMonitors(ctx context.Context) ([]*Monitor, error)
 	GetUptimeStats(ctx context.Context, monitorID int64) (*GetUptimeStatsRow, error)
 	ResolveIncident(ctx context.Context, id int64) (*Incident, error)
-	UpdateCheck(ctx context.Context, arg *UpdateCheckParams) (*Check, error)
 	UpdateIncident(ctx context.Context, arg *UpdateIncidentParams) (*Incident, error)
 	UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (*Monitor, error)
 }

@@ -24,6 +24,9 @@ func New(db DBTX) *Queries {
 func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	q := Queries{db: db}
 	var err error
+	if q.cleanupChecksStmt, err = db.PrepareContext(ctx, cleanupChecks); err != nil {
+		return nil, fmt.Errorf("error preparing query CleanupChecks: %w", err)
+	}
 	if q.createCheckStmt, err = db.PrepareContext(ctx, createCheck); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateCheck: %w", err)
 	}
@@ -72,9 +75,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.resolveIncidentStmt, err = db.PrepareContext(ctx, resolveIncident); err != nil {
 		return nil, fmt.Errorf("error preparing query ResolveIncident: %w", err)
 	}
-	if q.updateCheckStmt, err = db.PrepareContext(ctx, updateCheck); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateCheck: %w", err)
-	}
 	if q.updateIncidentStmt, err = db.PrepareContext(ctx, updateIncident); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateIncident: %w", err)
 	}
@@ -86,6 +86,11 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 
 func (q *Queries) Close() error {
 	var err error
+	if q.cleanupChecksStmt != nil {
+		if cerr := q.cleanupChecksStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing cleanupChecksStmt: %w", cerr)
+		}
+	}
 	if q.createCheckStmt != nil {
 		if cerr := q.createCheckStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createCheckStmt: %w", cerr)
@@ -166,11 +171,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing resolveIncidentStmt: %w", cerr)
 		}
 	}
-	if q.updateCheckStmt != nil {
-		if cerr := q.updateCheckStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateCheckStmt: %w", cerr)
-		}
-	}
 	if q.updateIncidentStmt != nil {
 		if cerr := q.updateIncidentStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateIncidentStmt: %w", cerr)
@@ -220,6 +220,7 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 type Queries struct {
 	db                      DBTX
 	tx                      *sql.Tx
+	cleanupChecksStmt       *sql.Stmt
 	createCheckStmt         *sql.Stmt
 	createIncidentStmt      *sql.Stmt
 	createMonitorStmt       *sql.Stmt
@@ -236,7 +237,6 @@ type Queries struct {
 	getMonitorsStmt         *sql.Stmt
 	getUptimeStatsStmt      *sql.Stmt
 	resolveIncidentStmt     *sql.Stmt
-	updateCheckStmt         *sql.Stmt
 	updateIncidentStmt      *sql.Stmt
 	updateMonitorStmt       *sql.Stmt
 }
@@ -245,6 +245,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
 		db:                      tx,
 		tx:                      tx,
+		cleanupChecksStmt:       q.cleanupChecksStmt,
 		createCheckStmt:         q.createCheckStmt,
 		createIncidentStmt:      q.createIncidentStmt,
 		createMonitorStmt:       q.createMonitorStmt,
@@ -261,7 +262,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getMonitorsStmt:         q.getMonitorsStmt,
 		getUptimeStatsStmt:      q.getUptimeStatsStmt,
 		resolveIncidentStmt:     q.resolveIncidentStmt,
-		updateCheckStmt:         q.updateCheckStmt,
 		updateIncidentStmt:      q.updateIncidentStmt,
 		updateMonitorStmt:       q.updateMonitorStmt,
 	}

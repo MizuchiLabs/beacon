@@ -7,6 +7,8 @@ import (
 	"embed"
 	"fmt"
 	"log"
+	"log/slog"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -24,14 +26,14 @@ type Connection struct {
 	Queries *Queries
 }
 
-const (
-	DBPath = "data/beacon.db"
-)
-
 // NewConnection opens a SQLite connection.
-func NewConnection() *Connection {
-	dataSource := fmt.Sprintf("file:%s", filepath.ToSlash(DBPath))
+func NewConnection(dbPath string) *Connection {
+	// Check path
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0o750); err != nil {
+		log.Fatalf("failed to create db dir: %v", err)
+	}
 
+	dataSource := fmt.Sprintf("file:%s", filepath.ToSlash(dbPath))
 	db, err := sql.Open("sqlite", dataSource)
 	if err != nil {
 		log.Fatalf("failed to open db: %v", err)
@@ -81,10 +83,12 @@ func (c *Connection) Get() *sql.DB {
 	return c.db
 }
 
-func (c *Connection) Close() error {
+func (c *Connection) Close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.db.Close()
+	if err := c.db.Close(); err != nil {
+		slog.Error("Failed to close database", "error", err)
+	}
 }
 
 func (c *Connection) Migrate() {

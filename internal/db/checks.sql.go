@@ -7,23 +7,28 @@ package db
 
 import (
 	"context"
+	"time"
 )
+
+const cleanupChecks = `-- name: CleanupChecks :exec
+DELETE FROM checks
+WHERE
+  checked_at < ?
+`
+
+func (q *Queries) CleanupChecks(ctx context.Context, checkedAt time.Time) error {
+	_, err := q.exec(ctx, q.cleanupChecksStmt, cleanupChecks, checkedAt)
+	return err
+}
 
 const createCheck = `-- name: CreateCheck :one
 INSERT INTO
-  checks (
-    monitor_id,
-    status_code,
-    response_time,
-    error,
-    is_up
-  )
+  checks (status_code, response_time, error, is_up)
 VALUES
-  (?, ?, ?, ?, ?) RETURNING id, monitor_id, status_code, response_time, error, is_up, checked_at
+  (?, ?, ?, ?) RETURNING id, monitor_id, status_code, response_time, error, is_up, checked_at
 `
 
 type CreateCheckParams struct {
-	MonitorID    int64   `json:"monitorId"`
 	StatusCode   *int64  `json:"statusCode"`
 	ResponseTime *int64  `json:"responseTime"`
 	Error        *string `json:"error"`
@@ -32,7 +37,6 @@ type CreateCheckParams struct {
 
 func (q *Queries) CreateCheck(ctx context.Context, arg *CreateCheckParams) (*Check, error) {
 	row := q.queryRow(ctx, q.createCheckStmt, createCheck,
-		arg.MonitorID,
 		arg.StatusCode,
 		arg.ResponseTime,
 		arg.Error,
@@ -93,10 +97,19 @@ FROM
   checks
 WHERE
   monitor_id = ?
+ORDER BY
+  checked_at DESC
+LIMIT
+  ?
 `
 
-func (q *Queries) GetChecks(ctx context.Context, monitorID int64) ([]*Check, error) {
-	rows, err := q.query(ctx, q.getChecksStmt, getChecks, monitorID)
+type GetChecksParams struct {
+	MonitorID int64 `json:"monitorId"`
+	Limit     int64 `json:"limit"`
+}
+
+func (q *Queries) GetChecks(ctx context.Context, arg *GetChecksParams) ([]*Check, error) {
+	rows, err := q.query(ctx, q.getChecksStmt, getChecks, arg.MonitorID, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -124,44 +137,4 @@ func (q *Queries) GetChecks(ctx context.Context, monitorID int64) ([]*Check, err
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateCheck = `-- name: UpdateCheck :one
-UPDATE checks
-SET
-  status_code = COALESCE(?, status_code),
-  response_time = COALESCE(?, response_time),
-  error = COALESCE(?, error),
-  is_up = COALESCE(?, is_up)
-WHERE
-  id = ? RETURNING id, monitor_id, status_code, response_time, error, is_up, checked_at
-`
-
-type UpdateCheckParams struct {
-	StatusCode   *int64  `json:"statusCode"`
-	ResponseTime *int64  `json:"responseTime"`
-	Error        *string `json:"error"`
-	IsUp         bool    `json:"isUp"`
-	ID           int64   `json:"id"`
-}
-
-func (q *Queries) UpdateCheck(ctx context.Context, arg *UpdateCheckParams) (*Check, error) {
-	row := q.queryRow(ctx, q.updateCheckStmt, updateCheck,
-		arg.StatusCode,
-		arg.ResponseTime,
-		arg.Error,
-		arg.IsUp,
-		arg.ID,
-	)
-	var i Check
-	err := row.Scan(
-		&i.ID,
-		&i.MonitorID,
-		&i.StatusCode,
-		&i.ResponseTime,
-		&i.Error,
-		&i.IsUp,
-		&i.CheckedAt,
-	)
-	return &i, err
 }

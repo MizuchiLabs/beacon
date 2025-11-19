@@ -23,6 +23,9 @@ type EnvConfig struct {
 	ServerHost string `env:"BEACON_HOST" envDefault:"0.0.0.0"`
 	ServerPort string `env:"BEACON_PORT" envDefault:"3000"`
 
+	// Database
+	DBPath string `env:"BEACON_DB_PATH" envDefault:"data/beacon.db"`
+
 	// Checker
 	Timeout       time.Duration `env:"BEACON_TIMEOUT"        envDefault:"30s"`
 	RetentionDays int           `env:"BEACON_RETENTION_DAYS" envDefault:"30"`
@@ -49,9 +52,10 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 		log.Fatalf("Failed to parse environment variables: %v", err)
 	}
 
-	cfg.Conn = db.NewConnection()
+	Logger(&cfg)
+	cfg.Conn = db.NewConnection(cfg.DBPath)
 	cfg.Checker = checker.New(cfg.Timeout, cfg.Insecure)
-	cfg.Scheduler = scheduler.New(cfg.Conn.Queries, cfg.Checker)
+	cfg.Scheduler = scheduler.New(cfg.Conn, cfg.Checker, cfg.RetentionDays)
 	return &cfg
 }
 

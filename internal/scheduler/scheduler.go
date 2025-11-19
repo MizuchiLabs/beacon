@@ -12,12 +12,13 @@ import (
 )
 
 type Scheduler struct {
-	q               *db.Queries
+	conn            *db.Connection
 	checker         *checker.Checker
 	monitors        map[int64]*monitorJob
 	mu              sync.RWMutex
 	wg              sync.WaitGroup
 	incidentTracker *incidentTracker
+	retentionDays   int
 }
 
 type monitorJob struct {
@@ -25,18 +26,19 @@ type monitorJob struct {
 	ticker  *time.Ticker
 }
 
-func New(q *db.Queries, checker *checker.Checker) *Scheduler {
+func New(conn *db.Connection, checker *checker.Checker, retentionDays int) *Scheduler {
 	return &Scheduler{
-		q:               q,
+		conn:            conn,
 		checker:         checker,
 		monitors:        make(map[int64]*monitorJob),
-		incidentTracker: newIncidentTracker(q),
+		incidentTracker: newIncidentTracker(conn),
+		retentionDays:   retentionDays,
 	}
 }
 
 func (s *Scheduler) Start(ctx context.Context) error {
 	// Load active monitors
-	monitors, err := s.q.GetMonitors(ctx)
+	monitors, err := s.conn.Queries.GetMonitors(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to load monitors: %w", err)
 	}
@@ -47,11 +49,18 @@ func (s *Scheduler) Start(ctx context.Context) error {
 			continue
 		}
 
-		s.monitors[monitor.ID] = &monitorJob{
+		job := &monitorJob{
 			monitor: monitor,
 			ticker:  time.NewTicker(time.Duration(monitor.CheckInterval) * time.Second),
 		}
+		s.monitors[monitor.ID] = job
+		s.wg.Add(1)
+		go s.runMonitor(ctx, job)
 	}
+
+	// Start cleanup routine
+	s.wg.Add(1)
+	go s.cleanupJob(ctx)
 
 	slog.Info("Scheduler started", "monitors", len(monitors))
 	return nil
@@ -70,6 +79,9 @@ func (s *Scheduler) Stop() {
 }
 
 func (s *Scheduler) AddMonitor(ctx context.Context, monitor db.Monitor) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	// Check if already exists
 	if _, exists := s.monitors[monitor.ID]; exists {
 		slog.Warn("Monitor already scheduled", "id", monitor.ID)
@@ -79,7 +91,7 @@ func (s *Scheduler) AddMonitor(ctx context.Context, monitor db.Monitor) {
 	interval := time.Duration(monitor.CheckInterval) * time.Second
 	ticker := time.NewTicker(interval)
 
-	newMonitor, err := s.q.CreateMonitor(ctx, &db.CreateMonitorParams{
+	newMonitor, err := s.conn.Queries.CreateMonitor(ctx, &db.CreateMonitorParams{
 		Name:          monitor.Name,
 		Url:           monitor.Url,
 		CheckInterval: int64(interval.Seconds()),
@@ -87,6 +99,7 @@ func (s *Scheduler) AddMonitor(ctx context.Context, monitor db.Monitor) {
 	})
 	if err != nil {
 		slog.Error("Failed to add monitor", "error", err)
+		ticker.Stop()
 		return
 	}
 
@@ -94,7 +107,7 @@ func (s *Scheduler) AddMonitor(ctx context.Context, monitor db.Monitor) {
 		monitor: newMonitor,
 		ticker:  ticker,
 	}
-	s.monitors[monitor.ID] = job
+	s.monitors[newMonitor.ID] = job
 	s.wg.Add(1)
 
 	go s.runMonitor(ctx, job)
@@ -109,7 +122,7 @@ func (s *Scheduler) DeleteMonitor(ctx context.Context, monitorID int64) {
 		job.ticker.Stop()
 		delete(s.monitors, monitorID)
 
-		if err := s.q.DeleteMonitor(ctx, monitorID); err != nil {
+		if err := s.conn.Queries.DeleteMonitor(ctx, monitorID); err != nil {
 			slog.Error("Failed to delete monitor", "id", monitorID, "error", err)
 		}
 		slog.Info("Monitor removed", "id", monitorID)
@@ -136,14 +149,18 @@ func (s *Scheduler) performCheck(ctx context.Context, monitor *db.Monitor) {
 	result := s.checker.Check(ctx, monitor.Url)
 
 	// Store check result
-	check, err := s.q.CreateCheck(ctx, result)
+	check, err := s.conn.Queries.CreateCheck(ctx, result)
 	if err != nil {
 		slog.Error("Failed to store check", "monitor_id", monitor.ID, "error", err)
 		return
 	}
 
 	// Track incidents
-	s.incidentTracker.Track(ctx, monitor.ID, result.IsUp, *result.Error)
+	errorMsg := ""
+	if result.Error != nil {
+		errorMsg = *result.Error
+	}
+	s.incidentTracker.Track(ctx, monitor.ID, result.IsUp, errorMsg)
 
 	slog.Debug("check completed",
 		"monitor_id", monitor.ID,
@@ -153,4 +170,23 @@ func (s *Scheduler) performCheck(ctx context.Context, monitor *db.Monitor) {
 		"response_time", result.ResponseTime,
 		"check_id", check.ID,
 	)
+}
+
+func (s *Scheduler) cleanupJob(ctx context.Context) {
+	defer s.wg.Done()
+
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			cutoff := time.Now().AddDate(0, 0, -s.retentionDays)
+			if err := s.conn.Queries.CleanupChecks(ctx, cutoff); err != nil {
+				slog.Error("Failed to cleanup old checks", "error", err)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }

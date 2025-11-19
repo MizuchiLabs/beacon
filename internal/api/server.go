@@ -9,24 +9,26 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httplog/v3"
 	"github.com/mizuchilabs/beacon/internal/config"
 )
 
 type Server struct {
-	mux *http.ServeMux
+	mux *chi.Mux
 	cfg *config.Config
 }
 
 func NewServer(cfg *config.Config) *Server {
 	return &Server{
-		mux: http.NewServeMux(),
+		mux: chi.NewMux(),
 		cfg: cfg,
 	}
 }
 
 func (s *Server) Start(ctx context.Context) error {
 	defer s.cfg.Conn.Close()
+	s.setupRoutes()
 
 	logOpts := &httplog.Options{
 		Level:           slog.LevelError,
@@ -83,4 +85,25 @@ func (s *Server) Start(ctx context.Context) error {
 	case err := <-serverErr:
 		return fmt.Errorf("server error: %w", err)
 	}
+}
+
+func (s *Server) setupRoutes() {
+	s.mux.Route("/api/v1", func(r chi.Router) {
+		// Monitor endpoints
+		r.Post("/monitors", s.handleCreateMonitor)
+		r.Get("/monitors", s.handleListMonitors)
+		r.Get("/monitors/{id}", s.handleGetMonitor)
+		r.Put("/monitors/{id}", s.handleUpdateMonitor)
+		r.Delete("/monitors/{id}", s.handleDeleteMonitor)
+
+		// Status and stats endpoints
+		r.Get("/monitors/{id}/status", s.handleGetMonitorStatus)
+		r.Get("/monitors/{id}/stats", s.handleGetUptimeStats)
+		r.Get("/monitors/{id}/checks", s.handleGetCheckHistory)
+
+		// Health check endpoint
+		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+	})
 }
