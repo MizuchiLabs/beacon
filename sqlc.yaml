@@ -1,0 +1,16 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    schema: "internal/db/migrations"
+    queries: "internal/db/queries"
+    gen:
+      go:
+        package: "db"
+        out: "internal/db"
+        json_tags_case_style: "camel"
+        emit_json_tags: true # Adds JSON tags to generated structs
+        emit_interface: true # Output a Querier interface in the generated package
+        emit_prepared_queries: true
+        emit_pointers_for_null_types: true # Pointers for null types
+        emit_result_struct_pointers: true # More efficient for large result sets
+        emit_params_struct_pointers: true # More efficient parameter passing
