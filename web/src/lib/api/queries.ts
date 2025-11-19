@@ -1,15 +1,6 @@
 import { createQuery } from '@tanstack/svelte-query';
 
 // Types
-export interface Monitor {
-	id: number;
-	name: string;
-	url: string;
-	check_interval: number;
-	created_at: string;
-	updated_at: string;
-}
-
 export interface MonitorStats {
 	id: number;
 	name: string;

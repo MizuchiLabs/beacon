@@ -36,11 +36,23 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createMonitorStmt, err = db.PrepareContext(ctx, createMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateMonitor: %w", err)
 	}
+	if q.createPushSubscriptionStmt, err = db.PrepareContext(ctx, createPushSubscription); err != nil {
+		return nil, fmt.Errorf("error preparing query CreatePushSubscription: %w", err)
+	}
+	if q.createVAPIDKeysStmt, err = db.PrepareContext(ctx, createVAPIDKeys); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateVAPIDKeys: %w", err)
+	}
 	if q.deleteIncidentStmt, err = db.PrepareContext(ctx, deleteIncident); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteIncident: %w", err)
 	}
 	if q.deleteMonitorStmt, err = db.PrepareContext(ctx, deleteMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteMonitor: %w", err)
+	}
+	if q.deletePushSubscriptionStmt, err = db.PrepareContext(ctx, deletePushSubscription); err != nil {
+		return nil, fmt.Errorf("error preparing query DeletePushSubscription: %w", err)
+	}
+	if q.deletePushSubscriptionByEndpointStmt, err = db.PrepareContext(ctx, deletePushSubscriptionByEndpoint); err != nil {
+		return nil, fmt.Errorf("error preparing query DeletePushSubscriptionByEndpoint: %w", err)
 	}
 	if q.getChecksStmt, err = db.PrepareContext(ctx, getChecks); err != nil {
 		return nil, fmt.Errorf("error preparing query GetChecks: %w", err)
@@ -60,6 +72,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getMonitorsStmt, err = db.PrepareContext(ctx, getMonitors); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMonitors: %w", err)
 	}
+	if q.getPushSubscriptionsByMonitorStmt, err = db.PrepareContext(ctx, getPushSubscriptionsByMonitor); err != nil {
+		return nil, fmt.Errorf("error preparing query GetPushSubscriptionsByMonitor: %w", err)
+	}
+	if q.getVAPIDKeysStmt, err = db.PrepareContext(ctx, getVAPIDKeys); err != nil {
+		return nil, fmt.Errorf("error preparing query GetVAPIDKeys: %w", err)
+	}
 	if q.resolveIncidentStmt, err = db.PrepareContext(ctx, resolveIncident); err != nil {
 		return nil, fmt.Errorf("error preparing query ResolveIncident: %w", err)
 	}
@@ -68,6 +86,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.updateMonitorStmt, err = db.PrepareContext(ctx, updateMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateMonitor: %w", err)
+	}
+	if q.vAPIDKeysExistStmt, err = db.PrepareContext(ctx, vAPIDKeysExist); err != nil {
+		return nil, fmt.Errorf("error preparing query VAPIDKeysExist: %w", err)
 	}
 	return &q, nil
 }
@@ -94,6 +115,16 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createMonitorStmt: %w", cerr)
 		}
 	}
+	if q.createPushSubscriptionStmt != nil {
+		if cerr := q.createPushSubscriptionStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createPushSubscriptionStmt: %w", cerr)
+		}
+	}
+	if q.createVAPIDKeysStmt != nil {
+		if cerr := q.createVAPIDKeysStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createVAPIDKeysStmt: %w", cerr)
+		}
+	}
 	if q.deleteIncidentStmt != nil {
 		if cerr := q.deleteIncidentStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteIncidentStmt: %w", cerr)
@@ -102,6 +133,16 @@ func (q *Queries) Close() error {
 	if q.deleteMonitorStmt != nil {
 		if cerr := q.deleteMonitorStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteMonitorStmt: %w", cerr)
+		}
+	}
+	if q.deletePushSubscriptionStmt != nil {
+		if cerr := q.deletePushSubscriptionStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deletePushSubscriptionStmt: %w", cerr)
+		}
+	}
+	if q.deletePushSubscriptionByEndpointStmt != nil {
+		if cerr := q.deletePushSubscriptionByEndpointStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deletePushSubscriptionByEndpointStmt: %w", cerr)
 		}
 	}
 	if q.getChecksStmt != nil {
@@ -134,6 +175,16 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getMonitorsStmt: %w", cerr)
 		}
 	}
+	if q.getPushSubscriptionsByMonitorStmt != nil {
+		if cerr := q.getPushSubscriptionsByMonitorStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getPushSubscriptionsByMonitorStmt: %w", cerr)
+		}
+	}
+	if q.getVAPIDKeysStmt != nil {
+		if cerr := q.getVAPIDKeysStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getVAPIDKeysStmt: %w", cerr)
+		}
+	}
 	if q.resolveIncidentStmt != nil {
 		if cerr := q.resolveIncidentStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing resolveIncidentStmt: %w", cerr)
@@ -147,6 +198,11 @@ func (q *Queries) Close() error {
 	if q.updateMonitorStmt != nil {
 		if cerr := q.updateMonitorStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateMonitorStmt: %w", cerr)
+		}
+	}
+	if q.vAPIDKeysExistStmt != nil {
+		if cerr := q.vAPIDKeysExistStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing vAPIDKeysExistStmt: %w", cerr)
 		}
 	}
 	return err
@@ -186,43 +242,57 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                      DBTX
-	tx                      *sql.Tx
-	cleanupChecksStmt       *sql.Stmt
-	createCheckStmt         *sql.Stmt
-	createIncidentStmt      *sql.Stmt
-	createMonitorStmt       *sql.Stmt
-	deleteIncidentStmt      *sql.Stmt
-	deleteMonitorStmt       *sql.Stmt
-	getChecksStmt           *sql.Stmt
-	getIncidentStmt         *sql.Stmt
-	getIncidentsStmt        *sql.Stmt
-	getMonitorStmt          *sql.Stmt
-	getMonitorIncidentsStmt *sql.Stmt
-	getMonitorsStmt         *sql.Stmt
-	resolveIncidentStmt     *sql.Stmt
-	updateIncidentStmt      *sql.Stmt
-	updateMonitorStmt       *sql.Stmt
+	db                                   DBTX
+	tx                                   *sql.Tx
+	cleanupChecksStmt                    *sql.Stmt
+	createCheckStmt                      *sql.Stmt
+	createIncidentStmt                   *sql.Stmt
+	createMonitorStmt                    *sql.Stmt
+	createPushSubscriptionStmt           *sql.Stmt
+	createVAPIDKeysStmt                  *sql.Stmt
+	deleteIncidentStmt                   *sql.Stmt
+	deleteMonitorStmt                    *sql.Stmt
+	deletePushSubscriptionStmt           *sql.Stmt
+	deletePushSubscriptionByEndpointStmt *sql.Stmt
+	getChecksStmt                        *sql.Stmt
+	getIncidentStmt                      *sql.Stmt
+	getIncidentsStmt                     *sql.Stmt
+	getMonitorStmt                       *sql.Stmt
+	getMonitorIncidentsStmt              *sql.Stmt
+	getMonitorsStmt                      *sql.Stmt
+	getPushSubscriptionsByMonitorStmt    *sql.Stmt
+	getVAPIDKeysStmt                     *sql.Stmt
+	resolveIncidentStmt                  *sql.Stmt
+	updateIncidentStmt                   *sql.Stmt
+	updateMonitorStmt                    *sql.Stmt
+	vAPIDKeysExistStmt                   *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                      tx,
-		tx:                      tx,
-		cleanupChecksStmt:       q.cleanupChecksStmt,
-		createCheckStmt:         q.createCheckStmt,
-		createIncidentStmt:      q.createIncidentStmt,
-		createMonitorStmt:       q.createMonitorStmt,
-		deleteIncidentStmt:      q.deleteIncidentStmt,
-		deleteMonitorStmt:       q.deleteMonitorStmt,
-		getChecksStmt:           q.getChecksStmt,
-		getIncidentStmt:         q.getIncidentStmt,
-		getIncidentsStmt:        q.getIncidentsStmt,
-		getMonitorStmt:          q.getMonitorStmt,
-		getMonitorIncidentsStmt: q.getMonitorIncidentsStmt,
-		getMonitorsStmt:         q.getMonitorsStmt,
-		resolveIncidentStmt:     q.resolveIncidentStmt,
-		updateIncidentStmt:      q.updateIncidentStmt,
-		updateMonitorStmt:       q.updateMonitorStmt,
+		db:                                   tx,
+		tx:                                   tx,
+		cleanupChecksStmt:                    q.cleanupChecksStmt,
+		createCheckStmt:                      q.createCheckStmt,
+		createIncidentStmt:                   q.createIncidentStmt,
+		createMonitorStmt:                    q.createMonitorStmt,
+		createPushSubscriptionStmt:           q.createPushSubscriptionStmt,
+		createVAPIDKeysStmt:                  q.createVAPIDKeysStmt,
+		deleteIncidentStmt:                   q.deleteIncidentStmt,
+		deleteMonitorStmt:                    q.deleteMonitorStmt,
+		deletePushSubscriptionStmt:           q.deletePushSubscriptionStmt,
+		deletePushSubscriptionByEndpointStmt: q.deletePushSubscriptionByEndpointStmt,
+		getChecksStmt:                        q.getChecksStmt,
+		getIncidentStmt:                      q.getIncidentStmt,
+		getIncidentsStmt:                     q.getIncidentsStmt,
+		getMonitorStmt:                       q.getMonitorStmt,
+		getMonitorIncidentsStmt:              q.getMonitorIncidentsStmt,
+		getMonitorsStmt:                      q.getMonitorsStmt,
+		getPushSubscriptionsByMonitorStmt:    q.getPushSubscriptionsByMonitorStmt,
+		getVAPIDKeysStmt:                     q.getVAPIDKeysStmt,
+		resolveIncidentStmt:                  q.resolveIncidentStmt,
+		updateIncidentStmt:                   q.updateIncidentStmt,
+		updateMonitorStmt:                    q.updateMonitorStmt,
+		vAPIDKeysExistStmt:                   q.vAPIDKeysExistStmt,
 	}
 }

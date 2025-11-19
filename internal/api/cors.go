@@ -8,13 +8,14 @@ import (
 )
 
 func (s *Server) WithCORS(h http.Handler) http.Handler {
-	// allowedOrigins := []string{
-	// 	util.OriginOnly(s.cfg.BaseURL),
-	// 	util.OriginOnly(s.cfg.FrontendURL),
-	// }
+	allowedOrigins := []string{
+		"http://127.0.0.1:" + s.cfg.ServerPort,
+		"http://localhost:" + s.cfg.ServerPort,
+		"http://localhost:5173",
+	}
 
 	return cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Content-Type"},
 		AllowCredentials: false,

@@ -1,5 +1,5 @@
 -- +goose Up
--- monitors table stores sites being monitored
+-- Monitors 
 CREATE TABLE monitors (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -9,7 +9,7 @@ CREATE TABLE monitors (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- checks table stores individual check results
+-- Checks are individual check results
 CREATE TABLE checks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   monitor_id INTEGER NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE checks (
   FOREIGN KEY (monitor_id) REFERENCES monitors (id) ON DELETE CASCADE
 );
 
--- incidents table tracks downtime periods
+-- Incidents track downtime periods
 CREATE TABLE incidents (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   monitor_id INTEGER NOT NULL,
@@ -29,6 +29,25 @@ CREATE TABLE incidents (
   resolved_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (monitor_id) REFERENCES monitors (id) ON DELETE CASCADE
+);
+
+-- Browser notification subscriptions
+CREATE TABLE push_subscriptions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  monitor_id INTEGER NOT NULL,
+  endpoint TEXT NOT NULL,
+  p256dh_key TEXT NOT NULL, -- encryption key
+  auth_key TEXT NOT NULL, -- authentication secret
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (monitor_id) REFERENCES monitors (id) ON DELETE CASCADE
+);
+
+-- VAPID keys for push notifications (single row table)
+CREATE TABLE vapid_keys (
+  id INTEGER PRIMARY KEY CHECK (id = 1), -- ensure only one row
+  public_key TEXT NOT NULL,
+  private_key TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- indexes for common queries
@@ -42,9 +61,17 @@ CREATE INDEX idx_incidents_active ON incidents (monitor_id, resolved_at)
 WHERE
   resolved_at IS NULL;
 
+CREATE UNIQUE INDEX idx_push_sub_endpoint ON push_subscriptions (endpoint, monitor_id);
+
+CREATE INDEX idx_push_sub_monitor ON push_subscriptions (monitor_id);
+
 -- +goose Down
 DROP TABLE IF EXISTS monitors;
 
 DROP TABLE IF EXISTS checks;
 
 DROP TABLE IF EXISTS incidents;
+
+DROP TABLE IF EXISTS push_subscriptions;
+
+DROP TABLE IF EXISTS vapid_keys;

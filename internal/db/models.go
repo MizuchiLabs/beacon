@@ -34,3 +34,19 @@ type Monitor struct {
 	CreatedAt     time.Time `json:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
 }
+
+type PushSubscription struct {
+	ID        int64     `json:"id"`
+	MonitorID int64     `json:"monitorId"`
+	Endpoint  string    `json:"endpoint"`
+	P256dhKey string    `json:"p256dhKey"`
+	AuthKey   string    `json:"authKey"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type VapidKey struct {
+	ID         int64     `json:"id"`
+	PublicKey  string    `json:"publicKey"`
+	PrivateKey string    `json:"privateKey"`
+	CreatedAt  time.Time `json:"createdAt"`
+}

@@ -13,17 +13,24 @@ type Querier interface {
 	CreateCheck(ctx context.Context, arg *CreateCheckParams) (*Check, error)
 	CreateIncident(ctx context.Context, arg *CreateIncidentParams) (*Incident, error)
 	CreateMonitor(ctx context.Context, arg *CreateMonitorParams) (*Monitor, error)
+	CreatePushSubscription(ctx context.Context, arg *CreatePushSubscriptionParams) error
+	CreateVAPIDKeys(ctx context.Context, arg *CreateVAPIDKeysParams) error
 	DeleteIncident(ctx context.Context, id int64) error
 	DeleteMonitor(ctx context.Context, id int64) error
+	DeletePushSubscription(ctx context.Context, arg *DeletePushSubscriptionParams) error
+	DeletePushSubscriptionByEndpoint(ctx context.Context, endpoint string) error
 	GetChecks(ctx context.Context, seconds *string) ([]*Check, error)
 	GetIncident(ctx context.Context, id int64) (*Incident, error)
 	GetIncidents(ctx context.Context, monitorID int64) ([]*Incident, error)
 	GetMonitor(ctx context.Context, id int64) (*Monitor, error)
 	GetMonitorIncidents(ctx context.Context, arg *GetMonitorIncidentsParams) ([]*Incident, error)
 	GetMonitors(ctx context.Context) ([]*Monitor, error)
+	GetPushSubscriptionsByMonitor(ctx context.Context, monitorID int64) ([]*PushSubscription, error)
+	GetVAPIDKeys(ctx context.Context) (*VapidKey, error)
 	ResolveIncident(ctx context.Context, id int64) (*Incident, error)
 	UpdateIncident(ctx context.Context, arg *UpdateIncidentParams) (*Incident, error)
 	UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (*Monitor, error)
+	VAPIDKeysExist(ctx context.Context) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

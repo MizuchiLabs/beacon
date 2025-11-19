@@ -100,6 +100,11 @@ func (s *Server) setupRoutes() {
 		// Monitor endpoints (read-only)
 		r.Get("/monitors", s.GetMonitorStats)
 
+		// Push notification endpoints
+		r.Post("/monitor/{id}/subscribe", s.SubscribeToPushNotifications)
+		r.Post("/monitor/{id}/unsubscribe", s.UnsubscribeFromPushNotifications)
+		r.Get("/vapid-public-key", s.GetVAPIDPublicKey)
+
 		// Health check endpoint
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)

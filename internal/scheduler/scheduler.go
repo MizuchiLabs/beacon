@@ -10,11 +10,13 @@ import (
 
 	"github.com/mizuchilabs/beacon/internal/checker"
 	"github.com/mizuchilabs/beacon/internal/db"
+	"github.com/mizuchilabs/beacon/internal/push"
 )
 
 type Scheduler struct {
 	conn            *db.Connection
 	checker         *checker.Checker
+	notifier        *push.Notifier
 	monitors        map[int64]*monitorJob
 	mu              sync.RWMutex
 	wg              sync.WaitGroup
@@ -104,6 +106,18 @@ func (s *Scheduler) performCheck(ctx context.Context, monitor *db.Monitor) {
 	if err != nil {
 		slog.Error("Failed to store check", "monitor_id", monitor.ID, "error", err)
 		return
+	}
+
+	if !result.IsUp && result.Error != nil {
+		if err := s.notifier.SendMonitorDownNotification(ctx, monitor, *result.Error); err != nil {
+			slog.Error(
+				"Failed to send monitor down notification",
+				"monitor_id",
+				monitor.ID,
+				"error",
+				err,
+			)
+		}
 	}
 }
 
