@@ -31,7 +31,6 @@ type Monitor struct {
 	Name          string    `json:"name"`
 	Url           string    `json:"url"`
 	CheckInterval int64     `json:"checkInterval"`
-	IsActive      bool      `json:"isActive"`
 	CreatedAt     time.Time `json:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
 }

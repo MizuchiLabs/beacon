@@ -30,6 +30,11 @@ func (s *Server) Start(ctx context.Context) error {
 	defer s.cfg.Conn.Close()
 	s.setupRoutes()
 
+	// Start scheduler
+	if err := s.cfg.Scheduler.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start scheduler: %w", err)
+	}
+
 	logOpts := &httplog.Options{
 		Level:           slog.LevelError,
 		Schema:          httplog.SchemaOTEL,
@@ -88,13 +93,10 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) setupRoutes() {
-	s.mux.Route("/api/v1", func(r chi.Router) {
-		// Monitor endpoints
-		r.Post("/monitors", s.handleCreateMonitor)
+	s.mux.Route("/api", func(r chi.Router) {
+		// Monitor endpoints (read-only)
 		r.Get("/monitors", s.handleListMonitors)
 		r.Get("/monitors/{id}", s.handleGetMonitor)
-		r.Put("/monitors/{id}", s.handleUpdateMonitor)
-		r.Delete("/monitors/{id}", s.handleDeleteMonitor)
 
 		// Status and stats endpoints
 		r.Get("/monitors/{id}/status", s.handleGetMonitorStatus)

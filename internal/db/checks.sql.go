@@ -23,12 +23,19 @@ func (q *Queries) CleanupChecks(ctx context.Context, checkedAt time.Time) error 
 
 const createCheck = `-- name: CreateCheck :one
 INSERT INTO
-  checks (status_code, response_time, error, is_up)
+  checks (
+    monitor_id,
+    status_code,
+    response_time,
+    error,
+    is_up
+  )
 VALUES
-  (?, ?, ?, ?) RETURNING id, monitor_id, status_code, response_time, error, is_up, checked_at
+  (?, ?, ?, ?, ?) RETURNING id, monitor_id, status_code, response_time, error, is_up, checked_at
 `
 
 type CreateCheckParams struct {
+	MonitorID    int64   `json:"monitorId"`
 	StatusCode   *int64  `json:"statusCode"`
 	ResponseTime *int64  `json:"responseTime"`
 	Error        *string `json:"error"`
@@ -37,6 +44,7 @@ type CreateCheckParams struct {
 
 func (q *Queries) CreateCheck(ctx context.Context, arg *CreateCheckParams) (*Check, error) {
 	row := q.queryRow(ctx, q.createCheckStmt, createCheck,
+		arg.MonitorID,
 		arg.StatusCode,
 		arg.ResponseTime,
 		arg.Error,
@@ -53,17 +61,6 @@ func (q *Queries) CreateCheck(ctx context.Context, arg *CreateCheckParams) (*Che
 		&i.CheckedAt,
 	)
 	return &i, err
-}
-
-const deleteCheck = `-- name: DeleteCheck :exec
-DELETE FROM checks
-WHERE
-  id = ?
-`
-
-func (q *Queries) DeleteCheck(ctx context.Context, id int64) error {
-	_, err := q.exec(ctx, q.deleteCheckStmt, deleteCheck, id)
-	return err
 }
 
 const getCheck = `-- name: GetCheck :one

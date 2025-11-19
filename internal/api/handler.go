@@ -10,43 +10,6 @@ import (
 	"github.com/mizuchilabs/beacon/internal/db"
 )
 
-// handleCreateMonitor creates a new monitor
-func (s *Server) handleCreateMonitor(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Name          string `json:"name"`
-		URL           string `json:"url"`
-		CheckInterval int64  `json:"check_interval"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	if req.Name == "" || req.URL == "" {
-		respondError(w, http.StatusBadRequest, "name and url are required")
-		return
-	}
-
-	if req.CheckInterval == 0 {
-		req.CheckInterval = 60 // default to 60 seconds
-	}
-
-	monitor, err := s.cfg.Conn.Queries.CreateMonitor(r.Context(), &db.CreateMonitorParams{
-		Name:          req.Name,
-		Url:           req.URL,
-		CheckInterval: req.CheckInterval,
-		IsActive:      true,
-	})
-	if err != nil {
-		slog.Error("failed to create monitor", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to create monitor")
-		return
-	}
-
-	respondJSON(w, http.StatusCreated, monitor)
-}
-
 // handleGetMonitor retrieves a single monitor by ID
 func (s *Server) handleGetMonitor(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
@@ -75,67 +38,6 @@ func (s *Server) handleListMonitors(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, monitors)
-}
-
-// handleUpdateMonitor updates an existing monitor
-func (s *Server) handleUpdateMonitor(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid monitor id")
-		return
-	}
-
-	var req struct {
-		Name          *string `json:"name"`
-		URL           *string `json:"url"`
-		CheckInterval *int64  `json:"check_interval"`
-		IsActive      *bool   `json:"is_active"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	params := db.UpdateMonitorParams{ID: id}
-	if req.Name != nil {
-		params.Name = *req.Name
-	}
-	if req.URL != nil {
-		params.Url = *req.URL
-	}
-	if req.CheckInterval != nil {
-		params.CheckInterval = *req.CheckInterval
-	}
-	if req.IsActive != nil {
-		params.IsActive = *req.IsActive
-	}
-
-	monitor, err := s.cfg.Conn.Queries.UpdateMonitor(r.Context(), &params)
-	if err != nil {
-		slog.Error("failed to update monitor", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to update monitor")
-		return
-	}
-
-	respondJSON(w, http.StatusOK, monitor)
-}
-
-// handleDeleteMonitor deletes a monitor
-func (s *Server) handleDeleteMonitor(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid monitor id")
-		return
-	}
-
-	if err := s.cfg.Conn.Queries.DeleteMonitor(r.Context(), id); err != nil {
-		slog.Error("failed to delete monitor", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to delete monitor")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleGetMonitorStatus retrieves monitor with its latest check status

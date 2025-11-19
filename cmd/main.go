@@ -81,6 +81,13 @@ func main() {
 				Value:   false,
 				Sources: cli.EnvVars("BEACON_INSECURE"),
 			},
+			&cli.StringFlag{
+				Name:    "config",
+				Aliases: []string{"c"},
+				Usage:   "Path to monitors config file",
+				Value:   "config.yaml",
+				Sources: cli.EnvVars("BEACON_CONFIG"),
+			},
 		},
 	}
 

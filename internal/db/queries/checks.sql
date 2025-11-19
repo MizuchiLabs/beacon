@@ -1,8 +1,14 @@
 -- name: CreateCheck :one
 INSERT INTO
-  checks (status_code, response_time, error, is_up)
+  checks (
+    monitor_id,
+    status_code,
+    response_time,
+    error,
+    is_up
+  )
 VALUES
-  (?, ?, ?, ?) RETURNING *;
+  (?, ?, ?, ?, ?) RETURNING *;
 
 -- name: GetCheck :one
 SELECT
@@ -23,11 +29,6 @@ ORDER BY
   checked_at DESC
 LIMIT
   ?;
-
--- name: DeleteCheck :exec
-DELETE FROM checks
-WHERE
-  id = ?;
 
 -- name: CleanupChecks :exec
 DELETE FROM checks

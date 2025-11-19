@@ -1,8 +1,8 @@
 -- name: CreateMonitor :one
 INSERT INTO
-  monitors (name, url, check_interval, is_active)
+  monitors (name, url, check_interval)
 VALUES
-  (?, ?, ?, ?) RETURNING *;
+  (?, ?, ?) RETURNING *;
 
 -- name: GetMonitor :one
 SELECT
@@ -16,17 +16,14 @@ WHERE
 SELECT
   *
 FROM
-  monitors
-WHERE
-  is_active = 1;
+  monitors;
 
 -- name: UpdateMonitor :one
 UPDATE monitors
 SET
   name = COALESCE(?, name),
   url = COALESCE(?, url),
-  check_interval = COALESCE(?, check_interval),
-  is_active = COALESCE(?, is_active)
+  check_interval = COALESCE(?, check_interval)
 WHERE
   id = ? RETURNING *;
 

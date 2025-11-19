@@ -1,0 +1,7 @@
+monitors:
+  - name: "Mizuchi Labs"
+    url: "https://mizuchi.dev"
+    check_interval: 5
+  - name: "Google"
+    url: "https://google.com"
+    check_interval: 5

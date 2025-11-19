@@ -36,9 +36,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createMonitorStmt, err = db.PrepareContext(ctx, createMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateMonitor: %w", err)
 	}
-	if q.deleteCheckStmt, err = db.PrepareContext(ctx, deleteCheck); err != nil {
-		return nil, fmt.Errorf("error preparing query DeleteCheck: %w", err)
-	}
 	if q.deleteIncidentStmt, err = db.PrepareContext(ctx, deleteIncident); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteIncident: %w", err)
 	}
@@ -104,11 +101,6 @@ func (q *Queries) Close() error {
 	if q.createMonitorStmt != nil {
 		if cerr := q.createMonitorStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createMonitorStmt: %w", cerr)
-		}
-	}
-	if q.deleteCheckStmt != nil {
-		if cerr := q.deleteCheckStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing deleteCheckStmt: %w", cerr)
 		}
 	}
 	if q.deleteIncidentStmt != nil {
@@ -224,7 +216,6 @@ type Queries struct {
 	createCheckStmt         *sql.Stmt
 	createIncidentStmt      *sql.Stmt
 	createMonitorStmt       *sql.Stmt
-	deleteCheckStmt         *sql.Stmt
 	deleteIncidentStmt      *sql.Stmt
 	deleteMonitorStmt       *sql.Stmt
 	getCheckStmt            *sql.Stmt
@@ -249,7 +240,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createCheckStmt:         q.createCheckStmt,
 		createIncidentStmt:      q.createIncidentStmt,
 		createMonitorStmt:       q.createMonitorStmt,
-		deleteCheckStmt:         q.deleteCheckStmt,
 		deleteIncidentStmt:      q.deleteIncidentStmt,
 		deleteMonitorStmt:       q.deleteMonitorStmt,
 		getCheckStmt:            q.getCheckStmt,

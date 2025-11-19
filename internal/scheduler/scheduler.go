@@ -78,57 +78,6 @@ func (s *Scheduler) Stop() {
 	slog.Info("Scheduler stopped")
 }
 
-func (s *Scheduler) AddMonitor(ctx context.Context, monitor db.Monitor) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Check if already exists
-	if _, exists := s.monitors[monitor.ID]; exists {
-		slog.Warn("Monitor already scheduled", "id", monitor.ID)
-		return
-	}
-
-	interval := time.Duration(monitor.CheckInterval) * time.Second
-	ticker := time.NewTicker(interval)
-
-	newMonitor, err := s.conn.Queries.CreateMonitor(ctx, &db.CreateMonitorParams{
-		Name:          monitor.Name,
-		Url:           monitor.Url,
-		CheckInterval: int64(interval.Seconds()),
-		IsActive:      true,
-	})
-	if err != nil {
-		slog.Error("Failed to add monitor", "error", err)
-		ticker.Stop()
-		return
-	}
-
-	job := &monitorJob{
-		monitor: newMonitor,
-		ticker:  ticker,
-	}
-	s.monitors[newMonitor.ID] = job
-	s.wg.Add(1)
-
-	go s.runMonitor(ctx, job)
-	slog.Info("Monitor scheduled", "id", monitor.ID, "url", monitor.Url, "interval", interval)
-}
-
-func (s *Scheduler) DeleteMonitor(ctx context.Context, monitorID int64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if job, exists := s.monitors[monitorID]; exists {
-		job.ticker.Stop()
-		delete(s.monitors, monitorID)
-
-		if err := s.conn.Queries.DeleteMonitor(ctx, monitorID); err != nil {
-			slog.Error("Failed to delete monitor", "id", monitorID, "error", err)
-		}
-		slog.Info("Monitor removed", "id", monitorID)
-	}
-}
-
 func (s *Scheduler) runMonitor(ctx context.Context, job *monitorJob) {
 	defer s.wg.Done()
 
@@ -147,6 +96,7 @@ func (s *Scheduler) runMonitor(ctx context.Context, job *monitorJob) {
 
 func (s *Scheduler) performCheck(ctx context.Context, monitor *db.Monitor) {
 	result := s.checker.Check(ctx, monitor.Url)
+	result.MonitorID = monitor.ID
 
 	// Store check result
 	check, err := s.conn.Queries.CreateCheck(ctx, result)

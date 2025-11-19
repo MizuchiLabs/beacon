@@ -12,32 +12,25 @@ import (
 
 const createMonitor = `-- name: CreateMonitor :one
 INSERT INTO
-  monitors (name, url, check_interval, is_active)
+  monitors (name, url, check_interval)
 VALUES
-  (?, ?, ?, ?) RETURNING id, name, url, check_interval, is_active, created_at, updated_at
+  (?, ?, ?) RETURNING id, name, url, check_interval, created_at, updated_at
 `
 
 type CreateMonitorParams struct {
 	Name          string `json:"name"`
 	Url           string `json:"url"`
 	CheckInterval int64  `json:"checkInterval"`
-	IsActive      bool   `json:"isActive"`
 }
 
 func (q *Queries) CreateMonitor(ctx context.Context, arg *CreateMonitorParams) (*Monitor, error) {
-	row := q.queryRow(ctx, q.createMonitorStmt, createMonitor,
-		arg.Name,
-		arg.Url,
-		arg.CheckInterval,
-		arg.IsActive,
-	)
+	row := q.queryRow(ctx, q.createMonitorStmt, createMonitor, arg.Name, arg.Url, arg.CheckInterval)
 	var i Monitor
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Url,
 		&i.CheckInterval,
-		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -57,7 +50,7 @@ func (q *Queries) DeleteMonitor(ctx context.Context, id int64) error {
 
 const getMonitor = `-- name: GetMonitor :one
 SELECT
-  id, name, url, check_interval, is_active, created_at, updated_at
+  id, name, url, check_interval, created_at, updated_at
 FROM
   monitors
 WHERE
@@ -72,7 +65,6 @@ func (q *Queries) GetMonitor(ctx context.Context, id int64) (*Monitor, error) {
 		&i.Name,
 		&i.Url,
 		&i.CheckInterval,
-		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -81,7 +73,7 @@ func (q *Queries) GetMonitor(ctx context.Context, id int64) (*Monitor, error) {
 
 const getMonitorStatus = `-- name: GetMonitorStatus :one
 SELECT
-  m.id, m.name, m.url, m.check_interval, m.is_active, m.created_at, m.updated_at,
+  m.id, m.name, m.url, m.check_interval, m.created_at, m.updated_at,
   c.is_up,
   c.checked_at,
   c.response_time
@@ -108,7 +100,6 @@ type GetMonitorStatusRow struct {
 	Name          string     `json:"name"`
 	Url           string     `json:"url"`
 	CheckInterval int64      `json:"checkInterval"`
-	IsActive      bool       `json:"isActive"`
 	CreatedAt     time.Time  `json:"createdAt"`
 	UpdatedAt     time.Time  `json:"updatedAt"`
 	IsUp          *bool      `json:"isUp"`
@@ -124,7 +115,6 @@ func (q *Queries) GetMonitorStatus(ctx context.Context, id int64) (*GetMonitorSt
 		&i.Name,
 		&i.Url,
 		&i.CheckInterval,
-		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.IsUp,
@@ -136,11 +126,9 @@ func (q *Queries) GetMonitorStatus(ctx context.Context, id int64) (*GetMonitorSt
 
 const getMonitors = `-- name: GetMonitors :many
 SELECT
-  id, name, url, check_interval, is_active, created_at, updated_at
+  id, name, url, check_interval, created_at, updated_at
 FROM
   monitors
-WHERE
-  is_active = 1
 `
 
 func (q *Queries) GetMonitors(ctx context.Context) ([]*Monitor, error) {
@@ -157,7 +145,6 @@ func (q *Queries) GetMonitors(ctx context.Context) ([]*Monitor, error) {
 			&i.Name,
 			&i.Url,
 			&i.CheckInterval,
-			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -209,17 +196,15 @@ UPDATE monitors
 SET
   name = COALESCE(?, name),
   url = COALESCE(?, url),
-  check_interval = COALESCE(?, check_interval),
-  is_active = COALESCE(?, is_active)
+  check_interval = COALESCE(?, check_interval)
 WHERE
-  id = ? RETURNING id, name, url, check_interval, is_active, created_at, updated_at
+  id = ? RETURNING id, name, url, check_interval, created_at, updated_at
 `
 
 type UpdateMonitorParams struct {
 	Name          string `json:"name"`
 	Url           string `json:"url"`
 	CheckInterval int64  `json:"checkInterval"`
-	IsActive      bool   `json:"isActive"`
 	ID            int64  `json:"id"`
 }
 
@@ -228,7 +213,6 @@ func (q *Queries) UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (
 		arg.Name,
 		arg.Url,
 		arg.CheckInterval,
-		arg.IsActive,
 		arg.ID,
 	)
 	var i Monitor
@@ -237,7 +221,6 @@ func (q *Queries) UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (
 		&i.Name,
 		&i.Url,
 		&i.CheckInterval,
-		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

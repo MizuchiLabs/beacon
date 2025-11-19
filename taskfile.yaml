@@ -14,8 +14,7 @@ tasks:
   backend:
     desc: Run backend
     cmds:
-      - go run main.go
-    dir: cmd
+      - go run cmd/main.go
     silent: false
 
   frontend:
