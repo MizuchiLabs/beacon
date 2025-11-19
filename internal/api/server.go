@@ -12,6 +12,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httplog/v3"
 	"github.com/mizuchilabs/beacon/internal/config"
+	"github.com/mizuchilabs/beacon/web"
+	"github.com/vearutop/statigz"
+	"github.com/vearutop/statigz/brotli"
 )
 
 type Server struct {
@@ -95,15 +98,18 @@ func (s *Server) Start(ctx context.Context) error {
 func (s *Server) setupRoutes() {
 	s.mux.Route("/api", func(r chi.Router) {
 		// Monitor endpoints (read-only)
-		r.Get("/monitors", s.ListMonitors)
-		r.Get("/monitors/{id}", s.GetMonitor)
-
-		// Status and stats endpoints
-		r.Get("/monitors/stats", s.GetMonitorStats)
+		r.Get("/monitors", s.GetMonitorStats)
 
 		// Health check endpoint
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})
 	})
+
+	// Static files
+	s.mux.Handle("/*", statigz.FileServer(
+		web.StaticFS,
+		brotli.AddEncoding,
+		statigz.FSPrefix("build"),
+	))
 }

@@ -28,7 +28,10 @@
 		</div>
 
 		<Select.Root type="single" bind:value={timeRange}>
-			<Select.Trigger class="w-[150px] rounded-lg bg-card" aria-label="Select time range">
+			<Select.Trigger
+				class="w-[150px] rounded-lg bg-card dark:bg-card"
+				aria-label="Select time range"
+			>
 				{selectedRange ? selectedRange.label : 'Last 24 hours'}
 			</Select.Trigger>
 			<Select.Content class="rounded-xl">
@@ -71,7 +74,7 @@
 	{:else}
 		<div class="flex flex-col gap-4">
 			{#each statsQuery.data || [] as monitor (monitor.id)}
-				<StatusCard {monitor} {timeRange} />
+				<StatusCard {monitor} />
 			{/each}
 		</div>
 	{/if}

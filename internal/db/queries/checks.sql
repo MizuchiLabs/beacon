@@ -16,8 +16,7 @@ SELECT
 FROM
   checks
 WHERE
-  monitor_id = ?
-  AND checked_at >= datetime ('now', '-' || sqlc.arg (seconds) || ' seconds')
+  checked_at >= datetime ('now', '-' || sqlc.arg (seconds) || ' seconds')
 ORDER BY
   checked_at DESC;
 

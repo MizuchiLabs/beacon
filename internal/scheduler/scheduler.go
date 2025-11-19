@@ -100,27 +100,11 @@ func (s *Scheduler) performCheck(ctx context.Context, monitor *db.Monitor) {
 	result.MonitorID = monitor.ID
 
 	// Store check result
-	check, err := s.conn.Queries.CreateCheck(ctx, result)
+	_, err := s.conn.Queries.CreateCheck(ctx, result)
 	if err != nil {
 		slog.Error("Failed to store check", "monitor_id", monitor.ID, "error", err)
 		return
 	}
-
-	// Track incidents
-	// errorMsg := ""
-	// if result.Error != nil {
-	// 	errorMsg = *result.Error
-	// }
-	// s.incidentTracker.Track(ctx, monitor.ID, result.IsUp, errorMsg)
-
-	slog.Debug("check completed",
-		"monitor_id", monitor.ID,
-		"url", monitor.Url,
-		"is_up", result.IsUp,
-		"status", result.StatusCode,
-		"response_time", result.ResponseTime,
-		"check_id", check.ID,
-	)
 }
 
 func (s *Scheduler) cleanupJob(ctx context.Context) {

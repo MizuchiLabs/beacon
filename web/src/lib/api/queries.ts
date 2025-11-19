@@ -1,4 +1,3 @@
-import { env } from '$env/dynamic/public';
 import { createQuery } from '@tanstack/svelte-query';
 
 // Types
@@ -34,7 +33,7 @@ export interface ChartDataPoint {
 	is_up: boolean;
 }
 
-export const BackendURL = env.PUBLIC_BACKEND_URL || 'http://localhost:3000' + '/api';
+export const BackendURL = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
 
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
 	const response = await fetch(`${BackendURL}${endpoint}`, {
@@ -60,32 +59,15 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
 // API functions
 export const api = {
 	monitors: {
-		list: () => fetchAPI<Monitor[]>('/monitors'),
-		get: (id: number) => fetchAPI<Monitor>(`/monitors/${id}`),
-		getStats: (seconds = '86400') => fetchAPI<MonitorStats[]>(`/monitors/stats?seconds=${seconds}`)
+		get: (seconds = '86400') => fetchAPI<MonitorStats[]>(`/monitors?seconds=${seconds}`)
 	}
 };
 
 // Query Hooks
-export function useMonitors() {
-	return createQuery(() => ({
-		queryKey: ['monitors'],
-		queryFn: api.monitors.list
-	}));
-}
-
-export function useMonitor(id: number) {
-	return createQuery(() => ({
-		queryKey: ['monitors', id],
-		queryFn: () => api.monitors.get(id),
-		enabled: id > 0
-	}));
-}
-
 export function useMonitorStats(seconds = '86400') {
 	return createQuery(() => ({
-		queryKey: ['monitors', 'stats', seconds],
-		queryFn: () => api.monitors.getStats(seconds),
+		queryKey: ['monitors', seconds],
+		queryFn: () => api.monitors.get(seconds),
 		enabled: seconds !== '',
 		refetchInterval: 60000 // Refresh every minute
 	}));

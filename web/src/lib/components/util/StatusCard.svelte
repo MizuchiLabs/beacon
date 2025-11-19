@@ -8,15 +8,12 @@
 	import { cubicInOut } from 'svelte/easing';
 	import { Badge } from '$lib/components/ui/badge';
 	import { ChartContainer } from '$lib/components/ui/chart';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import CircleXIcon from '@lucide/svelte/icons/circle-x';
+	import ActivityIcon from '@lucide/svelte/icons/activity';
 
 	interface Props {
 		monitor: MonitorStats;
-		timeRange: string;
 	}
-
-	let { monitor, timeRange }: Props = $props();
+	let { monitor }: Props = $props();
 
 	// Transform data for chart
 	const chartData = $derived(
@@ -30,168 +27,163 @@
 	const chartConfig = {
 		response_time: {
 			label: 'Response Time',
-			color: 'var(--chart-1)'
+			color: 'hsl(var(--primary))'
 		}
 	} satisfies Chart.ChartConfig;
 
-	// Get tick count based on time range
-	const tickCount = $derived.by(() => {
-		const seconds = parseInt(timeRange);
-		if (seconds <= 86400) return 6; // 24h
-		if (seconds <= 604800) return 7; // 7d
-		if (seconds <= 1209600) return 7; // 14d
-		return 10; // 30d
-	});
+	// Helper for stat color
+	const getStatColor = (val: number | undefined | null) => {
+		if (!val) return 'text-muted-foreground';
+		if (val >= 500) return 'text-destructive';
+		if (val >= 200) return 'text-amber-500';
+		return 'text-foreground';
+	};
 </script>
 
-<Card.Root class="overflow-hidden bg-card">
-	<Card.Header class="pb-3">
-		<div class="flex items-start justify-between gap-2">
-			<div class="min-w-0 flex-1 space-y-1">
-				<Card.Title class="truncate text-base">{monitor.name}</Card.Title>
-				<Card.Description class="truncate text-xs">{monitor.url}</Card.Description>
+<Card.Root
+	class="group overflow-hidden border bg-card transition-all hover:bg-card hover:shadow-md"
+>
+	<Card.Header class="pb-2">
+		<div class="flex items-start justify-between gap-4">
+			<div class="flex min-w-0 flex-1 flex-col gap-1">
+				<div class="flex items-center gap-2">
+					{#if monitor.uptime_pct >= 95}
+						<div class="relative flex h-2.5 w-2.5">
+							<span
+								class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"
+							></span>
+							<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+						</div>
+					{:else}
+						<div class="h-2.5 w-2.5 rounded-full bg-destructive shadow-sm"></div>
+					{/if}
+					<h3 class="truncate text-base leading-none font-semibold tracking-tight">
+						{monitor.name}
+					</h3>
+				</div>
+				<div class="flex gap-2 text-xs text-muted-foreground">
+					<a
+						href={monitor.url}
+						target="_blank"
+						rel="noreferrer"
+						class="truncate transition-colors hover:text-foreground hover:underline"
+					>
+						{monitor.url}
+					</a>
+					<span>•</span>
+					<span>{monitor.check_interval}s interval</span>
+				</div>
 			</div>
-			<Badge variant={monitor.uptime_pct >= 95 ? 'default' : 'destructive'} class="shrink-0">
-				{monitor.uptime_pct.toFixed(2)}%
-			</Badge>
-			<Badge variant="outline" class="shrink-0">
-				Every {monitor.check_interval}s
-			</Badge>
+
+			<div class="flex flex-col items-end">
+				<span
+					class="text-xl font-bold tracking-tight {monitor.uptime_pct >= 95
+						? 'text-emerald-600 dark:text-emerald-400'
+						: 'text-destructive'}"
+				>
+					{monitor.uptime_pct.toFixed(2)}%
+				</span>
+				<span class="text-[10px] font-medium text-muted-foreground/70 uppercase">Uptime</span>
+			</div>
 		</div>
 	</Card.Header>
 
-	<Card.Content class="bg-card">
-		<ChartContainer config={chartConfig} class="aspect-auto h-[150px] w-full px-4">
-			<AreaChart
-				data={chartData}
-				x="date"
-				xScale={scaleUtc()}
-				series={[
-					{
-						key: 'response_time',
-						label: 'Response Time',
-						color: chartConfig.response_time.color
-					}
-				]}
-				props={{
-					area: {
-						curve: curveCatmullRom.alpha(0.5),
-						'fill-opacity': 0.4,
-						line: { class: 'stroke-1' }
-					},
-					xAxis: {
-						ticks: tickCount,
-						format: (v) => {
-							const seconds = parseInt(timeRange);
-							if (seconds <= 86400) {
-								return v.toLocaleTimeString('en-US', {
-									hour: 'numeric',
-									hour12: false
-								});
-							}
-							return v.toLocaleDateString('en-US', {
-								month: 'short',
-								day: 'numeric'
-							});
+	<Card.Content class="p-0">
+		<!-- Minimal Chart area with refined gradient and glow -->
+		<div class="h-[140px] w-full">
+			<ChartContainer config={chartConfig} class="h-full w-full">
+				<AreaChart
+					data={chartData}
+					x="date"
+					xScale={scaleUtc()}
+					series={[
+						{
+							key: 'response_time',
+							label: 'Response Time',
+							color: 'var(--primary)' // used for tooltip
 						}
-					},
-					yAxis: {
-						format: (v) => `${v}ms`
-					}
-				}}
-			>
-				{#snippet marks({ series, getAreaProps })}
-					<defs>
-						<!-- Response time gradient: fast (low opacity) to slow (high opacity) -->
-						<linearGradient id="strokeGradient-{monitor.id}" x1="0" y1="1" x2="0" y2="0">
-							<stop offset="0%" stop-color="var(--primary)" stop-opacity="0.4" />
-							<stop offset="30%" stop-color="var(--primary)" stop-opacity="0.7" />
-							<stop offset="70%" stop-color="var(--primary)" stop-opacity="0.9" />
-							<stop offset="100%" stop-color="var(--primary)" stop-opacity="1" />
-						</linearGradient>
+					]}
+					padding={{ top: 10, bottom: 0, left: 0, right: 0 }}
+					props={{
+						area: { curve: curveCatmullRom.alpha(0.5) },
+						grid: { x: false, y: false }
+					}}
+				>
+					{#snippet marks({ series, getAreaProps })}
+						<defs>
+							<linearGradient id="fillGradient-{monitor.id}" x1="0" y1="0" x2="0" y2="1">
+								<stop offset="0%" stop-color="var(--primary)" stop-opacity="0.25" />
+								<stop offset="100%" stop-color="var(--primary)" stop-opacity="0" />
+							</linearGradient>
+						</defs>
 
-						<!-- Fill gradient: subtle at bottom, more visible at top -->
-						<linearGradient id="fillGradient-{monitor.id}" x1="0" y1="0" x2="0" y2="1">
-							<stop offset="0%" stop-color="var(--primary)" stop-opacity="0.35" />
-							<stop offset="50%" stop-color="var(--primary)" stop-opacity="0.15" />
-							<stop offset="100%" stop-color="var(--primary)" stop-opacity="0.05" />
-						</linearGradient>
-					</defs>
-					<ChartClipPath
-						initialWidth={0}
-						motion={{
-							width: { type: 'tween', duration: 800, easing: cubicInOut }
-						}}
-					>
-						{#each series as s, i (s.key)}
-							<Area
-								{...getAreaProps(s, i)}
-								fill="url(#fillGradient-{monitor.id})"
-								stroke="url(#strokeGradient-{monitor.id})"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							/>
-						{/each}
-					</ChartClipPath>
-				{/snippet}
+						<ChartClipPath
+							initialWidth={0}
+							motion={{ width: { type: 'tween', duration: 800, easing: cubicInOut } }}
+						>
+							{#each series as s, i (s.key)}
+								<Area
+									{...getAreaProps(s, i)}
+									fill="url(#fillGradient-{monitor.id})"
+									stroke="none"
+								/>
+							{/each}
+						</ChartClipPath>
+					{/snippet}
 
-				{#snippet tooltip()}
-					<Chart.Tooltip
-						labelFormatter={(v: Date) => {
-							return v.toLocaleString('en-US', {
-								month: 'short',
-								day: 'numeric',
-								hour: 'numeric',
-								minute: '2-digit'
-							});
-						}}
-						indicator="dot"
-					/>
-				{/snippet}
-			</AreaChart>
-		</ChartContainer>
+					{#snippet tooltip()}
+						<Chart.Tooltip
+							labelFormatter={(v: Date) => {
+								return v.toLocaleString('en-US', {
+									month: 'short',
+									day: 'numeric',
+									hour: 'numeric',
+									minute: '2-digit'
+								});
+							}}
+							class="border bg-background/95 text-xs shadow-xl backdrop-blur"
+							indicator="dot"
+						/>
+					{/snippet}
+				</AreaChart>
+			</ChartContainer>
+		</div>
 	</Card.Content>
 
-	<Card.Footer class="border-t">
-		<div class="flex w-full flex-col items-center justify-between gap-4 text-xs sm:flex-row">
-			<!-- Percentiles -->
-			<div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-				{#if monitor.percentiles.p50}
-					<Badge variant={monitor.percentiles.p50 >= 500 ? 'destructive' : 'outline'}>
-						P50: {monitor.percentiles.p50}ms
-					</Badge>
-				{/if}
-				{#if monitor.percentiles.p90}
-					<Badge variant={monitor.percentiles.p90 >= 500 ? 'destructive' : 'outline'}>
-						P90: {monitor.percentiles.p90}ms
-					</Badge>
-				{/if}
-				{#if monitor.percentiles.p95}
-					<Badge variant={monitor.percentiles.p95 >= 500 ? 'destructive' : 'outline'}>
-						P95: {monitor.percentiles.p95}ms
-					</Badge>
-				{/if}
-				{#if monitor.percentiles.p99}
-					<Badge variant={monitor.percentiles.p99 >= 500 ? 'destructive' : 'outline'}>
-						P99: {monitor.percentiles.p99}ms
-					</Badge>
-				{/if}
-			</div>
+	<Card.Footer class="grid grid-cols-3 gap-2 border-t px-4 text-xs sm:grid-cols-5">
+		<div class="col-span-1 flex flex-col gap-0.5">
+			<span class="text-muted-foreground">Avg</span>
+			<span class="font-medium {getStatColor(monitor.avg_response_time)}">
+				{monitor.avg_response_time ?? '-'}ms
+			</span>
+		</div>
 
-			<!-- Avg response time -->
-			<div class="flex items-center gap-1.5 text-muted-foreground">
-				<Badge variant="outline">
-					{#if monitor.uptime_pct >= 95}
-						<CircleCheckIcon class="size-3.5 text-green-500" />
-					{:else}
-						<CircleXIcon class="size-3.5 text-destructive" />
-					{/if}
-					<span class="font-medium">
-						Avg: {monitor.avg_response_time ?? 'N/A'}{#if monitor.avg_response_time}ms{/if}
-					</span>
-				</Badge>
-			</div>
+		<div class="col-span-1 flex flex-col gap-0.5 border-l pl-3">
+			<span class="text-muted-foreground">P50</span>
+			<span class="font-medium {getStatColor(monitor.percentiles.p50)}">
+				{monitor.percentiles.p50 ?? '-'}ms
+			</span>
+		</div>
+
+		<div class="col-span-1 flex flex-col gap-0.5 border-l pl-3">
+			<span class="text-muted-foreground">P95</span>
+			<span class="font-medium {getStatColor(monitor.percentiles.p95)}">
+				{monitor.percentiles.p95 ?? '-'}ms
+			</span>
+		</div>
+
+		<div class="col-span-1 hidden flex-col gap-0.5 border-l pl-3 sm:flex">
+			<span class="text-muted-foreground">P99</span>
+			<span class="font-medium {getStatColor(monitor.percentiles.p99)}">
+				{monitor.percentiles.p99 ?? '-'}ms
+			</span>
+		</div>
+
+		<div class="col-span-1 ml-auto hidden items-end justify-end sm:flex">
+			<Badge variant="outline" class="bg-background/50 font-normal text-muted-foreground">
+				<ActivityIcon class="mr-1 size-3 opacity-70" />
+				<span>Live</span>
+			</Badge>
 		</div>
 	</Card.Footer>
 </Card.Root>

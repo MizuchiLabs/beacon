@@ -36,10 +36,8 @@ func New(timeout time.Duration, insecure bool) *Checker {
 				MaxIdleConns:        100,
 				MaxIdleConnsPerHost: 10,
 				IdleConnTimeout:     90 * time.Second,
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: insecure,
-				},
-				DisableCompression: true,
+				TLSClientConfig:     &tls.Config{InsecureSkipVerify: insecure},
+				DisableCompression:  true,
 			},
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				// Allow up to 10 redirects

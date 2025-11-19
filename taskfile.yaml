@@ -22,14 +22,6 @@ tasks:
     cmds:
       - pnpm run dev
     dir: web
-    silent: false
-
-  docs:
-    desc: Run docs
-    cmds:
-      - pnpm run dev
-    dir: web/docs
-    silent: false
 
   # 󰚰 Update deps
   update:
@@ -52,11 +44,11 @@ tasks:
       - go fmt ./...
       - go vet ./...
 
-  build:web:
-    desc: Build frontends
-    dir: web
+  build:
+    desc: Build binary
     cmds:
       - cd web; pnpm install; pnpm build
+      - go build -o beacon cmd/main.go
 
   snapshot:
     desc: Test snapshot

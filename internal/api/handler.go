@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/mizuchilabs/beacon/internal/db"
 )
 
@@ -37,36 +36,6 @@ type DataPoint struct {
 	IsUp         bool      `json:"is_up"`
 }
 
-// handleGetMonitor retrieves a single monitor by ID
-func (s *Server) GetMonitor(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid monitor id")
-		return
-	}
-
-	monitor, err := s.cfg.Conn.Queries.GetMonitor(r.Context(), id)
-	if err != nil {
-		slog.Error("failed to get monitor", "error", err)
-		respondError(w, http.StatusNotFound, "monitor not found")
-		return
-	}
-
-	respondJSON(w, http.StatusOK, monitor)
-}
-
-// handleListMonitors retrieves all active monitors
-func (s *Server) ListMonitors(w http.ResponseWriter, r *http.Request) {
-	monitors, err := s.cfg.Conn.Queries.GetMonitors(r.Context())
-	if err != nil {
-		slog.Error("failed to list monitors", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to retrieve monitors")
-		return
-	}
-
-	respondJSON(w, http.StatusOK, monitors)
-}
-
 func (s *Server) GetMonitorStats(w http.ResponseWriter, r *http.Request) {
 	// Get seconds from query param, default to 24 hours
 	seconds := r.URL.Query().Get("seconds")
@@ -80,20 +49,22 @@ func (s *Server) GetMonitorStats(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, "failed to retrieve monitors")
 		return
 	}
+	checks, err := s.cfg.Conn.Queries.GetChecks(r.Context(), &seconds)
+	if err != nil {
+		slog.Error("failed to get checks", "error", err)
+		respondError(w, http.StatusInternalServerError, "failed to retrieve checks")
+		return
+	}
 
-	// Parse the JSON data_points for each monitor
+	// Group checks by monitor ID
+	checksByMonitor := make(map[int64][]*db.Check)
+	for _, c := range checks {
+		checksByMonitor[c.MonitorID] = append(checksByMonitor[c.MonitorID], c)
+	}
 
 	result := make([]MonitorStats, len(monitors))
 	for i, monitor := range monitors {
-		checks, err := s.cfg.Conn.Queries.GetChecks(r.Context(), &db.GetChecksParams{
-			MonitorID: monitor.ID,
-			Seconds:   &seconds,
-		})
-		if err != nil {
-			slog.Error("failed to get checks", "error", err)
-			continue
-		}
-
+		checks := checksByMonitor[monitor.ID]
 		upChecks := 0
 		uptimePct := 100.00
 

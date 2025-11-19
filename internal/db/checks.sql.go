@@ -68,19 +68,13 @@ SELECT
 FROM
   checks
 WHERE
-  monitor_id = ?
-  AND checked_at >= datetime ('now', '-' || ?2 || ' seconds')
+  checked_at >= datetime ('now', '-' || ?1 || ' seconds')
 ORDER BY
   checked_at DESC
 `
 
-type GetChecksParams struct {
-	MonitorID int64   `json:"monitorId"`
-	Seconds   *string `json:"seconds"`
-}
-
-func (q *Queries) GetChecks(ctx context.Context, arg *GetChecksParams) ([]*Check, error) {
-	rows, err := q.query(ctx, q.getChecksStmt, getChecks, arg.MonitorID, arg.Seconds)
+func (q *Queries) GetChecks(ctx context.Context, seconds *string) ([]*Check, error) {
+	rows, err := q.query(ctx, q.getChecksStmt, getChecks, seconds)
 	if err != nil {
 		return nil, err
 	}

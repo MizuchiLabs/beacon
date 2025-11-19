@@ -4,37 +4,41 @@
 	import { mode, toggleMode } from 'mode-watcher';
 </script>
 
-<footer class="fixed right-0 bottom-0 left-0 z-50 flex justify-center">
+<footer class="fixed right-0 bottom-0 left-0 z-50 flex justify-center px-2 sm:px-4">
 	<div
-		class="flex min-h-12 w-full items-center justify-between rounded-t-xl border-x border-t px-4 py-1 text-sm backdrop-blur-md sm:max-w-3xl"
+		class="flex min-h-12 w-full max-w-3xl items-center justify-between gap-2 rounded-t-xl border-x border-t px-3 py-2 text-sm backdrop-blur-md sm:px-4"
 	>
-		<p class="flex items-center text-muted-foreground">
-			&copy; {new Date().getFullYear()} MizuchiLabs
-		</p>
+		<div class="flex items-center gap-1.5 text-muted-foreground">
+			<p class="text-xs sm:text-sm">
+				<span class="hidden sm:inline">&copy; {new Date().getFullYear()}</span>
+				<span class="font-medium">Mizuchi Labs</span>
+			</p>
+		</div>
 
-		<div class="flex items-center pl-12">
+		<div class="flex items-center gap-1">
 			<Button
 				variant="ghost"
 				size="icon"
 				href="https://github.com/mizuchilabs/beacon"
 				rel="noopener noreferrer"
 				target="_blank"
-				class="rounded-full hover:text-primary/80"
-				aria-label="GitHub"
+				class="h-9 w-9 rounded-full hover:text-primary"
+				aria-label="View Beacon on GitHub"
 			>
-				<Github size={20} />
+				<Github size={18} />
 			</Button>
 
 			<Button
 				variant="ghost"
 				size="icon"
 				onclick={toggleMode}
-				class="rounded-full hover:text-primary/80"
+				class="h-9 w-9 rounded-full hover:text-primary"
+				aria-label="Toggle theme"
 			>
 				{#if mode.current === 'light'}
-					<Moon size={20} />
+					<Moon size={18} />
 				{:else}
-					<Sun size={20} />
+					<Sun size={18} />
 				{/if}
 			</Button>
 		</div>

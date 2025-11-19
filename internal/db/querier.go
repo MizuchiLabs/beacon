@@ -15,7 +15,7 @@ type Querier interface {
 	CreateMonitor(ctx context.Context, arg *CreateMonitorParams) (*Monitor, error)
 	DeleteIncident(ctx context.Context, id int64) error
 	DeleteMonitor(ctx context.Context, id int64) error
-	GetChecks(ctx context.Context, arg *GetChecksParams) ([]*Check, error)
+	GetChecks(ctx context.Context, seconds *string) ([]*Check, error)
 	GetIncident(ctx context.Context, id int64) (*Incident, error)
 	GetIncidents(ctx context.Context, monitorID int64) ([]*Incident, error)
 	GetMonitor(ctx context.Context, id int64) (*Monitor, error)

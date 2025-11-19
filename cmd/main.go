@@ -63,14 +63,14 @@ func main() {
 			&cli.DurationFlag{
 				Name:    "timeout",
 				Aliases: []string{"t"},
-				Usage:   "Checker timeout",
+				Usage:   "Beacon timeout",
 				Value:   30 * time.Second,
 				Sources: cli.EnvVars("BEACON_TIMEOUT"),
 			},
 			&cli.IntFlag{
 				Name:    "retention-days",
 				Aliases: []string{"r"},
-				Usage:   "Checker retention days",
+				Usage:   "Beacon retention days",
 				Value:   30,
 				Sources: cli.EnvVars("BEACON_RETENTION_DAYS"),
 			},
