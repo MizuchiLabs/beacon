@@ -18,6 +18,16 @@ type Check struct {
 	CheckedAt    time.Time `json:"checkedAt"`
 }
 
+type CheckStat struct {
+	ID               int64     `json:"id"`
+	MonitorID        int64     `json:"monitorId"`
+	HourTimestamp    time.Time `json:"hourTimestamp"`
+	TotalChecks      int64     `json:"totalChecks"`
+	SuccessfulChecks int64     `json:"successfulChecks"`
+	AvgResponseTime  *int64    `json:"avgResponseTime"`
+	CreatedAt        time.Time `json:"createdAt"`
+}
+
 type Incident struct {
 	ID         int64      `json:"id"`
 	MonitorID  int64      `json:"monitorId"`

@@ -39,16 +39,12 @@ export interface Check {
 	checked_at: string;
 }
 
-export interface CreateMonitorRequest {
-	name: string;
-	url: string;
-	check_interval?: number;
-}
-
-export interface UpdateMonitorRequest {
-	name?: string;
-	url?: string;
-	check_interval?: number;
+export interface ChartDataPoint {
+	timestamp: string;
+	uptime_percent: number;
+	response_time: number | null;
+	total_checks: number;
+	successful_checks: number;
 }
 
 export const BackendURL = env.PUBLIC_BACKEND_URL || 'http://localhost:3000' + '/api';
@@ -82,7 +78,9 @@ export const api = {
 		getStatus: (id: number) => fetchAPI<MonitorStatus>(`/monitors/${id}/status`),
 		getUptimeStats: (id: number) => fetchAPI<UptimeStats>(`/monitors/${id}/uptime`),
 		getCheckHistory: (id: number, limit?: number) =>
-			fetchAPI<Check[]>(`/monitors/${id}/checks${limit ? `?limit=${limit}` : ''}`)
+			fetchAPI<Check[]>(`/monitors/${id}/checks${limit ? `?limit=${limit}` : ''}`),
+		getStats: (id: number, range: '7' | '14' | '30' = '7') =>
+			fetchAPI<ChartDataPoint[]>(`/monitors/${id}/stats?range=-${range} days`)
 	}
 };
 
@@ -123,5 +121,14 @@ export function useCheckHistory(id: number, limit?: number) {
 		queryKey: ['monitors', id, 'checks', limit],
 		queryFn: () => api.monitors.getCheckHistory(id, limit),
 		enabled: id > 0
+	}));
+}
+
+export function useMonitorStats(id: number, range: '7' | '14' | '30' = '7') {
+	return createQuery(() => ({
+		queryKey: ['monitors', id, 'stats', range],
+		queryFn: () => api.monitors.getStats(id, range),
+		enabled: id > 0,
+		refetchInterval: 60000 // Refresh every minute
 	}));
 }

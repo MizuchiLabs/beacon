@@ -45,6 +45,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getCheckStmt, err = db.PrepareContext(ctx, getCheck); err != nil {
 		return nil, fmt.Errorf("error preparing query GetCheck: %w", err)
 	}
+	if q.getCheckStatsStmt, err = db.PrepareContext(ctx, getCheckStats); err != nil {
+		return nil, fmt.Errorf("error preparing query GetCheckStats: %w", err)
+	}
 	if q.getChecksStmt, err = db.PrepareContext(ctx, getChecks); err != nil {
 		return nil, fmt.Errorf("error preparing query GetChecks: %w", err)
 	}
@@ -77,6 +80,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.updateMonitorStmt, err = db.PrepareContext(ctx, updateMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateMonitor: %w", err)
+	}
+	if q.upsertCheckStatsStmt, err = db.PrepareContext(ctx, upsertCheckStats); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertCheckStats: %w", err)
 	}
 	return &q, nil
 }
@@ -116,6 +122,11 @@ func (q *Queries) Close() error {
 	if q.getCheckStmt != nil {
 		if cerr := q.getCheckStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getCheckStmt: %w", cerr)
+		}
+	}
+	if q.getCheckStatsStmt != nil {
+		if cerr := q.getCheckStatsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getCheckStatsStmt: %w", cerr)
 		}
 	}
 	if q.getChecksStmt != nil {
@@ -173,6 +184,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing updateMonitorStmt: %w", cerr)
 		}
 	}
+	if q.upsertCheckStatsStmt != nil {
+		if cerr := q.upsertCheckStatsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertCheckStatsStmt: %w", cerr)
+		}
+	}
 	return err
 }
 
@@ -219,6 +235,7 @@ type Queries struct {
 	deleteIncidentStmt      *sql.Stmt
 	deleteMonitorStmt       *sql.Stmt
 	getCheckStmt            *sql.Stmt
+	getCheckStatsStmt       *sql.Stmt
 	getChecksStmt           *sql.Stmt
 	getIncidentStmt         *sql.Stmt
 	getIncidentsStmt        *sql.Stmt
@@ -230,6 +247,7 @@ type Queries struct {
 	resolveIncidentStmt     *sql.Stmt
 	updateIncidentStmt      *sql.Stmt
 	updateMonitorStmt       *sql.Stmt
+	upsertCheckStatsStmt    *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -243,6 +261,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteIncidentStmt:      q.deleteIncidentStmt,
 		deleteMonitorStmt:       q.deleteMonitorStmt,
 		getCheckStmt:            q.getCheckStmt,
+		getCheckStatsStmt:       q.getCheckStatsStmt,
 		getChecksStmt:           q.getChecksStmt,
 		getIncidentStmt:         q.getIncidentStmt,
 		getIncidentsStmt:        q.getIncidentsStmt,
@@ -254,5 +273,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		resolveIncidentStmt:     q.resolveIncidentStmt,
 		updateIncidentStmt:      q.updateIncidentStmt,
 		updateMonitorStmt:       q.updateMonitorStmt,
+		upsertCheckStatsStmt:    q.upsertCheckStatsStmt,
 	}
 }

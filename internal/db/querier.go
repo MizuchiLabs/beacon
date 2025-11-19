@@ -17,6 +17,7 @@ type Querier interface {
 	DeleteIncident(ctx context.Context, id int64) error
 	DeleteMonitor(ctx context.Context, id int64) error
 	GetCheck(ctx context.Context, id int64) (*Check, error)
+	GetCheckStats(ctx context.Context, arg *GetCheckStatsParams) ([]*GetCheckStatsRow, error)
 	GetChecks(ctx context.Context, arg *GetChecksParams) ([]*Check, error)
 	GetIncident(ctx context.Context, id int64) (*Incident, error)
 	GetIncidents(ctx context.Context, monitorID int64) ([]*Incident, error)
@@ -28,6 +29,7 @@ type Querier interface {
 	ResolveIncident(ctx context.Context, id int64) (*Incident, error)
 	UpdateIncident(ctx context.Context, arg *UpdateIncidentParams) (*Incident, error)
 	UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (*Monitor, error)
+	UpsertCheckStats(ctx context.Context, arg *UpsertCheckStatsParams) error
 }
 
 var _ Querier = (*Queries)(nil)

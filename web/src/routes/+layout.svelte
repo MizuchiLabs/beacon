@@ -6,8 +6,18 @@
 	import { queryClient } from '$lib/api/client';
 	import AppHeader from '$lib/components/nav/AppHeader.svelte';
 	import AppFooter from '$lib/components/nav/AppFooter.svelte';
+	import { theme } from '$lib/stores/theme';
+	import { onMount } from 'svelte';
 
 	let { children } = $props();
+
+	onMount(() => {
+		// Apply initial theme
+		const unsubscribe = theme.subscribe((currentTheme) => {
+			document.documentElement.classList.toggle('dark', currentTheme === 'dark');
+		});
+		return unsubscribe;
+	});
 </script>
 
 <svelte:head>
@@ -17,7 +27,7 @@
 <div class="flex min-h-screen flex-col">
 	<AppHeader />
 
-	<main class="flex-1">
+	<main class="my-12 flex-1">
 		<Toaster />
 
 		<QueryClientProvider client={queryClient}>

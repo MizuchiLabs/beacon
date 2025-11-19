@@ -100,8 +100,9 @@ func (s *Server) setupRoutes() {
 
 		// Status and stats endpoints
 		r.Get("/monitors/{id}/status", s.handleGetMonitorStatus)
-		r.Get("/monitors/{id}/stats", s.handleGetUptimeStats)
+		r.Get("/monitors/{id}/uptime", s.handleGetUptimeStats)
 		r.Get("/monitors/{id}/checks", s.handleGetCheckHistory)
+		r.Get("/monitors/{id}/stats", s.handleGetMonitorStats)
 
 		// Health check endpoint
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
