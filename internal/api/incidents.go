@@ -23,7 +23,6 @@ func (s *Server) GetIncident(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := chi.URLParam(r, "id")
-
 	incident, found := s.cfg.Incidents.GetIncidentByID(id)
 	if !found {
 		http.Error(w, "Incident not found", http.StatusNotFound)

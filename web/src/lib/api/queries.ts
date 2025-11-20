@@ -1,6 +1,13 @@
 import { createQuery } from '@tanstack/svelte-query';
 
 // Types
+export interface Config {
+	title: string;
+	description: string;
+	timezone: string;
+	incidents_enabled: boolean;
+}
+
 export interface MonitorStats {
 	id: number;
 	name: string;
@@ -24,11 +31,22 @@ export interface ChartDataPoint {
 	is_up: boolean;
 }
 
-export interface Config {
+export interface Incident {
+	id: string;
 	title: string;
 	description: string;
-	timezone: string;
-	incidents_enabled: boolean;
+	severity: string;
+	status: string;
+	affected_monitors: string[];
+	started_at: string;
+	resolved_at: string | null;
+	updates: IncidentUpdate[];
+}
+
+export interface IncidentUpdate {
+	message: string;
+	status: string;
+	created_at: string;
 }
 
 export const BackendURL = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
@@ -58,8 +76,8 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
 export const api = {
 	monitors: {
 		get: (seconds = '86400') => fetchAPI<MonitorStats[]>(`/monitors?seconds=${seconds}`),
-		getIncidents: () => fetchAPI<any>('/incidents'),
-		getIncident: (id: string) => fetchAPI<any>(`/incidents/${id}`),
+		getIncidents: () => fetchAPI<Incident[]>('/incidents'),
+		getIncident: (id: string) => fetchAPI<Incident>(`/incidents/${id}`),
 		config: () => fetchAPI<Config>('/config')
 	}
 };
@@ -78,7 +96,7 @@ export function useIncidents() {
 	return createQuery(() => ({
 		queryKey: ['incidents'],
 		queryFn: () => api.monitors.getIncidents(),
-		enabled: true
+		refetchInterval: 300000 // Refresh every 5 minutes
 	}));
 }
 
@@ -93,7 +111,6 @@ export function useIncident(id: string) {
 export function useConfig() {
 	return createQuery(() => ({
 		queryKey: ['config'],
-		queryFn: () => api.monitors.config(),
-		enabled: true
+		queryFn: () => api.monitors.config()
 	}));
 }

@@ -4,8 +4,7 @@ description: Users experiencing intermittent connection errors
 severity: major
 status: resolved
 affected_monitors:
-  - api-server
-  - database
+  - Github
 started_at: 2025-01-15T14:30:00Z
 resolved_at: 2025-01-15T16:45:00Z
 updates:
@@ -21,4 +20,3 @@ updates:
   - message: All systems operational
     status: resolved
     created_at: 2025-01-15T16:45:00Z
-

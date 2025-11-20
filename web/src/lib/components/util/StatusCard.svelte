@@ -134,7 +134,7 @@
 					{#snippet tooltip()}
 						<Chart.Tooltip
 							labelFormatter={(v: Date) => {
-								return v.toLocaleString('en-US', {
+								return v.toLocaleString(undefined, {
 									month: 'short',
 									day: 'numeric',
 									hour: 'numeric',

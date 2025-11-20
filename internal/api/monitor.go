@@ -94,11 +94,11 @@ func (s *Server) GetMonitorStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) GetConfig(w http.ResponseWriter, r *http.Request) {
-	respondJSON(w, http.StatusOK, map[string]string{
+	respondJSON(w, http.StatusOK, map[string]any{
 		"title":             s.cfg.Title,
 		"description":       s.cfg.Description,
 		"timezone":          s.cfg.Timezone,
-		"incidents_enabled": strconv.FormatBool(s.cfg.Incidents != nil),
+		"incidents_enabled": s.cfg.Incidents != nil,
 	})
 }
 
