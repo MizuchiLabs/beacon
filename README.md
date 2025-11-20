@@ -186,8 +186,3 @@ Apache License 2.0 - See [LICENSE](LICENSE)
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Support
-
-- 🐛 [Report Issues](https://github.com/mizuchilabs/beacon/issues)
-- 💬 [Discussions](https://github.com/mizuchilabs/beacon/discussions)
