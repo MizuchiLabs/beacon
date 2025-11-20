@@ -1,4 +1,12 @@
-# 🚨 Beacon
+<p align="center">
+<img src="./web/static/logo.svg" width="80">
+<br><br>
+<img alt="GitHub Tag" src="https://img.shields.io/github/v/tag/mizuchilabs/beacon?label=Version">
+<img alt="GitHub License" src="https://img.shields.io/github/license/mizuchilabs/beacon">
+<img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues/mizuchilabs/beacon">
+</p>
+
+# Beacon
 
 A lightweight, self-hosted uptime monitoring solution that keeps track of your websites and services.
 
@@ -11,7 +19,7 @@ A lightweight, self-hosted uptime monitoring solution that keeps track of your w
 - 🎨 Clean dashboard interface
 - 🐳 Docker-ready
 - 💾 SQLite database for easy deployment
-- 🔄 Automatic cleanup of old check data
+- 🔄 Automatic cleanup of old data
 
 ## Quick Start
 
@@ -178,4 +186,3 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 - 🐛 [Report Issues](https://github.com/mizuchilabs/beacon/issues)
 - 💬 [Discussions](https://github.com/mizuchilabs/beacon/discussions)
-- 📖 [Documentation](https://github.com/mizuchilabs/beacon/wiki)
