@@ -1,9 +1,9 @@
 <p align="center">
 <img src="./web/static/logo.svg" width="80">
 <br><br>
-<img alt="GitHub Tag" src="https://img.shields.io/github/v/tag/mizuchilabs/beacon?label=Version">
-<img alt="GitHub License" src="https://img.shields.io/github/license/mizuchilabs/beacon">
-<img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues/mizuchilabs/beacon">
+<img alt="GitHub Tag" src="https://img.shields.io/github/v/tag/MizuchiLabs/beacon?label=Version">
+<img alt="GitHub License" src="https://img.shields.io/github/license/MizuchiLabs/beacon">
+<img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues/MizuchiLabs/beacon">
 </p>
 
 # Beacon
