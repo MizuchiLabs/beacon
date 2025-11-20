@@ -3,6 +3,7 @@ version: "3"
 output: prefixed
 
 env:
+  CGO_ENABLED: 0
   IMAGE_DEV: ko.local/beacon
   IMAGE_PROD: ghcr.io/mizuchilabs/beacon
 
