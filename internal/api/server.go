@@ -38,6 +38,11 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to start scheduler: %w", err)
 	}
 
+	// Start incident syncer if enabled
+	if err := s.cfg.Incidents.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start incident syncer: %w", err)
+	}
+
 	logOpts := &httplog.Options{
 		Level:           slog.LevelError,
 		Schema:          httplog.SchemaOTEL,
@@ -97,9 +102,11 @@ func (s *Server) Start(ctx context.Context) error {
 
 func (s *Server) setupRoutes() {
 	s.mux.Route("/api", func(r chi.Router) {
-		// Monitor endpoints (read-only)
+		// read-only endpoints
 		r.Get("/monitors", s.GetMonitorStats)
 		r.Get("/config", s.GetConfig)
+		r.Get("/incidents", s.GetIncidents)
+		r.Get("/incidents/{id}", s.GetIncident)
 
 		// Push notification endpoints
 		r.Post("/monitor/{id}/subscribe", s.SubscribeToPushNotifications)

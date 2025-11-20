@@ -28,6 +28,7 @@ export interface Config {
 	title: string;
 	description: string;
 	timezone: string;
+	incidents_enabled: boolean;
 }
 
 export const BackendURL = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
@@ -57,6 +58,8 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
 export const api = {
 	monitors: {
 		get: (seconds = '86400') => fetchAPI<MonitorStats[]>(`/monitors?seconds=${seconds}`),
+		getIncidents: () => fetchAPI<any>('/incidents'),
+		getIncident: (id: string) => fetchAPI<any>(`/incidents/${id}`),
 		config: () => fetchAPI<Config>('/config')
 	}
 };
@@ -68,6 +71,22 @@ export function useMonitorStats(seconds = '86400') {
 		queryFn: () => api.monitors.get(seconds),
 		enabled: seconds !== '',
 		refetchInterval: 60000 // Refresh every minute
+	}));
+}
+
+export function useIncidents() {
+	return createQuery(() => ({
+		queryKey: ['incidents'],
+		queryFn: () => api.monitors.getIncidents(),
+		enabled: true
+	}));
+}
+
+export function useIncident(id: string) {
+	return createQuery(() => ({
+		queryKey: ['incident', id],
+		queryFn: () => api.monitors.getIncident(id),
+		enabled: id !== ''
 	}));
 }
 

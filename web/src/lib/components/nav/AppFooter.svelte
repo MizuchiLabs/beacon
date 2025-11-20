@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { DotIcon, Github, Moon, Sun } from '@lucide/svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { mode, toggleMode } from 'mode-watcher';
 	import { useConfig } from '$lib/api/queries';
+	import Button from '$lib/components/ui/button/button.svelte';
+	import { DotIcon, Github, Moon, Sun } from '@lucide/svelte';
+	import { mode, toggleMode } from 'mode-watcher';
+
 	let configQuery = $derived(useConfig());
 </script>
 

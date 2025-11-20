@@ -1,0 +1,24 @@
+id: 2025-01-15-database-outage
+title: Database Connection Issues
+description: Users experiencing intermittent connection errors
+severity: major
+status: resolved
+affected_monitors:
+  - api-server
+  - database
+started_at: 2025-01-15T14:30:00Z
+resolved_at: 2025-01-15T16:45:00Z
+updates:
+  - message: We are investigating reports of connection timeouts
+    status: investigating
+    created_at: 2025-01-15T14:30:00Z
+  - message: Issue identified in connection pool configuration
+    status: identified
+    created_at: 2025-01-15T15:00:00Z
+  - message: Fix deployed, monitoring recovery
+    status: monitoring
+    created_at: 2025-01-15T16:00:00Z
+  - message: All systems operational
+    status: resolved
+    created_at: 2025-01-15T16:45:00Z
+

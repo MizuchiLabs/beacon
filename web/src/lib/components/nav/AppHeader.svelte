@@ -1,10 +1,13 @@
 <script lang="ts">
-	import { Bell, Orbit } from '@lucide/svelte';
-	import Button from '../ui/button/button.svelte';
+	import { useConfig } from '$lib/api/queries';
 	import { pushNotifications } from '$lib/stores/push.svelte';
+	import { Bell, Orbit } from '@lucide/svelte';
 	import { onMount } from 'svelte';
+	import Button from '../ui/button/button.svelte';
 	import SubscribeModal from './SubscribeModal.svelte';
 
+	let configQuery = $derived(useConfig());
+	let incidentsEnabled = $derived(configQuery.data?.incidents_enabled === true);
 	let showSubscriptionDialog = $state(false);
 
 	onMount(() => {
@@ -26,10 +29,14 @@
 			<!-- <Logo class="size-6" /> -->
 		</a>
 
-		<nav class="ml-8 flex items-center font-mono">
-			<Button variant="ghost" href="/" class="rounded-full" size="sm">Status</Button>
-			<Button variant="ghost" href="/events" class="rounded-full" size="sm">Events</Button>
-		</nav>
+		{#if incidentsEnabled}
+			<nav class="ml-8 flex items-center font-mono">
+				<Button variant="ghost" href="/" class="rounded-full" size="sm">Status</Button>
+				<Button variant="ghost" href="/events" class="rounded-full" size="sm">Events</Button>
+			</nav>
+		{:else}
+			<span class="gradient-bar mx-12 w-full rounded-full"></span>
+		{/if}
 
 		<div class="flex items-center gap-2">
 			<Button
@@ -47,3 +54,33 @@
 		</div>
 	</div>
 </header>
+
+<style>
+	.gradient-bar {
+		display: block;
+		height: 8px;
+		background: linear-gradient(
+			90deg,
+			var(--primary),
+			var(--secondary),
+			var(--accent),
+			var(--primary)
+		);
+		background-size: 300% 100%;
+		animation: slide-gradient 8s ease-in-out infinite;
+		opacity: 0.4;
+		border-radius: 9999px;
+	}
+
+	@keyframes slide-gradient {
+		0% {
+			background-position: 0% 50%;
+		}
+		50% {
+			background-position: 100% 50%;
+		}
+		100% {
+			background-position: 0% 50%;
+		}
+	}
+</style>

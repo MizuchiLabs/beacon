@@ -14,6 +14,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/mizuchilabs/beacon/internal/checker"
 	"github.com/mizuchilabs/beacon/internal/db"
+	"github.com/mizuchilabs/beacon/internal/incidents"
 	"github.com/mizuchilabs/beacon/internal/notify"
 	"github.com/mizuchilabs/beacon/internal/scheduler"
 	"github.com/urfave/cli/v3"
@@ -46,6 +47,7 @@ type Config struct {
 	Checker   *checker.Checker
 	Scheduler *scheduler.Scheduler
 	Notifier  *notify.Notifier
+	Incidents *incidents.IncidentManager
 }
 
 // New loads configuration from environment variables
@@ -60,6 +62,7 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 	cfg.Checker = checker.New(cfg.Timeout, cfg.Insecure)
 	cfg.Notifier = notify.New(ctx, cfg.Conn)
 	cfg.Scheduler = scheduler.New(cfg.Conn, cfg.Checker, cfg.Notifier, cfg.RetentionDays)
+	cfg.Incidents = incidents.New()
 
 	// Sync monitors to DB
 	if err := cfg.syncMonitors(ctx); err != nil {
