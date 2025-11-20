@@ -174,6 +174,11 @@ go build -o beacon ./cmd
 ./beacon --config config.yaml
 ```
 
+## Screenshots
+
+![Dashboard](./.github/screenshots/dashboard.png)
+![Events](./.github/screenshots/incidents.png)
+
 ## License
 
 Apache License 2.0 - See [LICENSE](LICENSE)
