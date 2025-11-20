@@ -97,6 +97,7 @@ func (s *Server) GetConfig(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{
 		"title":       s.cfg.Title,
 		"description": s.cfg.Description,
+		"timezone":    s.cfg.Timezone,
 	})
 }
 

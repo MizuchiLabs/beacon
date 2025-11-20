@@ -1,7 +1,9 @@
 <script lang="ts">
-	import { Github, Moon, Sun } from '@lucide/svelte';
+	import { DotIcon, Github, Moon, Sun } from '@lucide/svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { mode, toggleMode } from 'mode-watcher';
+	import { useConfig } from '$lib/api/queries';
+	let configQuery = $derived(useConfig());
 </script>
 
 <footer class="fixed right-0 bottom-0 left-0 z-50 flex justify-center px-2 sm:px-4">
@@ -13,6 +15,15 @@
 				<span class="hidden sm:inline">&copy; {new Date().getFullYear()}</span>
 				<span class="font-medium">Mizuchi Labs</span>
 			</p>
+
+			{#if configQuery.isSuccess}
+				<div class="hidden items-center gap-1.5 text-xs md:flex">
+					<DotIcon />
+					<span class="flex items-center gap-1.5">
+						{configQuery.data?.timezone}
+					</span>
+				</div>
+			{/if}
 		</div>
 
 		<div class="flex items-center gap-1">

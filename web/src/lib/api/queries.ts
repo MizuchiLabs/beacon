@@ -27,6 +27,7 @@ export interface ChartDataPoint {
 export interface Config {
 	title: string;
 	description: string;
+	timezone: string;
 }
 
 export const BackendURL = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';

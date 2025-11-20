@@ -32,6 +32,7 @@ type EnvConfig struct {
 	// Frontend settings
 	Title       string `env:"BEACON_TITLE"       envDefault:"Monitor Dashboard"`
 	Description string `env:"BEACON_DESCRIPTION" envDefault:"Track uptime and response times across all monitors"`
+	Timezone    string `env:"BEACON_TIMEZONE"    envDefault:"Europe/Vienna"`
 
 	Debug bool `env:"DEBUG" envDefault:"false"`
 }
