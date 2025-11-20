@@ -17,9 +17,9 @@ builds:
     env: [CGO_ENABLED=0]
     ldflags:
       - -s -w
-      - -X github.com/mizuchilabs/beacon/cmd/main.Version={{.Tag}}
-      - -X github.com/mizuchilabs/beacon/cmd/main.Commit={{.Commit}}
-      - -X github.com/mizuchilabs/beacon/cmd/main.Date={{.Date}}
+      - -X main.Version={{.Version}}
+      - -X main.Commit={{.Commit}}
+      - -X main.Date={{.Date}}
     goos:
       - linux
     goarch:
@@ -28,7 +28,6 @@ builds:
 
 kos:
   - build: beacon
-    main: ./cmd
     repositories: [ghcr.io/mizuchilabs/beacon]
     base_image: alpine
     bare: true
@@ -45,25 +44,25 @@ upx:
     lzma: true
     compress: best
 
-docker_signs:
-  - cmd: cosign
-    artifacts: binary
-    signature: "${artifact}.sigstore.json"
-    args:
-      - "sign-blob"
-      - "--yes"
-      - "${artifact}"
-      - "--bundle=${signature}"
+# docker_signs:
+#   - cmd: cosign
+#     artifacts: binary
+#     signature: "${artifact}.sigstore.json"
+#     args:
+#       - "sign-blob"
+#       - "--yes"
+#       - "${artifact}"
+#       - "--bundle=${signature}"
 
-binary_signs:
-  - cmd: cosign
-    artifacts: binary
-    signature: "${artifact}.sigstore.json"
-    args:
-      - "sign-blob"
-      - "--yes"
-      - "${artifact}"
-      - "--bundle=${signature}"
+# binary_signs:
+#   - cmd: cosign
+#     artifacts: binary
+#     signature: "${artifact}.sigstore.json"
+#     args:
+#       - "sign-blob"
+#       - "--yes"
+#       - "${artifact}"
+#       - "--bundle=${signature}"
 
 sboms:
   - cmd: syft

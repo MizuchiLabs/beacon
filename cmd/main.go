@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -25,7 +24,7 @@ func main() {
 		EnableShellCompletion: true,
 		Suggest:               true,
 		Name:                  "beacon",
-		Version:               fmt.Sprintf("%s (%s)", Version, Commit),
+		Version:               Version,
 		Usage:                 "beacon [command]",
 		Description:           `Beacon is a simple uptime monitoring tool for websites.`,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
