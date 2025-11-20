@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/mizuchilabs/beacon/internal/api"
 	"github.com/mizuchilabs/beacon/internal/config"
@@ -40,52 +39,16 @@ func main() {
 				Aliases: []string{"v"},
 				Usage:   "Print version information",
 			},
-			&cli.BoolFlag{
-				Name:    "debug",
-				Aliases: []string{"d"},
-				Usage:   "Enable debug logging",
-				Sources: cli.EnvVars("DEBUG"),
-			},
 			&cli.StringFlag{
-				Name:    "host",
-				Aliases: []string{"h"},
-				Usage:   "Server host",
-				Value:   "0.0.0.0",
-				Sources: cli.EnvVars("BEACON_HOST"),
-			},
-			&cli.IntFlag{
 				Name:    "port",
 				Aliases: []string{"p"},
 				Usage:   "Server port",
-				Value:   3000,
 				Sources: cli.EnvVars("BEACON_PORT"),
-			},
-			&cli.DurationFlag{
-				Name:    "timeout",
-				Aliases: []string{"t"},
-				Usage:   "Beacon timeout",
-				Value:   30 * time.Second,
-				Sources: cli.EnvVars("BEACON_TIMEOUT"),
-			},
-			&cli.IntFlag{
-				Name:    "retention-days",
-				Aliases: []string{"r"},
-				Usage:   "Beacon retention days",
-				Value:   30,
-				Sources: cli.EnvVars("BEACON_RETENTION_DAYS"),
-			},
-			&cli.BoolFlag{
-				Name:    "insecure",
-				Aliases: []string{"i"},
-				Usage:   "Disable TLS certificate verification",
-				Value:   false,
-				Sources: cli.EnvVars("BEACON_INSECURE"),
 			},
 			&cli.StringFlag{
 				Name:    "config",
 				Aliases: []string{"c"},
 				Usage:   "Path to monitors config file",
-				Value:   "config.yaml",
 				Sources: cli.EnvVars("BEACON_CONFIG"),
 			},
 		},

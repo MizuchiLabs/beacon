@@ -21,7 +21,6 @@ import (
 )
 
 type EnvConfig struct {
-	ServerHost   string `env:"BEACON_HOST"     envDefault:"0.0.0.0"`
 	ServerPort   string `env:"BEACON_PORT"     envDefault:"3000"`
 	DBPath       string `env:"BEACON_DB_PATH"  envDefault:"data/beacon.db"`
 	Insecure     bool   `env:"BEACON_INSECURE" envDefault:"false"`
@@ -53,6 +52,13 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 	cfg, err := env.ParseAs[Config]()
 	if err != nil {
 		log.Fatalf("Failed to parse environment variables: %v", err)
+	}
+
+	if cmd.String("port") != "" {
+		cfg.ServerPort = cmd.String("port")
+	}
+	if cmd.String("config") != "" {
+		cfg.ConfigPath = cmd.String("config")
 	}
 
 	Logger(&cfg)
