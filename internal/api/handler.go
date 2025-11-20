@@ -93,6 +93,13 @@ func (s *Server) GetMonitorStats(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, result)
 }
 
+func (s *Server) GetConfig(w http.ResponseWriter, r *http.Request) {
+	respondJSON(w, http.StatusOK, map[string]string{
+		"title":       s.cfg.Title,
+		"description": s.cfg.Description,
+	})
+}
+
 func aggregateDataPoints(checks []*db.Check, secondsStr string) []DataPoint {
 	if len(checks) == 0 {
 		return []DataPoint{}

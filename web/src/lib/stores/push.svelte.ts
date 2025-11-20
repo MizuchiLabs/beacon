@@ -1,9 +1,10 @@
 import { BackendURL } from '$lib/api/queries';
+import { SvelteMap } from 'svelte/reactivity';
 
 interface PushSubscriptionState {
 	supported: boolean;
 	permission: NotificationPermission;
-	subscriptions: Map<number, PushSubscription>;
+	subscriptions: SvelteMap<number, PushSubscription>;
 	loading: boolean;
 	error: string | null;
 }
@@ -12,7 +13,7 @@ class PushNotificationStore {
 	private state = $state<PushSubscriptionState>({
 		supported: false,
 		permission: 'default',
-		subscriptions: new Map(),
+		subscriptions: new SvelteMap(),
 		loading: false,
 		error: null
 	});
@@ -82,26 +83,25 @@ class PushNotificationStore {
 				throw new Error('Service worker not ready');
 			}
 
-			// Check for existing subscription and unsubscribe if present
-			const existingSubscription = await registration.pushManager.getSubscription();
-			if (existingSubscription) {
-				await existingSubscription.unsubscribe();
-			}
-
 			// Request permission if not granted
 			const permission = await this.requestPermission();
 			if (permission !== 'granted') {
 				throw new Error('Notification permission denied');
 			}
 
-			// Get VAPID public key
-			const vapidPublicKey = await this.getVAPIDPublicKey();
+			// Check for existing subscription
+			let subscription = await registration.pushManager.getSubscription();
 
-			// Subscribe to push notifications
-			const subscription = await registration.pushManager.subscribe({
-				userVisibleOnly: true,
-				applicationServerKey: this.urlBase64ToUint8Array(vapidPublicKey)
-			});
+			if (!subscription) {
+				// Get VAPID public key
+				const vapidPublicKey = await this.getVAPIDPublicKey();
+
+				// Subscribe to push notifications
+				subscription = await registration.pushManager.subscribe({
+					userVisibleOnly: true,
+					applicationServerKey: this.urlBase64ToUint8Array(vapidPublicKey)
+				});
+			}
 
 			// Send subscription to backend
 			const response = await fetch(`${BackendURL}/monitor/${monitorID}/subscribe`, {
@@ -127,7 +127,10 @@ class PushNotificationStore {
 			return true;
 		} catch (error) {
 			this.state.loading = false;
-			this.state.error = error instanceof Error ? error.message : 'Failed to subscribe';
+			this.state.error =
+				error instanceof Error
+					? `Registration failed: ${error.message}`
+					: 'Registration failed - push service error';
 			return false;
 		}
 	}
@@ -140,10 +143,7 @@ class PushNotificationStore {
 			const subscription = this.state.subscriptions.get(monitorID);
 
 			if (subscription) {
-				// Unsubscribe from push manager
-				await subscription.unsubscribe();
-
-				// Notify backend
+				// Notify backend to remove association
 				await fetch(`${BackendURL}/monitor/${monitorID}/unsubscribe`, {
 					method: 'POST',
 					headers: {
@@ -159,6 +159,16 @@ class PushNotificationStore {
 			this.state.subscriptions.delete(monitorID);
 			this.state.loading = false;
 			this.saveSubscriptions();
+
+			// If no more subscriptions, unsubscribe from push manager
+			if (this.state.subscriptions.size === 0) {
+				const registration = await navigator.serviceWorker.ready;
+				const pushSubscription = await registration.pushManager.getSubscription();
+				if (pushSubscription) {
+					await pushSubscription.unsubscribe();
+				}
+			}
+
 			return true;
 		} catch (error) {
 			console.error('Failed to unsubscribe:', error);

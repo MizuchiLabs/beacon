@@ -14,7 +14,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/mizuchilabs/beacon/internal/checker"
 	"github.com/mizuchilabs/beacon/internal/db"
-	"github.com/mizuchilabs/beacon/internal/push"
+	"github.com/mizuchilabs/beacon/internal/notify"
 	"github.com/mizuchilabs/beacon/internal/scheduler"
 	"github.com/urfave/cli/v3"
 )
@@ -29,6 +29,10 @@ type EnvConfig struct {
 	ConfigPath    string        `env:"BEACON_CONFIG"         envDefault:"config.yaml"`
 	MonitorsYAML  string        `env:"BEACON_MONITORS"`
 
+	// Frontend settings
+	Title       string `env:"BEACON_TITLE"       envDefault:"Monitor Dashboard"`
+	Description string `env:"BEACON_DESCRIPTION" envDefault:"Track uptime and response times across all monitors"`
+
 	Debug bool `env:"DEBUG" envDefault:"false"`
 }
 
@@ -40,7 +44,7 @@ type Config struct {
 	Conn      *db.Connection
 	Checker   *checker.Checker
 	Scheduler *scheduler.Scheduler
-	Notifier  *push.Notifier
+	Notifier  *notify.Notifier
 }
 
 // New loads configuration from environment variables
@@ -53,8 +57,8 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 	Logger(&cfg)
 	cfg.Conn = db.NewConnection(cfg.DBPath)
 	cfg.Checker = checker.New(cfg.Timeout, cfg.Insecure)
-	cfg.Scheduler = scheduler.New(cfg.Conn, cfg.Checker, cfg.RetentionDays)
-	cfg.Notifier = push.NewNotifier(ctx, cfg.Conn)
+	cfg.Notifier = notify.New(ctx, cfg.Conn)
+	cfg.Scheduler = scheduler.New(cfg.Conn, cfg.Checker, cfg.Notifier, cfg.RetentionDays)
 
 	// Sync monitors to DB
 	if err := cfg.syncMonitors(ctx); err != nil {

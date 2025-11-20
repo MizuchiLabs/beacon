@@ -99,6 +99,7 @@ func (s *Server) setupRoutes() {
 	s.mux.Route("/api", func(r chi.Router) {
 		// Monitor endpoints (read-only)
 		r.Get("/monitors", s.GetMonitorStats)
+		r.Get("/config", s.GetConfig)
 
 		// Push notification endpoints
 		r.Post("/monitor/{id}/subscribe", s.SubscribeToPushNotifications)

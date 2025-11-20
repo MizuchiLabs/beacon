@@ -8,8 +8,27 @@
 	import GridPattern from '$lib/components/util/GridPattern.svelte';
 	import { cn } from '$lib/utils';
 	import { ModeWatcher } from 'mode-watcher';
+	import { onMount } from 'svelte';
+	import { dev } from '$app/environment';
 
 	let { children } = $props();
+
+	onMount(() => {
+		if ('serviceWorker' in navigator) {
+			navigator.serviceWorker
+				.register('/service-worker.js', {
+					type: dev ? 'module' : 'classic'
+				})
+				.then(
+					(registration) => {
+						console.log('Service Worker registered:', registration);
+					},
+					(error) => {
+						console.error('Service Worker registration failed:', error);
+					}
+				);
+		}
+	});
 </script>
 
 <ModeWatcher />

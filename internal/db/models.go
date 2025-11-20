@@ -18,14 +18,6 @@ type Check struct {
 	CheckedAt    time.Time `json:"checkedAt"`
 }
 
-type Incident struct {
-	ID         int64      `json:"id"`
-	MonitorID  int64      `json:"monitorId"`
-	Reason     *string    `json:"reason"`
-	ResolvedAt *time.Time `json:"resolvedAt"`
-	CreatedAt  time.Time  `json:"createdAt"`
-}
-
 type Monitor struct {
 	ID            int64     `json:"id"`
 	Name          string    `json:"name"`

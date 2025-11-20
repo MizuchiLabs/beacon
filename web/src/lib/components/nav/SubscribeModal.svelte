@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Dialog, DialogContent, DialogHeader, DialogTitle } from '$lib/components/ui/dialog';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Bell, BellOff, LoaderCircle } from '@lucide/svelte';
@@ -39,11 +39,12 @@
 	}
 </script>
 
-<Dialog bind:open>
-	<DialogContent class="sm:max-w-[500px]">
-		<DialogHeader>
-			<DialogTitle>Subscribe to Notifications</DialogTitle>
-		</DialogHeader>
+<Dialog.Root bind:open>
+	<Dialog.Content class="sm:max-w-[500px]">
+		<Dialog.Header>
+			<Dialog.Title>Subscribe to Notifications</Dialog.Title>
+			<Dialog.Description>Choose which monitors to receive notifications for</Dialog.Description>
+		</Dialog.Header>
 
 		{#if !hasPermission}
 			<div
@@ -62,25 +63,6 @@
 			</div>
 		{:else}
 			<div class="space-y-4">
-				<div class="flex items-center justify-between">
-					<p class="text-sm text-muted-foreground">
-						Choose which monitors to receive notifications for
-					</p>
-					<div class="flex gap-2">
-						<Button variant="ghost" size="sm" onclick={handleSubscribeAll} disabled={loading}>
-							Subscribe All
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onclick={handleUnsubscribeAll}
-							disabled={loading || subscribedMonitorIDs.length === 0}
-						>
-							Unsubscribe All
-						</Button>
-					</div>
-				</div>
-
 				{#if error}
 					<div
 						class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
@@ -122,6 +104,20 @@
 					</div>
 				{/if}
 			</div>
+
+			<div class="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+				<Button variant="outline" size="sm" onclick={handleSubscribeAll} disabled={loading}>
+					Subscribe All
+				</Button>
+				<Button
+					variant="secondary"
+					size="sm"
+					onclick={handleUnsubscribeAll}
+					disabled={loading || subscribedMonitorIDs.length === 0}
+				>
+					Unsubscribe All
+				</Button>
+			</div>
 		{/if}
-	</DialogContent>
-</Dialog>
+	</Dialog.Content>
+</Dialog.Root>

@@ -1,0 +1,120 @@
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+version: 2
+project_name: beacon
+report_sizes: true
+pro: false
+
+before:
+  hooks:
+    - go fmt ./...
+    - go vet ./...
+    - go mod tidy
+    - go mod verify
+
+builds:
+  - binary: beacon
+    dir: cmd
+    env: [CGO_ENABLED=0]
+    ldflags:
+      - -s -w
+      - -X github.com/mizuchilabs/beacon/cmd/main.Version={{.Tag}}
+      - -X github.com/mizuchilabs/beacon/cmd/main.Commit={{.Commit}}
+      - -X github.com/mizuchilabs/beacon/cmd/main.Date={{.Date}}
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+kos:
+  - build: beacon
+    main: ./cmd
+    repositories: [ghcr.io/mizuchilabs/beacon]
+    base_image: alpine
+    bare: true
+    preserve_import_paths: false
+    tags:
+      - "{{.Version}}"
+      - latest
+    platforms:
+      - linux/amd64
+      - linux/arm64
+
+upx:
+  - enabled: true
+    lzma: true
+    compress: best
+
+docker_signs:
+  - cmd: cosign
+    artifacts: binary
+    signature: "${artifact}.sigstore.json"
+    args:
+      - "sign-blob"
+      - "--yes"
+      - "${artifact}"
+      - "--bundle=${signature}"
+
+binary_signs:
+  - cmd: cosign
+    artifacts: binary
+    signature: "${artifact}.sigstore.json"
+    args:
+      - "sign-blob"
+      - "--yes"
+      - "${artifact}"
+      - "--bundle=${signature}"
+
+sboms:
+  - cmd: syft
+    documents:
+      - "{{ .Binary }}_{{ .Os }}_{{ .Arch }}.sbom.json"
+    args: ["$artifact", "--output", "cyclonedx-json=$document"]
+    artifacts: binary
+    disable: false
+
+source:
+  enabled: true
+
+release:
+  draft: false
+  replace_existing_draft: true
+  replace_existing_artifacts: true
+  mode: keep-existing
+
+archives:
+  - formats: ["binary"]
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    include:
+      - "^feat:"
+      - "^fix:"
+      - "^sec:"
+      - "^docs:"
+      - "^wip:"
+  groups:
+    - title: "🚀 Features"
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: "🔒 Security"
+      regexp: '^.*?sec(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: "🐛 Bug fixes"
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: "📚 Documentation"
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: "🚧 Work in progress"
+      regexp: '^.*?wip(\([[:word:]]+\))??!?:.+$'
+      order: 4
+    - title: "🏷️ Other changes"
+      regexp: '^.*?chore(\([[:word:]]+\))??!?:.+$'
+      order: 5
+    - title: Misc
+      order: 999

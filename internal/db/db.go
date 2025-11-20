@@ -30,9 +30,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createCheckStmt, err = db.PrepareContext(ctx, createCheck); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateCheck: %w", err)
 	}
-	if q.createIncidentStmt, err = db.PrepareContext(ctx, createIncident); err != nil {
-		return nil, fmt.Errorf("error preparing query CreateIncident: %w", err)
-	}
 	if q.createMonitorStmt, err = db.PrepareContext(ctx, createMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateMonitor: %w", err)
 	}
@@ -41,9 +38,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.createVAPIDKeysStmt, err = db.PrepareContext(ctx, createVAPIDKeys); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateVAPIDKeys: %w", err)
-	}
-	if q.deleteIncidentStmt, err = db.PrepareContext(ctx, deleteIncident); err != nil {
-		return nil, fmt.Errorf("error preparing query DeleteIncident: %w", err)
 	}
 	if q.deleteMonitorStmt, err = db.PrepareContext(ctx, deleteMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteMonitor: %w", err)
@@ -57,17 +51,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getChecksStmt, err = db.PrepareContext(ctx, getChecks); err != nil {
 		return nil, fmt.Errorf("error preparing query GetChecks: %w", err)
 	}
-	if q.getIncidentStmt, err = db.PrepareContext(ctx, getIncident); err != nil {
-		return nil, fmt.Errorf("error preparing query GetIncident: %w", err)
-	}
-	if q.getIncidentsStmt, err = db.PrepareContext(ctx, getIncidents); err != nil {
-		return nil, fmt.Errorf("error preparing query GetIncidents: %w", err)
-	}
 	if q.getMonitorStmt, err = db.PrepareContext(ctx, getMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMonitor: %w", err)
-	}
-	if q.getMonitorIncidentsStmt, err = db.PrepareContext(ctx, getMonitorIncidents); err != nil {
-		return nil, fmt.Errorf("error preparing query GetMonitorIncidents: %w", err)
 	}
 	if q.getMonitorsStmt, err = db.PrepareContext(ctx, getMonitors); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMonitors: %w", err)
@@ -77,12 +62,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getVAPIDKeysStmt, err = db.PrepareContext(ctx, getVAPIDKeys); err != nil {
 		return nil, fmt.Errorf("error preparing query GetVAPIDKeys: %w", err)
-	}
-	if q.resolveIncidentStmt, err = db.PrepareContext(ctx, resolveIncident); err != nil {
-		return nil, fmt.Errorf("error preparing query ResolveIncident: %w", err)
-	}
-	if q.updateIncidentStmt, err = db.PrepareContext(ctx, updateIncident); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateIncident: %w", err)
 	}
 	if q.updateMonitorStmt, err = db.PrepareContext(ctx, updateMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateMonitor: %w", err)
@@ -105,11 +84,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createCheckStmt: %w", cerr)
 		}
 	}
-	if q.createIncidentStmt != nil {
-		if cerr := q.createIncidentStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing createIncidentStmt: %w", cerr)
-		}
-	}
 	if q.createMonitorStmt != nil {
 		if cerr := q.createMonitorStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createMonitorStmt: %w", cerr)
@@ -123,11 +97,6 @@ func (q *Queries) Close() error {
 	if q.createVAPIDKeysStmt != nil {
 		if cerr := q.createVAPIDKeysStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createVAPIDKeysStmt: %w", cerr)
-		}
-	}
-	if q.deleteIncidentStmt != nil {
-		if cerr := q.deleteIncidentStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing deleteIncidentStmt: %w", cerr)
 		}
 	}
 	if q.deleteMonitorStmt != nil {
@@ -150,24 +119,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getChecksStmt: %w", cerr)
 		}
 	}
-	if q.getIncidentStmt != nil {
-		if cerr := q.getIncidentStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getIncidentStmt: %w", cerr)
-		}
-	}
-	if q.getIncidentsStmt != nil {
-		if cerr := q.getIncidentsStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getIncidentsStmt: %w", cerr)
-		}
-	}
 	if q.getMonitorStmt != nil {
 		if cerr := q.getMonitorStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getMonitorStmt: %w", cerr)
-		}
-	}
-	if q.getMonitorIncidentsStmt != nil {
-		if cerr := q.getMonitorIncidentsStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getMonitorIncidentsStmt: %w", cerr)
 		}
 	}
 	if q.getMonitorsStmt != nil {
@@ -183,16 +137,6 @@ func (q *Queries) Close() error {
 	if q.getVAPIDKeysStmt != nil {
 		if cerr := q.getVAPIDKeysStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getVAPIDKeysStmt: %w", cerr)
-		}
-	}
-	if q.resolveIncidentStmt != nil {
-		if cerr := q.resolveIncidentStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing resolveIncidentStmt: %w", cerr)
-		}
-	}
-	if q.updateIncidentStmt != nil {
-		if cerr := q.updateIncidentStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateIncidentStmt: %w", cerr)
 		}
 	}
 	if q.updateMonitorStmt != nil {
@@ -246,24 +190,17 @@ type Queries struct {
 	tx                                   *sql.Tx
 	cleanupChecksStmt                    *sql.Stmt
 	createCheckStmt                      *sql.Stmt
-	createIncidentStmt                   *sql.Stmt
 	createMonitorStmt                    *sql.Stmt
 	createPushSubscriptionStmt           *sql.Stmt
 	createVAPIDKeysStmt                  *sql.Stmt
-	deleteIncidentStmt                   *sql.Stmt
 	deleteMonitorStmt                    *sql.Stmt
 	deletePushSubscriptionStmt           *sql.Stmt
 	deletePushSubscriptionByEndpointStmt *sql.Stmt
 	getChecksStmt                        *sql.Stmt
-	getIncidentStmt                      *sql.Stmt
-	getIncidentsStmt                     *sql.Stmt
 	getMonitorStmt                       *sql.Stmt
-	getMonitorIncidentsStmt              *sql.Stmt
 	getMonitorsStmt                      *sql.Stmt
 	getPushSubscriptionsByMonitorStmt    *sql.Stmt
 	getVAPIDKeysStmt                     *sql.Stmt
-	resolveIncidentStmt                  *sql.Stmt
-	updateIncidentStmt                   *sql.Stmt
 	updateMonitorStmt                    *sql.Stmt
 	vAPIDKeysExistStmt                   *sql.Stmt
 }
@@ -274,24 +211,17 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		tx:                                   tx,
 		cleanupChecksStmt:                    q.cleanupChecksStmt,
 		createCheckStmt:                      q.createCheckStmt,
-		createIncidentStmt:                   q.createIncidentStmt,
 		createMonitorStmt:                    q.createMonitorStmt,
 		createPushSubscriptionStmt:           q.createPushSubscriptionStmt,
 		createVAPIDKeysStmt:                  q.createVAPIDKeysStmt,
-		deleteIncidentStmt:                   q.deleteIncidentStmt,
 		deleteMonitorStmt:                    q.deleteMonitorStmt,
 		deletePushSubscriptionStmt:           q.deletePushSubscriptionStmt,
 		deletePushSubscriptionByEndpointStmt: q.deletePushSubscriptionByEndpointStmt,
 		getChecksStmt:                        q.getChecksStmt,
-		getIncidentStmt:                      q.getIncidentStmt,
-		getIncidentsStmt:                     q.getIncidentsStmt,
 		getMonitorStmt:                       q.getMonitorStmt,
-		getMonitorIncidentsStmt:              q.getMonitorIncidentsStmt,
 		getMonitorsStmt:                      q.getMonitorsStmt,
 		getPushSubscriptionsByMonitorStmt:    q.getPushSubscriptionsByMonitorStmt,
 		getVAPIDKeysStmt:                     q.getVAPIDKeysStmt,
-		resolveIncidentStmt:                  q.resolveIncidentStmt,
-		updateIncidentStmt:                   q.updateIncidentStmt,
 		updateMonitorStmt:                    q.updateMonitorStmt,
 		vAPIDKeysExistStmt:                   q.vAPIDKeysExistStmt,
 	}

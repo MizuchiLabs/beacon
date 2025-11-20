@@ -50,9 +50,9 @@
 					{#if monitor.uptime_pct >= 95}
 						<div class="relative flex h-2.5 w-2.5">
 							<span
-								class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"
+								class="absolute inline-flex h-full w-full animate-ping rounded-full bg-chart-4 opacity-75"
 							></span>
-							<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+							<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-chart-4"></span>
 						</div>
 					{:else}
 						<div class="h-2.5 w-2.5 rounded-full bg-destructive shadow-sm"></div>
@@ -78,7 +78,7 @@
 			<div class="flex flex-col items-end">
 				<span
 					class="text-xl font-bold tracking-tight {monitor.uptime_pct >= 95
-						? 'text-emerald-600 dark:text-emerald-400'
+						? 'text-chart-4'
 						: 'text-destructive'}"
 				>
 					{monitor.uptime_pct.toFixed(2)}%
@@ -90,7 +90,7 @@
 
 	<Card.Content class="p-0">
 		<!-- Minimal Chart area with refined gradient and glow -->
-		<div class="h-[140px] w-full">
+		<div class="h-[100px] w-full">
 			<ChartContainer config={chartConfig} class="h-full w-full">
 				<AreaChart
 					data={chartData}

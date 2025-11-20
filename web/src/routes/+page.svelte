@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { useMonitorStats } from '$lib/api/queries';
+	import { useConfig, useMonitorStats } from '$lib/api/queries';
 	import * as Select from '$lib/components/ui/select';
 	import * as Empty from '$lib/components/ui/empty/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import StatusCard from '$lib/components/util/StatusCard.svelte';
 	import { GlobeIcon } from '@lucide/svelte';
 
+	let configQuery = $derived(useConfig());
 	let timeRange = $state('86400'); // 24 hours in seconds
 
 	const timeRanges = [
@@ -23,8 +24,12 @@
 	<!-- Header with Global Time Selector -->
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">Monitor Dashboard</h1>
-			<p class="text-muted-foreground">Track uptime and response times across all monitors</p>
+			<h1 class="text-3xl font-bold tracking-tight">
+				{configQuery.data?.title}
+			</h1>
+			<p class="text-muted-foreground">
+				{configQuery.data?.description}
+			</p>
 		</div>
 
 		<Select.Root type="single" bind:value={timeRange}>

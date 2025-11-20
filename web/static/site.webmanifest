@@ -1,6 +1,7 @@
 {
   "name": "Beacon",
   "short_name": "Beacon",
+  "description": "Beacon is a service monitoring tool",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",

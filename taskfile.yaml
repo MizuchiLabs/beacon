@@ -59,7 +59,7 @@ tasks:
   docker:dev:
     desc: Build OCI image with ko
     deps: [build:web]
-    dir: cmd/server
+    dir: cmd
     cmds:
       - KO_DOCKER_REPO=$IMAGE_DEV ko build --bare .
       - grype $IMAGE_DEV
@@ -67,7 +67,7 @@ tasks:
   docker:prod:
     desc: Build OCI image with ko
     deps: [build:web]
-    dir: cmd/server
+    dir: cmd
     cmds:
       - KO_DOCKER_REPO=$IMAGE_PROD ko build --bare .
       - grype $IMAGE_PROD

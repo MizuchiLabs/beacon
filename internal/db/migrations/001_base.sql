@@ -9,7 +9,7 @@ CREATE TABLE monitors (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Checks are individual check results
+-- Checks 
 CREATE TABLE checks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   monitor_id INTEGER NOT NULL,
@@ -18,16 +18,6 @@ CREATE TABLE checks (
   error TEXT,
   is_up BOOLEAN NOT NULL,
   checked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (monitor_id) REFERENCES monitors (id) ON DELETE CASCADE
-);
-
--- Incidents track downtime periods
-CREATE TABLE incidents (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  monitor_id INTEGER NOT NULL,
-  reason TEXT,
-  resolved_at TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (monitor_id) REFERENCES monitors (id) ON DELETE CASCADE
 );
 
@@ -55,12 +45,6 @@ CREATE INDEX idx_checks_monitor_id ON checks (monitor_id, checked_at DESC);
 
 CREATE INDEX idx_checks_checked_at ON checks (checked_at);
 
-CREATE INDEX idx_incidents_monitor_id ON incidents (monitor_id);
-
-CREATE INDEX idx_incidents_active ON incidents (monitor_id, resolved_at)
-WHERE
-  resolved_at IS NULL;
-
 CREATE UNIQUE INDEX idx_push_sub_endpoint ON push_subscriptions (endpoint, monitor_id);
 
 CREATE INDEX idx_push_sub_monitor ON push_subscriptions (monitor_id);
@@ -69,8 +53,6 @@ CREATE INDEX idx_push_sub_monitor ON push_subscriptions (monitor_id);
 DROP TABLE IF EXISTS monitors;
 
 DROP TABLE IF EXISTS checks;
-
-DROP TABLE IF EXISTS incidents;
 
 DROP TABLE IF EXISTS push_subscriptions;
 

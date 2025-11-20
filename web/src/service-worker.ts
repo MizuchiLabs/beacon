@@ -89,7 +89,7 @@ self.addEventListener('push', (event) => {
 	}
 
 	try {
-		const data = event.data.json();
+		const data = event.data?.json() || {};
 		const title = data.title || 'Monitor Alert';
 		const options: NotificationOptions = {
 			body: data.body || 'A monitored service is down',

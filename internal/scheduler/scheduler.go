@@ -10,18 +10,17 @@ import (
 
 	"github.com/mizuchilabs/beacon/internal/checker"
 	"github.com/mizuchilabs/beacon/internal/db"
-	"github.com/mizuchilabs/beacon/internal/push"
+	"github.com/mizuchilabs/beacon/internal/notify"
 )
 
 type Scheduler struct {
-	conn            *db.Connection
-	checker         *checker.Checker
-	notifier        *push.Notifier
-	monitors        map[int64]*monitorJob
-	mu              sync.RWMutex
-	wg              sync.WaitGroup
-	incidentTracker *incidentTracker
-	retentionDays   int
+	conn          *db.Connection
+	checker       *checker.Checker
+	notifier      *notify.Notifier
+	monitors      map[int64]*monitorJob
+	mu            sync.RWMutex
+	wg            sync.WaitGroup
+	retentionDays int
 }
 
 type monitorJob struct {
@@ -29,13 +28,18 @@ type monitorJob struct {
 	ticker  *time.Ticker
 }
 
-func New(conn *db.Connection, checker *checker.Checker, retentionDays int) *Scheduler {
+func New(
+	conn *db.Connection,
+	checker *checker.Checker,
+	notifier *notify.Notifier,
+	retentionDays int,
+) *Scheduler {
 	return &Scheduler{
-		conn:            conn,
-		checker:         checker,
-		monitors:        make(map[int64]*monitorJob),
-		incidentTracker: newIncidentTracker(conn),
-		retentionDays:   retentionDays,
+		conn:          conn,
+		checker:       checker,
+		notifier:      notifier,
+		monitors:      make(map[int64]*monitorJob),
+		retentionDays: retentionDays,
 	}
 }
 
