@@ -5,10 +5,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/caarlos0/env/v11"
 	"github.com/mizuchilabs/beacon/internal/db"
 )
 
@@ -20,24 +22,33 @@ type Result struct {
 }
 
 type Checker struct {
-	client *http.Client
+	client  *http.Client
+	Timeout time.Duration `env:"BEACON_TIMEOUT" envDefault:"30s"`
 }
 
-func New(timeout time.Duration, insecure bool) *Checker {
+func New(insecure bool) *Checker {
+	c, err := env.ParseAs[Checker]()
+	if err != nil {
+		log.Fatalf("Failed to parse environment variables: %v", err)
+	}
+
 	// Set a sane default timeout
-	if timeout <= time.Second*5 {
-		timeout = 30 * time.Second
+	if c.Timeout <= time.Second*5 {
+		c.Timeout = 30 * time.Second
 	}
 
 	return &Checker{
 		client: &http.Client{
-			Timeout: timeout,
+			Timeout: c.Timeout,
 			Transport: &http.Transport{
 				MaxIdleConns:        100,
 				MaxIdleConnsPerHost: 10,
 				IdleConnTimeout:     90 * time.Second,
+				TLSHandshakeTimeout: 10 * time.Second,
+				DisableKeepAlives:   false,
+				DisableCompression:  false,
+				ForceAttemptHTTP2:   true,
 				TLSClientConfig:     &tls.Config{InsecureSkipVerify: insecure},
-				DisableCompression:  true,
 			},
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				// Allow up to 10 redirects

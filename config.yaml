@@ -8,6 +8,4 @@ monitors:
   - name: "GitHub"
     url: "https://github.com"
     check_interval: 60
-  - name: "Twitter"
-    url: "https://twitter.com"
-    check_interval: 60
+

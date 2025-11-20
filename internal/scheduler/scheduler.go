@@ -3,11 +3,13 @@ package scheduler
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/caarlos0/env/v11"
 	"github.com/mizuchilabs/beacon/internal/checker"
 	"github.com/mizuchilabs/beacon/internal/db"
 	"github.com/mizuchilabs/beacon/internal/notify"
@@ -20,7 +22,7 @@ type Scheduler struct {
 	monitors      map[int64]*monitorJob
 	mu            sync.RWMutex
 	wg            sync.WaitGroup
-	retentionDays int
+	RetentionDays int `env:"BEACON_RETENTION_DAYS" envDefault:"30"`
 }
 
 type monitorJob struct {
@@ -32,14 +34,21 @@ func New(
 	conn *db.Connection,
 	checker *checker.Checker,
 	notifier *notify.Notifier,
-	retentionDays int,
 ) *Scheduler {
+	s, err := env.ParseAs[Scheduler]()
+	if err != nil {
+		log.Fatalf("Failed to parse environment variables: %v", err)
+	}
+	if s.RetentionDays <= 1 {
+		s.RetentionDays = 30
+	}
+
 	return &Scheduler{
 		conn:          conn,
 		checker:       checker,
 		notifier:      notifier,
 		monitors:      make(map[int64]*monitorJob),
-		retentionDays: retentionDays,
+		RetentionDays: s.RetentionDays,
 	}
 }
 
@@ -134,7 +143,7 @@ func (s *Scheduler) cleanupJob(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			daysStr := strconv.Itoa(s.retentionDays)
+			daysStr := strconv.Itoa(s.RetentionDays)
 			if err := s.conn.Queries.CleanupChecks(ctx, &daysStr); err != nil {
 				slog.Error("Failed to cleanup old checks", "error", err)
 			}

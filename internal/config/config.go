@@ -21,17 +21,15 @@ import (
 )
 
 type EnvConfig struct {
-	ServerHost    string        `env:"BEACON_HOST"           envDefault:"0.0.0.0"`
-	ServerPort    string        `env:"BEACON_PORT"           envDefault:"3000"`
-	DBPath        string        `env:"BEACON_DB_PATH"        envDefault:"data/beacon.db"`
-	Timeout       time.Duration `env:"BEACON_TIMEOUT"        envDefault:"30s"`
-	RetentionDays int           `env:"BEACON_RETENTION_DAYS" envDefault:"30"`
-	Insecure      bool          `env:"BEACON_INSECURE"       envDefault:"false"`
-	ConfigPath    string        `env:"BEACON_CONFIG"         envDefault:"config.yaml"`
-	MonitorsYAML  string        `env:"BEACON_MONITORS"`
+	ServerHost   string `env:"BEACON_HOST"     envDefault:"0.0.0.0"`
+	ServerPort   string `env:"BEACON_PORT"     envDefault:"3000"`
+	DBPath       string `env:"BEACON_DB_PATH"  envDefault:"data/beacon.db"`
+	Insecure     bool   `env:"BEACON_INSECURE" envDefault:"false"`
+	ConfigPath   string `env:"BEACON_CONFIG"   envDefault:"config.yaml"`
+	MonitorsYAML string `env:"BEACON_MONITORS"`
 
 	// Frontend settings
-	Title       string `env:"BEACON_TITLE"       envDefault:"Monitor Dashboard"`
+	Title       string `env:"BEACON_TITLE"       envDefault:"Beacon Dashboard"`
 	Description string `env:"BEACON_DESCRIPTION" envDefault:"Track uptime and response times across all monitors"`
 	Timezone    string `env:"BEACON_TIMEZONE"    envDefault:"Europe/Vienna"`
 
@@ -59,9 +57,9 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 
 	Logger(&cfg)
 	cfg.Conn = db.NewConnection(cfg.DBPath)
-	cfg.Checker = checker.New(cfg.Timeout, cfg.Insecure)
+	cfg.Checker = checker.New(cfg.Insecure)
 	cfg.Notifier = notify.New(ctx, cfg.Conn)
-	cfg.Scheduler = scheduler.New(cfg.Conn, cfg.Checker, cfg.Notifier, cfg.RetentionDays)
+	cfg.Scheduler = scheduler.New(cfg.Conn, cfg.Checker, cfg.Notifier)
 	cfg.Incidents = incidents.New()
 
 	// Sync monitors to DB
