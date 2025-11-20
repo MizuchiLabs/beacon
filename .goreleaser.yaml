@@ -44,15 +44,15 @@ upx:
     lzma: true
     compress: best
 
-docker_signs:
-  - cmd: cosign
-    artifacts: binary
-    signature: "${artifact}.sigstore.json"
-    args:
-      - "sign-blob"
-      - "--yes"
-      - "${artifact}"
-      - "--bundle=${signature}"
+# docker_signs:
+#   - cmd: cosign
+#     artifacts: binary
+#     signature: "${artifact}.sigstore.json"
+#     args:
+#       - "sign-blob"
+#       - "--yes"
+#       - "${artifact}"
+#       - "--bundle=${signature}"
 
 binary_signs:
   - cmd: cosign
