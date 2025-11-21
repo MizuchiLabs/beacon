@@ -10,7 +10,7 @@ import (
 )
 
 // only for testing purposes
-func (c *Config) generateRandomData(ctx context.Context) {
+func (c *Config) GenerateRandomData(ctx context.Context) {
 	monitors, err := c.Conn.Queries.GetMonitors(ctx)
 	if err != nil {
 		slog.Error("Failed to get monitors", "error", err)
