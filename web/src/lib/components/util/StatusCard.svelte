@@ -1,41 +1,22 @@
 <script lang="ts">
 	import type { MonitorStats } from '$lib/api/queries';
 	import * as Card from '$lib/components/ui/card';
-	import * as Chart from '$lib/components/ui/chart';
-	import { AreaChart, Area, ChartClipPath } from 'layerchart';
-	import { scaleUtc } from 'd3-scale';
-	import { curveCatmullRom } from 'd3-shape';
-	import { cubicInOut } from 'svelte/easing';
 	import { Badge } from '$lib/components/ui/badge';
-	import { ChartContainer } from '$lib/components/ui/chart';
 	import ActivityIcon from '@lucide/svelte/icons/activity';
+	import AreaChart from '$lib/components/chart/AreaChart.svelte';
+	import BarChart from '$lib/components/chart/BarChart.svelte';
 
 	interface Props {
 		monitor: MonitorStats;
+		chartType: string;
 	}
-	let { monitor }: Props = $props();
-
-	// Transform data for chart
-	const chartData = $derived(
-		monitor.data_points.map((dp) => ({
-			date: new Date(dp.timestamp),
-			response_time: dp.response_time || 0,
-			is_up: dp.is_up
-		}))
-	);
-
-	const chartConfig = {
-		response_time: {
-			label: 'Response Time',
-			color: 'hsl(var(--primary))'
-		}
-	} satisfies Chart.ChartConfig;
+	let { monitor, chartType }: Props = $props();
 
 	// Helper for stat color
 	const getStatColor = (val: number | undefined | null) => {
 		if (!val) return 'text-muted-foreground';
-		if (val >= 500) return 'text-destructive';
-		if (val >= 200) return 'text-amber-500';
+		if (val >= 500) return 'text-chart-4';
+		if (val >= 200) return 'text-chart-2';
 		return 'text-foreground';
 	};
 </script>
@@ -50,9 +31,9 @@
 					{#if monitor.uptime_pct >= 95}
 						<div class="relative flex h-2.5 w-2.5">
 							<span
-								class="absolute inline-flex h-full w-full animate-ping rounded-full bg-chart-4 opacity-75"
+								class="absolute inline-flex h-full w-full animate-ping rounded-full bg-chart-3 opacity-75"
 							></span>
-							<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-chart-4"></span>
+							<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-chart-3"></span>
 						</div>
 					{:else}
 						<div class="h-2.5 w-2.5 rounded-full bg-destructive shadow-sm"></div>
@@ -78,7 +59,7 @@
 			<div class="flex flex-col items-end">
 				<span
 					class="text-xl font-bold tracking-tight {monitor.uptime_pct >= 95
-						? 'text-chart-4'
+						? 'text-chart-3'
 						: 'text-destructive'}"
 				>
 					{monitor.uptime_pct.toFixed(2)}%
@@ -88,66 +69,12 @@
 		</div>
 	</Card.Header>
 
-	<Card.Content class="p-0">
-		<!-- Minimal Chart area with refined gradient and glow -->
-		<div class="h-[100px] w-full">
-			<ChartContainer config={chartConfig} class="h-full w-full">
-				<AreaChart
-					data={chartData}
-					x="date"
-					xScale={scaleUtc()}
-					series={[
-						{
-							key: 'response_time',
-							label: 'Response Time',
-							color: 'var(--primary)' // used for tooltip
-						}
-					]}
-					padding={{ top: 10, bottom: 0, left: 0, right: 0 }}
-					props={{
-						area: { curve: curveCatmullRom.alpha(0.5) },
-						grid: { x: false, y: false }
-					}}
-				>
-					{#snippet marks({ series, getAreaProps })}
-						<defs>
-							<linearGradient id="fillGradient-{monitor.id}" x1="0" y1="0" x2="0" y2="1">
-								<stop offset="0%" stop-color="var(--primary)" stop-opacity="0.25" />
-								<stop offset="100%" stop-color="var(--primary)" stop-opacity="0" />
-							</linearGradient>
-						</defs>
-
-						<ChartClipPath
-							initialWidth={0}
-							motion={{ width: { type: 'tween', duration: 800, easing: cubicInOut } }}
-						>
-							{#each series as s, i (s.key)}
-								<Area
-									{...getAreaProps(s, i)}
-									fill="url(#fillGradient-{monitor.id})"
-									stroke="none"
-								/>
-							{/each}
-						</ChartClipPath>
-					{/snippet}
-
-					{#snippet tooltip()}
-						<Chart.Tooltip
-							labelFormatter={(v: Date) => {
-								return v.toLocaleString(undefined, {
-									month: 'short',
-									day: 'numeric',
-									hour: 'numeric',
-									minute: '2-digit'
-								});
-							}}
-							class="border bg-background/95 text-xs shadow-xl backdrop-blur"
-							indicator="dot"
-						/>
-					{/snippet}
-				</AreaChart>
-			</ChartContainer>
-		</div>
+	<Card.Content class="h-12 w-full p-0">
+		{#if chartType === 'bars'}
+			<BarChart {monitor} />
+		{:else}
+			<AreaChart {monitor} />
+		{/if}
 	</Card.Content>
 
 	<Card.Footer class="grid grid-cols-3 gap-2 border-t px-4 text-xs sm:grid-cols-5">

@@ -103,7 +103,7 @@ func (s *Server) Start(ctx context.Context) error {
 func (s *Server) setupRoutes() {
 	s.mux.Route("/api", func(r chi.Router) {
 		// read-only endpoints
-		r.Get("/monitors", s.GetMonitorStats)
+		r.Get("/monitors", s.GetMonitors)
 		r.Get("/config", s.GetConfig)
 		r.Get("/incidents", s.GetIncidents)
 		r.Get("/incidents/{id}", s.GetIncident)

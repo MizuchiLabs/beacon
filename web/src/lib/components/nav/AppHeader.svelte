@@ -26,7 +26,6 @@
 	>
 		<a href="/" class="flex items-center gap-4">
 			<Orbit class="size-6 text-primary" />
-			<!-- <Logo class="size-6" /> -->
 		</a>
 
 		{#if incidentsEnabled}
@@ -41,7 +40,7 @@
 		<div class="flex items-center gap-2">
 			<Button
 				variant="outline"
-				class="rounded-full hover:text-primary"
+				class="rounded-full"
 				size="sm"
 				onclick={() => (showSubscriptionDialog = true)}
 			>

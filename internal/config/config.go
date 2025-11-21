@@ -31,6 +31,7 @@ type EnvConfig struct {
 	Title       string `env:"BEACON_TITLE"       envDefault:"Beacon Dashboard"`
 	Description string `env:"BEACON_DESCRIPTION" envDefault:"Track uptime and response times across all monitors"`
 	Timezone    string `env:"BEACON_TIMEZONE"    envDefault:"Europe/Vienna"`
+	ChartType   string `env:"BEACON_CHART_TYPE"  envDefault:"area"` // bars or area
 
 	Debug bool `env:"DEBUG" envDefault:"false"`
 }
@@ -59,6 +60,12 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 	}
 	if cmd.String("config") != "" {
 		cfg.ConfigPath = cmd.String("config")
+	}
+	if cmd.String("chart-type") != "" {
+		cfg.ChartType = cmd.String("chart-type")
+	}
+	if cfg.ChartType != "bars" && cfg.ChartType != "area" {
+		log.Fatalf("Invalid chart type: %s", cfg.ChartType)
 	}
 
 	Logger(&cfg)

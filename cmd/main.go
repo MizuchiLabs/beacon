@@ -50,6 +50,12 @@ func main() {
 				Usage:   "Path to monitors config file",
 				Sources: cli.EnvVars("BEACON_CONFIG"),
 			},
+			&cli.StringFlag{
+				Name:    "chart-type",
+				Aliases: []string{"t"},
+				Usage:   "Chart type (bars or area)",
+				Sources: cli.EnvVars("BEACON_CHART_TYPE"),
+			},
 		},
 	}
 

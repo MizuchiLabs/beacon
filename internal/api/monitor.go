@@ -31,12 +31,25 @@ type Percentiles struct {
 }
 
 type DataPoint struct {
-	Timestamp    time.Time `json:"timestamp"`
-	ResponseTime *int64    `json:"response_time"` // avg response time
-	IsUp         bool      `json:"is_up"`
+	Timestamp     time.Time `json:"timestamp"`
+	ResponseTime  *int64    `json:"response_time"` // avg response time
+	IsUp          bool      `json:"is_up"`
+	UpRatio       *float64  `json:"up_ratio,omitempty"`
+	DegradedRatio *float64  `json:"degraded_ratio,omitempty"`
+	DownRatio     *float64  `json:"down_ratio,omitempty"`
 }
 
-func (s *Server) GetMonitorStats(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetConfig(w http.ResponseWriter, r *http.Request) {
+	respondJSON(w, http.StatusOK, map[string]any{
+		"title":             s.cfg.Title,
+		"description":       s.cfg.Description,
+		"timezone":          s.cfg.Timezone,
+		"chart_type":        s.cfg.ChartType,
+		"incidents_enabled": s.cfg.Incidents != nil,
+	})
+}
+
+func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
 	// Get seconds from query param, default to 24 hours
 	seconds := r.URL.Query().Get("seconds")
 	if seconds == "" {
@@ -68,7 +81,13 @@ func (s *Server) GetMonitorStats(w http.ResponseWriter, r *http.Request) {
 		upChecks := 0
 		uptimePct := 100.00
 
-		dataPoints := aggregateDataPoints(checks, seconds)
+		var dataPoints []DataPoint
+		switch s.cfg.ChartType {
+		case "bars":
+			dataPoints = aggregateStatusDataPoints(checks, 80)
+		default:
+			dataPoints = aggregateTimeSeriesDataPoints(checks, seconds)
+		}
 		for _, check := range checks {
 			if check.IsUp {
 				upChecks++
@@ -93,16 +112,7 @@ func (s *Server) GetMonitorStats(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, result)
 }
 
-func (s *Server) GetConfig(w http.ResponseWriter, r *http.Request) {
-	respondJSON(w, http.StatusOK, map[string]any{
-		"title":             s.cfg.Title,
-		"description":       s.cfg.Description,
-		"timezone":          s.cfg.Timezone,
-		"incidents_enabled": s.cfg.Incidents != nil,
-	})
-}
-
-func aggregateDataPoints(checks []*db.Check, secondsStr string) []DataPoint {
+func aggregateTimeSeriesDataPoints(checks []*db.Check, secondsStr string) []DataPoint {
 	if len(checks) == 0 {
 		return []DataPoint{}
 	}
@@ -163,6 +173,109 @@ func aggregateDataPoints(checks []*db.Check, secondsStr string) []DataPoint {
 	slices.SortFunc(dataPoints, func(a, b DataPoint) int {
 		return int(a.Timestamp.Unix() - b.Timestamp.Unix())
 	})
+
+	return dataPoints
+}
+
+func aggregateStatusDataPoints(checks []*db.Check, bucketCount int) []DataPoint {
+	if len(checks) == 0 {
+		return []DataPoint{}
+	}
+
+	// Sort checks by timestamp
+	sortedChecks := make([]*db.Check, len(checks))
+	copy(sortedChecks, checks)
+	slices.SortFunc(sortedChecks, func(a, b *db.Check) int {
+		return int(a.CheckedAt.Unix() - b.CheckedAt.Unix())
+	})
+
+	start := sortedChecks[0].CheckedAt.Unix()
+	end := sortedChecks[len(sortedChecks)-1].CheckedAt.Unix()
+	duration := end - start
+
+	// Handle edge case
+	if duration <= 0 {
+		check := sortedChecks[0]
+		var upRatio, degradedRatio, downRatio float64
+
+		if !check.IsUp {
+			downRatio = 1.0
+		} else if check.ResponseTime != nil && *check.ResponseTime > 500 {
+			degradedRatio = 1.0
+		} else {
+			upRatio = 1.0
+		}
+
+		return []DataPoint{{
+			Timestamp:     check.CheckedAt,
+			ResponseTime:  check.ResponseTime,
+			IsUp:          check.IsUp,
+			UpRatio:       &upRatio,
+			DegradedRatio: &degradedRatio,
+			DownRatio:     &downRatio,
+		}}
+	}
+
+	bucketSize := duration / int64(bucketCount)
+	if bucketSize == 0 {
+		bucketSize = 1
+	}
+
+	// Group into buckets
+	buckets := make(map[int64][]*db.Check)
+	for _, check := range sortedChecks {
+		bucketKey := (check.CheckedAt.Unix() - start) / bucketSize
+		if bucketKey >= int64(bucketCount) {
+			bucketKey = int64(bucketCount - 1)
+		}
+		buckets[bucketKey] = append(buckets[bucketKey], check)
+	}
+
+	// Calculate status ratios for each bucket
+	dataPoints := make([]DataPoint, 0, bucketCount)
+	for bucketKey := int64(0); bucketKey < int64(bucketCount); bucketKey++ {
+		bucketChecks := buckets[bucketKey]
+
+		// Skip empty buckets - they'll show as gaps
+		if len(bucketChecks) == 0 {
+			continue
+		}
+
+		upCount := 0
+		degradedCount := 0
+		downCount := 0
+
+		for _, check := range bucketChecks {
+			if !check.IsUp {
+				downCount++
+			} else if check.ResponseTime != nil && *check.ResponseTime > 500 {
+				degradedCount++
+			} else {
+				upCount++
+			}
+		}
+
+		// Calculate ratios
+		total := float64(len(bucketChecks))
+		upRatio := float64(upCount) / total
+		degradedRatio := float64(degradedCount) / total
+		downRatio := float64(downCount) / total
+
+		// Use timestamp at the start of the bucket
+		timestamp := time.Unix(start+bucketKey*bucketSize, 0)
+
+		// Determine overall status (majority rule for IsUp field)
+		isUp := upCount > len(bucketChecks)/2
+
+		dataPoints = append(dataPoints, DataPoint{
+			Timestamp:     timestamp,
+			ResponseTime:  nil, // Not needed for status chart
+			IsUp:          isUp,
+			UpRatio:       &upRatio,
+			DegradedRatio: &degradedRatio,
+			DownRatio:     &downRatio,
+		})
+	}
 
 	return dataPoints
 }

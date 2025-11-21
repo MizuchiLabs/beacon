@@ -5,6 +5,7 @@ export interface Config {
 	title: string;
 	description: string;
 	timezone: string;
+	chart_type: string;
 	incidents_enabled: boolean;
 }
 
@@ -29,6 +30,9 @@ export interface ChartDataPoint {
 	timestamp: string;
 	response_time: number | null;
 	is_up: boolean;
+	up_ratio?: number;
+	degraded_ratio?: number;
+	down_ratio?: number;
 }
 
 export interface Incident {
