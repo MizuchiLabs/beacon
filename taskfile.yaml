@@ -6,6 +6,7 @@ env:
   CGO_ENABLED: 0
   IMAGE_DEV: ko.local/beacon
   IMAGE_PROD: ghcr.io/mizuchilabs/beacon
+  LD_FLAGS: -s -w -X main.version={{.VERSION}}
 
 tasks:
   dev:
@@ -48,8 +49,8 @@ tasks:
   build:
     desc: Build binary
     cmds:
-      - cd web; pnpm install; pnpm build
-      - go build -o beacon cmd/main.go
+      # - cd web; pnpm install; pnpm build
+      - go build -ldflags "{{.LD_FLAGS}}" -o beacon cmd/main.go
 
   snapshot:
     desc: Test snapshot

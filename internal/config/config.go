@@ -92,7 +92,7 @@ func Logger(cfg *Config) {
 	slog.SetDefault(slog.New(
 		tint.NewHandler(colorable.NewColorable(os.Stderr), &tint.Options{
 			Level:      level,
-			TimeFormat: time.RFC3339,
+			TimeFormat: time.RFC822,
 			NoColor:    !isatty.IsTerminal(os.Stderr.Fd()),
 		}),
 	))
