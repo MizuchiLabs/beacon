@@ -49,7 +49,7 @@ tasks:
   build:
     desc: Build binary
     cmds:
-      # - cd web; pnpm install; pnpm build
+      - cd web; pnpm install; pnpm build
       - go build -ldflags "{{.LD_FLAGS}}" -o beacon cmd/main.go
 
   snapshot:
