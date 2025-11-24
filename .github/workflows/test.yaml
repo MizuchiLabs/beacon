@@ -3,18 +3,24 @@ name: Test
 on:
   push:
     branches: [main]
-    paths:
-      - "**.go"
-      - "go.mod"
-      - "go.sum"
-      - "web/**"
+    paths-ignore:
+      - "LICENSE"
+      - ".gitignore"
+      - ".editorconfig"
+      - ".vscode/**"
+      - ".idea/**"
+      - "**/*.md"
+      - "**/*.txt"
   pull_request:
     branches: [main]
-    paths:
-      - "**.go"
-      - "go.mod"
-      - "go.sum"
-      - "web/**"
+    paths-ignore:
+      - "LICENSE"
+      - ".gitignore"
+      - ".editorconfig"
+      - ".vscode/**"
+      - ".idea/**"
+      - "**/*.md"
+      - "**/*.txt"
   workflow_dispatch:
 
 jobs:
@@ -53,4 +59,3 @@ jobs:
 
       - name: Run tests
         run: task lint
-
