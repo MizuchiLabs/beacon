@@ -5,6 +5,8 @@
     ":semanticCommits",
     ":disableDependencyDashboard"
   ],
+  "timezone": "Europe/Vienna",
+  "lockFileMaintenance": { "enabled": true },
   "packageRules": [
     {
       "matchPackagePatterns": ["*"],
