@@ -15,7 +15,7 @@ require (
 	github.com/urfave/cli/v3 v3.6.1
 	github.com/vearutop/statigz v1.5.0
 	gopkg.in/yaml.v3 v3.0.1
-	modernc.org/sqlite v1.41.0
+	modernc.org/sqlite v1.42.1
 )
 
 require (
