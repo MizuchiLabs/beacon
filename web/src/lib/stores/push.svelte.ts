@@ -202,7 +202,7 @@ class PushNotificationStore {
 		}
 	}
 
-	private urlBase64ToUint8Array(base64String: string): Uint8Array {
+	private urlBase64ToUint8Array(base64String: string): BufferSource {
 		// Remove any whitespace
 		base64String = base64String.trim();
 

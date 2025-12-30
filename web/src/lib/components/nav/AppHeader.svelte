@@ -5,6 +5,7 @@
 	import { onMount } from 'svelte';
 	import Button from '../ui/button/button.svelte';
 	import SubscribeModal from './SubscribeModal.svelte';
+	import Beacon from '$lib/assets/beacon.svelte';
 
 	let configQuery = $derived(useConfig());
 	let incidentsEnabled = $derived(configQuery.data?.incidents_enabled === true);
@@ -25,7 +26,7 @@
 		class="flex min-h-12 items-center justify-between rounded-full border-x border-b px-4 py-2 shadow-lg backdrop-blur-md sm:min-w-xl"
 	>
 		<a href="/" class="flex items-center gap-4">
-			<Orbit class="size-6 text-primary" />
+			<Beacon class="size-6" />
 		</a>
 
 		{#if incidentsEnabled}

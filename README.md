@@ -1,5 +1,5 @@
 <p align="center">
-<img src="./web/static/logo.svg" width="80">
+<img src="./web/static/beacon.svg" width="80">
 <br><br>
 <img alt="GitHub Tag" src="https://img.shields.io/github/v/tag/MizuchiLabs/beacon?label=Version">
 <img alt="GitHub License" src="https://img.shields.io/github/license/MizuchiLabs/beacon">
@@ -12,14 +12,14 @@ A lightweight, self-hosted uptime monitoring solution that keeps track of your w
 
 ## Features
 
-- ✅ HTTP/HTTPS endpoint monitoring
-- 📊 Response time tracking
-- 🔔 Notification system for downtime alerts
-- 📝 Incident management with git-based storage
-- 🎨 Clean dashboard interface
-- 🐳 Docker-ready
-- 💾 SQLite database for easy deployment
-- 🔄 Automatic cleanup of old data
+- HTTP/HTTPS endpoint monitoring
+- Response time tracking
+- Notification system for downtime alerts
+- Incident management with git-based storage
+- Clean dashboard interface
+- Docker-ready
+- SQLite database for easy deployment
+- Automatic cleanup of old data
 
 ## Quick Start
 
