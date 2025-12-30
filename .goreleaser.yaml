@@ -30,6 +30,7 @@ kos:
   - build: beacon
     repositories: [ghcr.io/mizuchilabs/beacon]
     base_image: alpine
+    sbom: none
     bare: true
     preserve_import_paths: false
     tags:
@@ -43,16 +44,6 @@ upx:
   - enabled: true
     lzma: true
     compress: best
-
-# docker_signs:
-#   - cmd: cosign
-#     artifacts: binary
-#     signature: "${artifact}.sigstore.json"
-#     args:
-#       - "sign-blob"
-#       - "--yes"
-#       - "${artifact}"
-#       - "--bundle=${signature}"
 
 binary_signs:
   - cmd: cosign
@@ -83,6 +74,10 @@ release:
 
 archives:
   - formats: ["binary"]
+    name_template: >-
+      {{ .Binary }}_{{ .Os }}_{{ .Arch }}
+      {{- if eq .Arch "arm" }}v{{ .Arm }}{{ end -}}
+      {{- if and (eq .Arch "amd64") (ne .Amd64 "v1") }}{{ .Amd64 }}{{ end -}}
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
