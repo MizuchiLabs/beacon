@@ -7,7 +7,10 @@ import (
 	"time"
 )
 
-func (c *Config) generateRandomData(ctx context.Context) {
+func (c *Config) GenerateRandomData(ctx context.Context, gen bool) {
+	if !gen {
+		return
+	}
 	monitors, err := c.Conn.Queries.GetMonitors(ctx)
 	if err != nil {
 		slog.Error("Failed to get monitors", "error", err)

@@ -31,7 +31,18 @@ func main() {
 			cfg := config.New(ctx, cmd)
 			return api.NewServer(cfg).Start(ctx)
 		},
-		Commands: []*cli.Command{},
+		Commands: []*cli.Command{
+			{
+				Name:   "generate",
+				Usage:  "Generate random test data (only for development)",
+				Hidden: true,
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					cfg := config.New(ctx, cmd)
+					cfg.GenerateRandomData(ctx, true)
+					return nil
+				},
+			},
+		},
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:    "version",
@@ -66,6 +77,47 @@ func main() {
 				Sources: cli.EnvVars("BEACON_CHART_TYPE"),
 			},
 		},
+		Aliases:                         []string{},
+		UsageText:                       "",
+		ArgsUsage:                       "",
+		DefaultCommand:                  "",
+		Category:                        "",
+		HideHelp:                        false,
+		HideHelpCommand:                 false,
+		HideVersion:                     false,
+		ShellCompletionCommandName:      "",
+		ShellComplete:                   nil,
+		ConfigureShellCompletionCommand: nil,
+		Before:                          nil,
+		After:                           nil,
+		CommandNotFound:                 nil,
+		OnUsageError:                    nil,
+		InvalidFlagAccessHandler:        nil,
+		Hidden:                          false,
+		Authors:                         []any{},
+		Copyright:                       "",
+		Reader:                          nil,
+		Writer:                          nil,
+		ErrWriter:                       nil,
+		ExitErrHandler:                  nil,
+		Metadata:                        map[string]interface{}{},
+		ExtraInfo: func() map[string]string {
+			panic("TODO")
+		},
+		CustomRootCommandHelpTemplate: "",
+		SliceFlagSeparator:            "",
+		DisableSliceFlagSeparator:     false,
+		MapFlagKeyValueSeparator:      "",
+		UseShortOptionHandling:        false,
+		AllowExtFlags:                 false,
+		SkipFlagParsing:               false,
+		CustomHelpTemplate:            "",
+		PrefixMatchCommands:           false,
+		SuggestCommandFunc:            nil,
+		MutuallyExclusiveFlags:        []cli.MutuallyExclusiveFlags{},
+		Arguments:                     []cli.Argument{},
+		ReadArgsFromStdin:             false,
+		StopOnNthArg:                  new(int),
 	}
 
 	// Graceful shutdown
