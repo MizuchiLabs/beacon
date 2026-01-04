@@ -19,8 +19,12 @@ type Querier interface {
 	DeletePushSubscriptionByEndpoint(ctx context.Context, endpoint string) error
 	GetChecks(ctx context.Context, seconds *string) ([]*Check, error)
 	GetMonitor(ctx context.Context, id int64) (*Monitor, error)
+	GetMonitorStats(ctx context.Context, seconds *string) ([]*GetMonitorStatsRow, error)
 	GetMonitors(ctx context.Context) ([]*Monitor, error)
 	GetPushSubscriptionsByMonitor(ctx context.Context, monitorID int64) ([]*PushSubscription, error)
+	GetResponseTimesForPercentiles(ctx context.Context, seconds *string) ([]*GetResponseTimesForPercentilesRow, error)
+	GetStatusDataPoints(ctx context.Context, arg *GetStatusDataPointsParams) ([]*GetStatusDataPointsRow, error)
+	GetTimeSeriesDataPoints(ctx context.Context, arg *GetTimeSeriesDataPointsParams) ([]*GetTimeSeriesDataPointsRow, error)
 	GetVAPIDKeys(ctx context.Context) (*VapidKey, error)
 	UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (*Monitor, error)
 	VAPIDKeysExist(ctx context.Context) (int64, error)

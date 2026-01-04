@@ -21,6 +21,7 @@ import (
 )
 
 type EnvConfig struct {
+	Debug        bool   `env:"DEBUG"           envDefault:"false"`
 	ServerPort   string `env:"BEACON_PORT"     envDefault:"3000"`
 	DBPath       string `env:"BEACON_DB_PATH"  envDefault:"data/beacon.db"`
 	Insecure     bool   `env:"BEACON_INSECURE" envDefault:"false"`
@@ -33,7 +34,14 @@ type EnvConfig struct {
 	Timezone    string `env:"BEACON_TIMEZONE"    envDefault:"Europe/Vienna"`
 	ChartType   string `env:"BEACON_CHART_TYPE"  envDefault:"area"` // bars or area
 
-	Debug bool `env:"DEBUG" envDefault:"false"`
+	// Monitor settings
+	Timeout       time.Duration `env:"BEACON_TIMEOUT"        envDefault:"30s"`
+	RetentionDays int           `env:"BEACON_RETENTION_DAYS" envDefault:"30"`
+
+	// Incident settings
+	RepoURL  string        `env:"BEACON_INCIDENT_REPO"`
+	RepoPath string        `env:"BEACON_INCIDENT_PATH"`
+	Interval time.Duration `env:"BEACON_INCIDENT_SYNC" envDefault:"5m"`
 }
 
 type Config struct {
@@ -55,25 +63,23 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 		log.Fatalf("Failed to parse environment variables: %v", err)
 	}
 
-	if cmd.String("port") != "" {
+	if cmd != nil {
+		cfg.Debug = cmd.Bool("debug")
 		cfg.ServerPort = cmd.String("port")
-	}
-	if cmd.String("config") != "" {
 		cfg.ConfigPath = cmd.String("config")
-	}
-	if cmd.String("chart-type") != "" {
 		cfg.ChartType = cmd.String("chart-type")
 	}
+
 	if cfg.ChartType != "bars" && cfg.ChartType != "area" {
 		log.Fatalf("Invalid chart type: %s", cfg.ChartType)
 	}
 
-	Logger(&cfg)
+	cfg.initLogger()
 	cfg.Conn = db.NewConnection(cfg.DBPath)
-	cfg.Checker = checker.New(cfg.Insecure)
+	cfg.Checker = checker.New(cfg.Timeout, cfg.Insecure)
 	cfg.Notifier = notify.New(ctx, cfg.Conn)
-	cfg.Scheduler = scheduler.New(cfg.Conn, cfg.Checker, cfg.Notifier)
-	cfg.Incidents = incidents.New()
+	cfg.Scheduler = scheduler.New(cfg.Conn, cfg.Checker, cfg.Notifier, cfg.RetentionDays)
+	cfg.Incidents = incidents.New(cfg.RepoURL, cfg.RepoPath, cfg.Interval)
 
 	// Sync monitors to DB
 	if err := cfg.syncMonitors(ctx); err != nil {
@@ -83,7 +89,7 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 	return &cfg
 }
 
-func Logger(cfg *Config) {
+func (cfg *Config) initLogger() {
 	level := slog.LevelInfo
 	if cfg.Debug {
 		level = slog.LevelDebug
@@ -92,7 +98,7 @@ func Logger(cfg *Config) {
 	slog.SetDefault(slog.New(
 		tint.NewHandler(colorable.NewColorable(os.Stderr), &tint.Options{
 			Level:      level,
-			TimeFormat: time.RFC822,
+			TimeFormat: time.RFC3339,
 			NoColor:    !isatty.IsTerminal(os.Stderr.Fd()),
 		}),
 	))

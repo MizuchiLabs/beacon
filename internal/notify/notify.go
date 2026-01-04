@@ -1,3 +1,4 @@
+// Package notify provides functionality for sending notifications
 package notify
 
 import (

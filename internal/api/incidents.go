@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/mizuchilabs/beacon/internal/util"
 )
 
 func (s *Server) GetIncidents(w http.ResponseWriter, r *http.Request) {
@@ -13,7 +14,7 @@ func (s *Server) GetIncidents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	incidents := s.cfg.Incidents.GetIncidents()
-	respondJSON(w, http.StatusOK, incidents)
+	util.RespondJSON(w, http.StatusOK, incidents)
 }
 
 func (s *Server) GetIncident(w http.ResponseWriter, r *http.Request) {
@@ -29,5 +30,5 @@ func (s *Server) GetIncident(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusOK, incident)
+	util.RespondJSON(w, http.StatusOK, incident)
 }

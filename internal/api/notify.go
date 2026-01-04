@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mizuchilabs/beacon/internal/db"
+	"github.com/mizuchilabs/beacon/internal/util"
 )
 
 type PushSubscriptionRequest struct {
@@ -27,7 +28,7 @@ func (s *Server) GetVAPIDPublicKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{
+	util.RespondJSON(w, http.StatusOK, map[string]string{
 		"publicKey": keys.PublicKey,
 	})
 }
@@ -65,7 +66,7 @@ func (s *Server) SubscribeToPushNotifications(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	respondJSON(w, http.StatusCreated, map[string]string{
+	util.RespondJSON(w, http.StatusCreated, map[string]string{
 		"message": "Subscribed successfully",
 	})
 }
@@ -101,7 +102,7 @@ func (s *Server) UnsubscribeFromPushNotifications(w http.ResponseWriter, r *http
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{
+	util.RespondJSON(w, http.StatusOK, map[string]string{
 		"message": "Unsubscribed successfully",
 	})
 }

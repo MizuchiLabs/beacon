@@ -5,57 +5,27 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log"
-	"log/slog"
+	"io"
 	"net/http"
 	"time"
 
-	"github.com/caarlos0/env/v11"
 	"github.com/mizuchilabs/beacon/internal/db"
 )
 
-type Result struct {
-	IsUp           bool
-	StatusCode     int
-	ResponseTimeMs int64
-	Error          error
-}
-
 type Checker struct {
-	client  *http.Client
-	Timeout time.Duration `env:"BEACON_TIMEOUT" envDefault:"30s"`
+	client *http.Client
 }
 
-func New(insecure bool) *Checker {
-	c, err := env.ParseAs[Checker]()
-	if err != nil {
-		log.Fatalf("Failed to parse environment variables: %v", err)
+func New(timeout time.Duration, insecure bool) *Checker {
+	if timeout < 5*time.Second {
+		timeout = 30 * time.Second
 	}
-
-	// Set a sane default timeout
-	if c.Timeout <= time.Second*5 {
-		c.Timeout = 30 * time.Second
-	}
-
 	return &Checker{
 		client: &http.Client{
-			Timeout: c.Timeout,
+			Timeout: timeout,
 			Transport: &http.Transport{
-				MaxIdleConns:        100,
-				MaxIdleConnsPerHost: 10,
-				IdleConnTimeout:     90 * time.Second,
-				TLSHandshakeTimeout: 10 * time.Second,
-				DisableKeepAlives:   false,
-				DisableCompression:  false,
-				ForceAttemptHTTP2:   true,
-				TLSClientConfig:     &tls.Config{InsecureSkipVerify: insecure},
-			},
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				// Allow up to 10 redirects
-				if len(via) >= 10 {
-					return fmt.Errorf("too many redirects")
-				}
-				return nil
+				TLSClientConfig:   &tls.Config{InsecureSkipVerify: insecure},
+				DisableKeepAlives: true,
 			},
 		},
 	}
@@ -63,46 +33,35 @@ func New(insecure bool) *Checker {
 
 func (c *Checker) Check(ctx context.Context, url string) *db.CreateCheckParams {
 	start := time.Now()
-
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		msg := fmt.Sprintf("failed to create request: %v", err)
-		return &db.CreateCheckParams{
-			IsUp:  false,
-			Error: &msg,
-		}
+		return checkErr(err)
 	}
-
-	// Set user agent
-	req.Header.Set("User-Agent", "Beacon-Uptime-Monitor/1.0")
+	req.Header.Set("User-Agent", "Beacon/1.0")
 
 	resp, err := c.client.Do(req)
-	responseTime := time.Since(start).Milliseconds()
+	ms := time.Since(start).Milliseconds()
 	if err != nil {
-		msg := fmt.Sprintf("failed to execute request: %v", err)
-		return &db.CreateCheckParams{
-			IsUp:         false,
-			Error:        &msg,
-			ResponseTime: &responseTime,
-		}
+		return checkErr(err, ms)
 	}
 	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Error("failed to close response body", "error", err)
-		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 	}()
 
-	// Consider 2xx and 3xx as up
-	isUp := resp.StatusCode >= 200 && resp.StatusCode < 400
-	statusCode := int64(resp.StatusCode)
+	code := int64(resp.StatusCode)
 	return &db.CreateCheckParams{
-		IsUp:         isUp,
-		StatusCode:   &statusCode,
-		ResponseTime: &responseTime,
-		Error:        nil,
+		IsUp:         resp.StatusCode >= 200 && resp.StatusCode < 400,
+		StatusCode:   &code,
+		ResponseTime: &ms,
 	}
 }
 
-func (c *Checker) Close() {
-	c.client.CloseIdleConnections()
+func checkErr(err error, ms ...int64) *db.CreateCheckParams {
+	msg := fmt.Sprintf("request failed: %v", err)
+	p := &db.CreateCheckParams{IsUp: false, Error: &msg}
+	if len(ms) > 0 {
+		p.ResponseTime = &ms[0]
+	}
+	return p
 }

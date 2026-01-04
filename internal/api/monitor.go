@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -9,6 +8,7 @@ import (
 	"time"
 
 	"github.com/mizuchilabs/beacon/internal/db"
+	"github.com/mizuchilabs/beacon/internal/util"
 )
 
 type MonitorStats struct {
@@ -17,30 +17,30 @@ type MonitorStats struct {
 	URL             string      `json:"url"`
 	CheckInterval   int64       `json:"check_interval"`
 	UptimePct       float64     `json:"uptime_pct"`
-	AvgResponseTime *int64      `json:"avg_response_time"`
+	AvgResponseTime int64       `json:"avg_response_time"`
 	Percentiles     Percentiles `json:"percentiles"`
 	DataPoints      []DataPoint `json:"data_points"`
 }
 
 type Percentiles struct {
-	P50 *int64 `json:"p50"`
-	P75 *int64 `json:"p75"`
-	P90 *int64 `json:"p90"`
-	P95 *int64 `json:"p95"`
-	P99 *int64 `json:"p99"`
+	P50 int64 `json:"p50"`
+	P75 int64 `json:"p75"`
+	P90 int64 `json:"p90"`
+	P95 int64 `json:"p95"`
+	P99 int64 `json:"p99"`
 }
 
 type DataPoint struct {
 	Timestamp     time.Time `json:"timestamp"`
-	ResponseTime  *int64    `json:"response_time"` // avg response time
+	ResponseTime  int64     `json:"response_time"` // avg response time
 	IsUp          bool      `json:"is_up"`
-	UpRatio       *float64  `json:"up_ratio,omitempty"`
-	DegradedRatio *float64  `json:"degraded_ratio,omitempty"`
-	DownRatio     *float64  `json:"down_ratio,omitempty"`
+	UpRatio       float64   `json:"up_ratio,omitempty"`
+	DegradedRatio float64   `json:"degraded_ratio,omitempty"`
+	DownRatio     float64   `json:"down_ratio,omitempty"`
 }
 
 func (s *Server) GetConfig(w http.ResponseWriter, r *http.Request) {
-	respondJSON(w, http.StatusOK, map[string]any{
+	util.RespondJSON(w, http.StatusOK, map[string]any{
 		"title":             s.cfg.Title,
 		"description":       s.cfg.Description,
 		"timezone":          s.cfg.Timezone,
@@ -59,13 +59,13 @@ func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
 	monitors, err := s.cfg.Conn.Queries.GetMonitors(r.Context())
 	if err != nil {
 		slog.Error("failed to get monitors", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to retrieve monitors")
+		util.RespondError(w, http.StatusInternalServerError, "failed to retrieve monitors")
 		return
 	}
 	checks, err := s.cfg.Conn.Queries.GetChecks(r.Context(), &seconds)
 	if err != nil {
 		slog.Error("failed to get checks", "error", err)
-		respondError(w, http.StatusInternalServerError, "failed to retrieve checks")
+		util.RespondError(w, http.StatusInternalServerError, "failed to retrieve checks")
 		return
 	}
 
@@ -109,7 +109,7 @@ func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	respondJSON(w, http.StatusOK, result)
+	util.RespondJSON(w, http.StatusOK, result)
 }
 
 func aggregateTimeSeriesDataPoints(checks []*db.Check, secondsStr string) []DataPoint {
@@ -156,10 +156,10 @@ func aggregateTimeSeriesDataPoints(checks []*db.Check, secondsStr string) []Data
 			}
 		}
 
-		var avgResponseTime *int64
+		var avgResponseTime int64
 		if count > 0 {
 			avg := sum / count
-			avgResponseTime = &avg
+			avgResponseTime = avg
 		}
 
 		dataPoints = append(dataPoints, DataPoint{
@@ -208,11 +208,11 @@ func aggregateStatusDataPoints(checks []*db.Check, bucketCount int) []DataPoint 
 
 		return []DataPoint{{
 			Timestamp:     check.CheckedAt,
-			ResponseTime:  check.ResponseTime,
+			ResponseTime:  *check.ResponseTime,
 			IsUp:          check.IsUp,
-			UpRatio:       &upRatio,
-			DegradedRatio: &degradedRatio,
-			DownRatio:     &downRatio,
+			UpRatio:       upRatio,
+			DegradedRatio: degradedRatio,
+			DownRatio:     downRatio,
 		}}
 	}
 
@@ -269,18 +269,18 @@ func aggregateStatusDataPoints(checks []*db.Check, bucketCount int) []DataPoint 
 
 		dataPoints = append(dataPoints, DataPoint{
 			Timestamp:     timestamp,
-			ResponseTime:  nil, // Not needed for status chart
+			ResponseTime:  0, // Not needed for status chart
 			IsUp:          isUp,
-			UpRatio:       &upRatio,
-			DegradedRatio: &degradedRatio,
-			DownRatio:     &downRatio,
+			UpRatio:       upRatio,
+			DegradedRatio: degradedRatio,
+			DownRatio:     downRatio,
 		})
 	}
 
 	return dataPoints
 }
 
-func calculateAvgResponseTime(checks []*db.Check) *int64 {
+func calculateAvgResponseTime(checks []*db.Check) int64 {
 	var sum int64
 	var count int64
 
@@ -292,11 +292,11 @@ func calculateAvgResponseTime(checks []*db.Check) *int64 {
 	}
 
 	if count == 0 {
-		return nil
+		return 0
 	}
 
 	avg := sum / count
-	return &avg
+	return avg
 }
 
 func calculatePercentiles(checks []*db.Check) Percentiles {
@@ -308,40 +308,23 @@ func calculatePercentiles(checks []*db.Check) Percentiles {
 		}
 	}
 
-	if len(responseTimes) == 0 {
+	n := len(responseTimes)
+	if n == 0 {
 		return Percentiles{}
 	}
 
 	// Sort response times
 	slices.Sort(responseTimes)
-
-	getPercentile := func(p float64) *int64 {
-		index := int(p * float64(len(responseTimes)))
-		if index >= len(responseTimes) {
-			index = len(responseTimes) - 1
-		}
-		value := responseTimes[index]
-		return &value
+	get := func(p float64) int64 {
+		idx := int(p * float64(n-1))
+		return responseTimes[idx]
 	}
 
 	return Percentiles{
-		P50: getPercentile(0.50),
-		P75: getPercentile(0.75),
-		P90: getPercentile(0.90),
-		P95: getPercentile(0.95),
-		P99: getPercentile(0.99),
+		P50: get(0.50),
+		P75: get(0.75),
+		P90: get(0.90),
+		P95: get(0.95),
+		P99: get(0.99),
 	}
-}
-
-// Helper functions
-func respondJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		slog.Error("failed to encode response", "error", err)
-	}
-}
-
-func respondError(w http.ResponseWriter, status int, message string) {
-	respondJSON(w, status, map[string]string{"error": message})
 }

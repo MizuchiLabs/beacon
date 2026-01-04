@@ -1,4 +1,4 @@
-// Package store provides functionality for interacting with the database.
+// Package db provides functionality for interacting with the database
 package db
 
 import (

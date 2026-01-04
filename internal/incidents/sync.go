@@ -1,43 +1,36 @@
+// Package incidents provides functionality for syncing incidents
 package incidents
 
 import (
 	"context"
-	"log"
 	"log/slog"
 	"os"
 	"os/exec"
 	"sync"
 	"time"
-
-	"github.com/caarlos0/env/v11"
 )
 
 type IncidentManager struct {
-	RepoURL   string        `env:"BEACON_INCIDENT_REPO"`
-	RepoPath  string        `env:"BEACON_INCIDENT_PATH"`
-	Interval  time.Duration `env:"BEACON_INCIDENT_SYNC" envDefault:"5m"`
+	RepoURL   string
+	RepoPath  string
+	Interval  time.Duration
 	mu        sync.RWMutex
 	incidents []Incident
 }
 
-func New() *IncidentManager {
-	s, err := env.ParseAs[IncidentManager]()
-	if err != nil {
-		log.Fatalf("Failed to parse environment variables: %v", err)
-	}
-
-	if s.RepoURL == "" {
-		if _, err := os.Stat(s.RepoPath); os.IsNotExist(err) {
+func New(repoURL, repoPath string, interval time.Duration) *IncidentManager {
+	if repoURL == "" {
+		if _, err := os.Stat(repoPath); os.IsNotExist(err) {
 			slog.Debug("No incident repo URL or local path set, incidents disabled")
 			return nil
 		}
-		slog.Info("Using local incident directory", "path", s.RepoPath)
+		slog.Info("Using local incident directory", "path", repoPath)
 	}
 
 	return &IncidentManager{
-		RepoURL:   s.RepoURL,
-		RepoPath:  s.RepoPath,
-		Interval:  s.Interval,
+		RepoURL:   repoURL,
+		RepoPath:  repoPath,
+		Interval:  interval,
 		incidents: make([]Incident, 0),
 	}
 }

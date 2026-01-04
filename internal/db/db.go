@@ -54,11 +54,23 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getMonitorStmt, err = db.PrepareContext(ctx, getMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMonitor: %w", err)
 	}
+	if q.getMonitorStatsStmt, err = db.PrepareContext(ctx, getMonitorStats); err != nil {
+		return nil, fmt.Errorf("error preparing query GetMonitorStats: %w", err)
+	}
 	if q.getMonitorsStmt, err = db.PrepareContext(ctx, getMonitors); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMonitors: %w", err)
 	}
 	if q.getPushSubscriptionsByMonitorStmt, err = db.PrepareContext(ctx, getPushSubscriptionsByMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query GetPushSubscriptionsByMonitor: %w", err)
+	}
+	if q.getResponseTimesForPercentilesStmt, err = db.PrepareContext(ctx, getResponseTimesForPercentiles); err != nil {
+		return nil, fmt.Errorf("error preparing query GetResponseTimesForPercentiles: %w", err)
+	}
+	if q.getStatusDataPointsStmt, err = db.PrepareContext(ctx, getStatusDataPoints); err != nil {
+		return nil, fmt.Errorf("error preparing query GetStatusDataPoints: %w", err)
+	}
+	if q.getTimeSeriesDataPointsStmt, err = db.PrepareContext(ctx, getTimeSeriesDataPoints); err != nil {
+		return nil, fmt.Errorf("error preparing query GetTimeSeriesDataPoints: %w", err)
 	}
 	if q.getVAPIDKeysStmt, err = db.PrepareContext(ctx, getVAPIDKeys); err != nil {
 		return nil, fmt.Errorf("error preparing query GetVAPIDKeys: %w", err)
@@ -124,6 +136,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getMonitorStmt: %w", cerr)
 		}
 	}
+	if q.getMonitorStatsStmt != nil {
+		if cerr := q.getMonitorStatsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getMonitorStatsStmt: %w", cerr)
+		}
+	}
 	if q.getMonitorsStmt != nil {
 		if cerr := q.getMonitorsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getMonitorsStmt: %w", cerr)
@@ -132,6 +149,21 @@ func (q *Queries) Close() error {
 	if q.getPushSubscriptionsByMonitorStmt != nil {
 		if cerr := q.getPushSubscriptionsByMonitorStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getPushSubscriptionsByMonitorStmt: %w", cerr)
+		}
+	}
+	if q.getResponseTimesForPercentilesStmt != nil {
+		if cerr := q.getResponseTimesForPercentilesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getResponseTimesForPercentilesStmt: %w", cerr)
+		}
+	}
+	if q.getStatusDataPointsStmt != nil {
+		if cerr := q.getStatusDataPointsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getStatusDataPointsStmt: %w", cerr)
+		}
+	}
+	if q.getTimeSeriesDataPointsStmt != nil {
+		if cerr := q.getTimeSeriesDataPointsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getTimeSeriesDataPointsStmt: %w", cerr)
 		}
 	}
 	if q.getVAPIDKeysStmt != nil {
@@ -198,8 +230,12 @@ type Queries struct {
 	deletePushSubscriptionByEndpointStmt *sql.Stmt
 	getChecksStmt                        *sql.Stmt
 	getMonitorStmt                       *sql.Stmt
+	getMonitorStatsStmt                  *sql.Stmt
 	getMonitorsStmt                      *sql.Stmt
 	getPushSubscriptionsByMonitorStmt    *sql.Stmt
+	getResponseTimesForPercentilesStmt   *sql.Stmt
+	getStatusDataPointsStmt              *sql.Stmt
+	getTimeSeriesDataPointsStmt          *sql.Stmt
 	getVAPIDKeysStmt                     *sql.Stmt
 	updateMonitorStmt                    *sql.Stmt
 	vAPIDKeysExistStmt                   *sql.Stmt
@@ -219,8 +255,12 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deletePushSubscriptionByEndpointStmt: q.deletePushSubscriptionByEndpointStmt,
 		getChecksStmt:                        q.getChecksStmt,
 		getMonitorStmt:                       q.getMonitorStmt,
+		getMonitorStatsStmt:                  q.getMonitorStatsStmt,
 		getMonitorsStmt:                      q.getMonitorsStmt,
 		getPushSubscriptionsByMonitorStmt:    q.getPushSubscriptionsByMonitorStmt,
+		getResponseTimesForPercentilesStmt:   q.getResponseTimesForPercentilesStmt,
+		getStatusDataPointsStmt:              q.getStatusDataPointsStmt,
+		getTimeSeriesDataPointsStmt:          q.getTimeSeriesDataPointsStmt,
 		getVAPIDKeysStmt:                     q.getVAPIDKeysStmt,
 		updateMonitorStmt:                    q.updateMonitorStmt,
 		vAPIDKeysExistStmt:                   q.vAPIDKeysExistStmt,

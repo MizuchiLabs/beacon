@@ -8,7 +8,9 @@ INSERT INTO
     is_up
   )
 VALUES
-  (?, ?, ?, ?, ?) RETURNING *;
+  (?, ?, ?, ?, ?)
+RETURNING
+  *;
 
 -- name: GetChecks :many
 SELECT
@@ -16,11 +18,11 @@ SELECT
 FROM
   checks
 WHERE
-  checked_at >= datetime ('now', '-' || sqlc.arg (seconds) || ' seconds')
+  checked_at >= datetime('now', '-' || sqlc.arg (seconds) || ' seconds')
 ORDER BY
   checked_at DESC;
 
 -- name: CleanupChecks :exec
 DELETE FROM checks
 WHERE
-  checked_at < datetime ('now', '-' || sqlc.arg (days) || ' days')
+  checked_at < datetime('now', '-' || sqlc.arg (days) || ' days');
