@@ -1,9 +1,9 @@
 package api
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
-	"slices"
 	"strconv"
 	"time"
 
@@ -16,10 +16,10 @@ type MonitorStats struct {
 	Name            string      `json:"name"`
 	URL             string      `json:"url"`
 	CheckInterval   int64       `json:"check_interval"`
-	UptimePct       float64     `json:"uptime_pct"`
 	AvgResponseTime int64       `json:"avg_response_time"`
+	UptimePct       float64     `json:"uptime_pct"`
 	Percentiles     Percentiles `json:"percentiles"`
-	DataPoints      []DataPoint `json:"data_points"`
+	Datapoints      []DataPoint `json:"data_points"`
 }
 
 type Percentiles struct {
@@ -32,7 +32,7 @@ type Percentiles struct {
 
 type DataPoint struct {
 	Timestamp     time.Time `json:"timestamp"`
-	ResponseTime  int64     `json:"response_time"` // avg response time
+	ResponseTime  int64     `json:"response_time"`
 	IsUp          bool      `json:"is_up"`
 	UpRatio       float64   `json:"up_ratio,omitempty"`
 	DegradedRatio float64   `json:"degraded_ratio,omitempty"`
@@ -50,281 +50,134 @@ func (s *Server) GetConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
-	// Get seconds from query param, default to 24 hours
-	seconds := r.URL.Query().Get("seconds")
-	if seconds == "" {
-		seconds = "86400"
+	secondsStr := r.URL.Query().Get("seconds")
+	if secondsStr == "" {
+		secondsStr = "86400"
 	}
 
-	monitors, err := s.cfg.Conn.Queries.GetMonitors(r.Context())
+	seconds, _ := strconv.ParseInt(secondsStr, 10, 64)
+
+	stats, err := s.cfg.Conn.Queries.GetMonitorStats(r.Context(), &secondsStr)
 	if err != nil {
-		slog.Error("failed to get monitors", "error", err)
+		slog.Error("failed to get monitor stats", "error", err)
 		util.RespondError(w, http.StatusInternalServerError, "failed to retrieve monitors")
 		return
 	}
-	checks, err := s.cfg.Conn.Queries.GetChecks(r.Context(), &seconds)
+
+	since := time.Now().Add(-time.Duration(seconds) * time.Second)
+	slog.Debug("GetMonitors", "seconds", seconds, "since", since)
+
+	percentiles, err := s.cfg.Conn.Queries.GetPercentiles(r.Context(), since)
 	if err != nil {
-		slog.Error("failed to get checks", "error", err)
-		util.RespondError(w, http.StatusInternalServerError, "failed to retrieve checks")
+		slog.Error("failed to get percentiles", "error", err)
+		util.RespondError(w, http.StatusInternalServerError, "failed to retrieve percentiles")
+		return
+	}
+	percentilesByMonitor := make(map[int64]Percentiles)
+	for _, p := range percentiles {
+		percentilesByMonitor[p.MonitorID] = Percentiles{
+			P50: p.P50, P75: p.P75, P90: p.P90, P95: p.P95, P99: p.P99,
+		}
+	}
+
+	var pointsByMonitor map[int64][]DataPoint
+	if s.cfg.ChartType == "bars" {
+		pointsByMonitor, err = s.getStatusDataPoints(r.Context(), seconds, since)
+	} else {
+		pointsByMonitor, err = s.getTimeSeriesDataPoints(r.Context(), seconds, since)
+	}
+	if err != nil {
+		slog.Error("failed to get data points", "error", err)
+		util.RespondError(w, http.StatusInternalServerError, "failed to retrieve chart data")
 		return
 	}
 
-	// Group checks by monitor ID
-	checksByMonitor := make(map[int64][]*db.Check)
-	for _, c := range checks {
-		checksByMonitor[c.MonitorID] = append(checksByMonitor[c.MonitorID], c)
-	}
-
-	result := make([]MonitorStats, len(monitors))
-	for i, monitor := range monitors {
-		checks := checksByMonitor[monitor.ID]
-		upChecks := 0
-		uptimePct := 100.00
-
-		var dataPoints []DataPoint
-		switch s.cfg.ChartType {
-		case "bars":
-			dataPoints = aggregateStatusDataPoints(checks, 80)
-		default:
-			dataPoints = aggregateTimeSeriesDataPoints(checks, seconds)
-		}
-		for _, check := range checks {
-			if check.IsUp {
-				upChecks++
-			}
-		}
-		if len(checks) > 0 {
-			uptimePct = (float64(upChecks) / float64(len(checks))) * 100
-			uptimePct = float64(int(uptimePct*100)) / 100 // Round to 2 decimal places
-		}
+	result := make([]MonitorStats, len(stats))
+	for i, stat := range stats {
 		result[i] = MonitorStats{
-			ID:              monitor.ID,
-			Name:            monitor.Name,
-			URL:             monitor.Url,
-			CheckInterval:   monitor.CheckInterval,
-			UptimePct:       uptimePct,
-			AvgResponseTime: calculateAvgResponseTime(checks),
-			Percentiles:     calculatePercentiles(checks),
-			DataPoints:      dataPoints,
+			ID:              stat.ID,
+			Name:            stat.Name,
+			URL:             stat.Url,
+			CheckInterval:   stat.CheckInterval,
+			UptimePct:       stat.UptimePct,
+			AvgResponseTime: stat.AvgResponseTime,
+			Percentiles:     percentilesByMonitor[stat.ID],
+			Datapoints:      pointsByMonitor[stat.ID],
 		}
 	}
 
 	util.RespondJSON(w, http.StatusOK, result)
 }
 
-func aggregateTimeSeriesDataPoints(checks []*db.Check, secondsStr string) []DataPoint {
-	if len(checks) == 0 {
-		return []DataPoint{}
-	}
-
-	seconds, _ := strconv.ParseInt(secondsStr, 10, 64)
-
-	// Determine bucket size based on time range
-	var bucketSize time.Duration
-	switch {
-	case seconds <= 86400: // 24h - 30 minute buckets
-		bucketSize = 30 * time.Minute
-	case seconds <= 604800: // 7d - 4 hour buckets
-		bucketSize = 4 * time.Hour
-	case seconds <= 1209600: // 14d - 8 hour buckets
-		bucketSize = 8 * time.Hour
-	default: // 30d - 1 day buckets
-		bucketSize = 24 * time.Hour
-	}
-
-	// Group checks into buckets
-	buckets := make(map[int64][]*db.Check)
-	for _, check := range checks {
-		bucketKey := check.CheckedAt.Unix() / int64(bucketSize.Seconds())
-		buckets[bucketKey] = append(buckets[bucketKey], check)
-	}
-
-	// Calculate average for each bucket
-	dataPoints := make([]DataPoint, 0, len(buckets))
-	for bucketKey, bucketChecks := range buckets {
-		var sum int64
-		var count int64
-		upCount := 0
-
-		for _, check := range bucketChecks {
-			if check.IsUp {
-				upCount++
-			}
-			if check.ResponseTime != nil {
-				sum += *check.ResponseTime
-				count++
-			}
-		}
-
-		var avgResponseTime int64
-		if count > 0 {
-			avg := sum / count
-			avgResponseTime = avg
-		}
-
-		dataPoints = append(dataPoints, DataPoint{
-			Timestamp:    time.Unix(bucketKey*int64(bucketSize.Seconds()), 0),
-			ResponseTime: avgResponseTime,
-			IsUp:         upCount > len(bucketChecks)/2, // Majority up = up
-		})
-	}
-
-	// Sort by timestamp
-	slices.SortFunc(dataPoints, func(a, b DataPoint) int {
-		return int(a.Timestamp.Unix() - b.Timestamp.Unix())
-	})
-
-	return dataPoints
-}
-
-func aggregateStatusDataPoints(checks []*db.Check, bucketCount int) []DataPoint {
-	if len(checks) == 0 {
-		return []DataPoint{}
-	}
-
-	// Sort checks by timestamp
-	sortedChecks := make([]*db.Check, len(checks))
-	copy(sortedChecks, checks)
-	slices.SortFunc(sortedChecks, func(a, b *db.Check) int {
-		return int(a.CheckedAt.Unix() - b.CheckedAt.Unix())
-	})
-
-	start := sortedChecks[0].CheckedAt.Unix()
-	end := sortedChecks[len(sortedChecks)-1].CheckedAt.Unix()
-	duration := end - start
-
-	// Handle edge case
-	if duration <= 0 {
-		check := sortedChecks[0]
-		var upRatio, degradedRatio, downRatio float64
-
-		if !check.IsUp {
-			downRatio = 1.0
-		} else if check.ResponseTime != nil && *check.ResponseTime > 500 {
-			degradedRatio = 1.0
-		} else {
-			upRatio = 1.0
-		}
-
-		return []DataPoint{{
-			Timestamp:     check.CheckedAt,
-			ResponseTime:  *check.ResponseTime,
-			IsUp:          check.IsUp,
-			UpRatio:       upRatio,
-			DegradedRatio: degradedRatio,
-			DownRatio:     downRatio,
-		}}
-	}
-
-	bucketSize := duration / int64(bucketCount)
+func (s *Server) getStatusDataPoints(
+	ctx context.Context,
+	seconds int64,
+	since time.Time,
+) (map[int64][]DataPoint, error) {
+	bucketSize := seconds / 80
 	if bucketSize == 0 {
 		bucketSize = 1
 	}
 
-	// Group into buckets
-	buckets := make(map[int64][]*db.Check)
-	for _, check := range sortedChecks {
-		bucketKey := (check.CheckedAt.Unix() - start) / bucketSize
-		if bucketKey >= int64(bucketCount) {
-			bucketKey = int64(bucketCount - 1)
-		}
-		buckets[bucketKey] = append(buckets[bucketKey], check)
+	params := &db.GetStatusDataPointsParams{
+		BucketSize:        bucketSize,
+		DegradedThreshold: 500,
+		Since:             since,
 	}
 
-	// Calculate status ratios for each bucket
-	dataPoints := make([]DataPoint, 0, bucketCount)
-	for bucketKey := int64(0); bucketKey < int64(bucketCount); bucketKey++ {
-		bucketChecks := buckets[bucketKey]
+	rows, err := s.cfg.Conn.Queries.GetStatusDataPoints(ctx, params)
+	if err != nil {
+		return nil, err
+	}
 
-		// Skip empty buckets - they'll show as gaps
-		if len(bucketChecks) == 0 {
-			continue
-		}
-
-		upCount := 0
-		degradedCount := 0
-		downCount := 0
-
-		for _, check := range bucketChecks {
-			if !check.IsUp {
-				downCount++
-			} else if check.ResponseTime != nil && *check.ResponseTime > 500 {
-				degradedCount++
-			} else {
-				upCount++
-			}
-		}
-
-		// Calculate ratios
-		total := float64(len(bucketChecks))
-		upRatio := float64(upCount) / total
-		degradedRatio := float64(degradedCount) / total
-		downRatio := float64(downCount) / total
-
-		// Use timestamp at the start of the bucket
-		timestamp := time.Unix(start+bucketKey*bucketSize, 0)
-
-		// Determine overall status (majority rule for IsUp field)
-		isUp := upCount > len(bucketChecks)/2
-
-		dataPoints = append(dataPoints, DataPoint{
-			Timestamp:     timestamp,
-			ResponseTime:  0, // Not needed for status chart
-			IsUp:          isUp,
-			UpRatio:       upRatio,
-			DegradedRatio: degradedRatio,
-			DownRatio:     downRatio,
+	result := make(map[int64][]DataPoint)
+	for _, row := range rows {
+		total := float64(row.TotalCount)
+		result[row.MonitorID] = append(result[row.MonitorID], DataPoint{
+			Timestamp:     time.Unix(row.BucketTs, 0),
+			ResponseTime:  0,
+			IsUp:          row.UpCount > float64(row.TotalCount)/2,
+			UpRatio:       row.UpCount / total,
+			DegradedRatio: row.DegradedCount / total,
+			DownRatio:     row.DownCount / total,
 		})
 	}
-
-	return dataPoints
+	return result, nil
 }
 
-func calculateAvgResponseTime(checks []*db.Check) int64 {
-	var sum int64
-	var count int64
-
-	for _, check := range checks {
-		if check.IsUp && check.ResponseTime != nil {
-			sum += *check.ResponseTime
-			count++
-		}
+func (s *Server) getTimeSeriesDataPoints(
+	ctx context.Context,
+	seconds int64,
+	since time.Time,
+) (map[int64][]DataPoint, error) {
+	rows, err := s.cfg.Conn.Queries.GetTimeSeriesDataPoints(ctx, &db.GetTimeSeriesDataPointsParams{
+		BucketSize: computeBucketSize(seconds),
+		Since:      since,
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	if count == 0 {
-		return 0
+	result := make(map[int64][]DataPoint)
+	for _, row := range rows {
+		result[row.MonitorID] = append(result[row.MonitorID], DataPoint{
+			Timestamp:    time.Unix(row.BucketTs, 0),
+			ResponseTime: row.AvgResponseTime,
+			IsUp:         row.UpCount > float64(row.TotalCount)/2,
+		})
 	}
-
-	avg := sum / count
-	return avg
+	return result, nil
 }
 
-func calculatePercentiles(checks []*db.Check) Percentiles {
-	// Collect non-nil response times from successful checks
-	var responseTimes []int64
-	for _, check := range checks {
-		if check.IsUp && check.ResponseTime != nil {
-			responseTimes = append(responseTimes, *check.ResponseTime)
-		}
-	}
-
-	n := len(responseTimes)
-	if n == 0 {
-		return Percentiles{}
-	}
-
-	// Sort response times
-	slices.Sort(responseTimes)
-	get := func(p float64) int64 {
-		idx := int(p * float64(n-1))
-		return responseTimes[idx]
-	}
-
-	return Percentiles{
-		P50: get(0.50),
-		P75: get(0.75),
-		P90: get(0.90),
-		P95: get(0.95),
-		P99: get(0.99),
+func computeBucketSize(seconds int64) int64 {
+	switch {
+	case seconds <= 86400:
+		return 1800
+	case seconds <= 604800:
+		return 14400
+	case seconds <= 1209600:
+		return 28800
+	default:
+		return 86400
 	}
 }

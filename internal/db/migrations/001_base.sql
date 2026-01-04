@@ -13,8 +13,8 @@ CREATE TABLE monitors (
 CREATE TABLE checks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   monitor_id INTEGER NOT NULL,
-  status_code INTEGER,
-  response_time INTEGER, -- in ms
+  status_code INTEGER NOT NULL,
+  response_time INTEGER NOT NULL, -- in ms
   error TEXT,
   is_up BOOLEAN NOT NULL,
   checked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

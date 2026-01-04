@@ -3,7 +3,6 @@ package scheduler
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strconv"
 	"sync"
@@ -52,7 +51,8 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	// Load active monitors
 	monitors, err := s.conn.Queries.GetMonitors(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to load monitors: %w", err)
+		slog.Error("failed to load monitors", "error", err)
+		return err
 	}
 
 	// Start monitoring
@@ -73,8 +73,6 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	// Start cleanup routine
 	s.wg.Add(1)
 	go s.cleanupJob(ctx)
-
-	slog.Info("Scheduler started", "monitors", len(monitors))
 	return nil
 }
 
@@ -84,9 +82,7 @@ func (s *Scheduler) Stop() {
 		job.ticker.Stop()
 	}
 	s.mu.Unlock()
-
 	s.wg.Wait()
-	slog.Info("Scheduler stopped")
 }
 
 func (s *Scheduler) runMonitor(ctx context.Context, job *monitorJob) {

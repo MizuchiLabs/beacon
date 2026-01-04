@@ -48,9 +48,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deletePushSubscriptionByEndpointStmt, err = db.PrepareContext(ctx, deletePushSubscriptionByEndpoint); err != nil {
 		return nil, fmt.Errorf("error preparing query DeletePushSubscriptionByEndpoint: %w", err)
 	}
-	if q.getChecksStmt, err = db.PrepareContext(ctx, getChecks); err != nil {
-		return nil, fmt.Errorf("error preparing query GetChecks: %w", err)
-	}
 	if q.getMonitorStmt, err = db.PrepareContext(ctx, getMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMonitor: %w", err)
 	}
@@ -60,11 +57,11 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getMonitorsStmt, err = db.PrepareContext(ctx, getMonitors); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMonitors: %w", err)
 	}
+	if q.getPercentilesStmt, err = db.PrepareContext(ctx, getPercentiles); err != nil {
+		return nil, fmt.Errorf("error preparing query GetPercentiles: %w", err)
+	}
 	if q.getPushSubscriptionsByMonitorStmt, err = db.PrepareContext(ctx, getPushSubscriptionsByMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query GetPushSubscriptionsByMonitor: %w", err)
-	}
-	if q.getResponseTimesForPercentilesStmt, err = db.PrepareContext(ctx, getResponseTimesForPercentiles); err != nil {
-		return nil, fmt.Errorf("error preparing query GetResponseTimesForPercentiles: %w", err)
 	}
 	if q.getStatusDataPointsStmt, err = db.PrepareContext(ctx, getStatusDataPoints); err != nil {
 		return nil, fmt.Errorf("error preparing query GetStatusDataPoints: %w", err)
@@ -126,11 +123,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deletePushSubscriptionByEndpointStmt: %w", cerr)
 		}
 	}
-	if q.getChecksStmt != nil {
-		if cerr := q.getChecksStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getChecksStmt: %w", cerr)
-		}
-	}
 	if q.getMonitorStmt != nil {
 		if cerr := q.getMonitorStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getMonitorStmt: %w", cerr)
@@ -146,14 +138,14 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getMonitorsStmt: %w", cerr)
 		}
 	}
+	if q.getPercentilesStmt != nil {
+		if cerr := q.getPercentilesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getPercentilesStmt: %w", cerr)
+		}
+	}
 	if q.getPushSubscriptionsByMonitorStmt != nil {
 		if cerr := q.getPushSubscriptionsByMonitorStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getPushSubscriptionsByMonitorStmt: %w", cerr)
-		}
-	}
-	if q.getResponseTimesForPercentilesStmt != nil {
-		if cerr := q.getResponseTimesForPercentilesStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getResponseTimesForPercentilesStmt: %w", cerr)
 		}
 	}
 	if q.getStatusDataPointsStmt != nil {
@@ -228,12 +220,11 @@ type Queries struct {
 	deleteMonitorStmt                    *sql.Stmt
 	deletePushSubscriptionStmt           *sql.Stmt
 	deletePushSubscriptionByEndpointStmt *sql.Stmt
-	getChecksStmt                        *sql.Stmt
 	getMonitorStmt                       *sql.Stmt
 	getMonitorStatsStmt                  *sql.Stmt
 	getMonitorsStmt                      *sql.Stmt
+	getPercentilesStmt                   *sql.Stmt
 	getPushSubscriptionsByMonitorStmt    *sql.Stmt
-	getResponseTimesForPercentilesStmt   *sql.Stmt
 	getStatusDataPointsStmt              *sql.Stmt
 	getTimeSeriesDataPointsStmt          *sql.Stmt
 	getVAPIDKeysStmt                     *sql.Stmt
@@ -253,12 +244,11 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteMonitorStmt:                    q.deleteMonitorStmt,
 		deletePushSubscriptionStmt:           q.deletePushSubscriptionStmt,
 		deletePushSubscriptionByEndpointStmt: q.deletePushSubscriptionByEndpointStmt,
-		getChecksStmt:                        q.getChecksStmt,
 		getMonitorStmt:                       q.getMonitorStmt,
 		getMonitorStatsStmt:                  q.getMonitorStatsStmt,
 		getMonitorsStmt:                      q.getMonitorsStmt,
+		getPercentilesStmt:                   q.getPercentilesStmt,
 		getPushSubscriptionsByMonitorStmt:    q.getPushSubscriptionsByMonitorStmt,
-		getResponseTimesForPercentilesStmt:   q.getResponseTimesForPercentilesStmt,
 		getStatusDataPointsStmt:              q.getStatusDataPointsStmt,
 		getTimeSeriesDataPointsStmt:          q.getTimeSeriesDataPointsStmt,
 		getVAPIDKeysStmt:                     q.getVAPIDKeysStmt,

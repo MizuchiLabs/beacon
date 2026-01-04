@@ -25,7 +25,7 @@ type MonitorsFile struct {
 func (cfg *Config) loadMonitors() ([]MonitorConfig, error) {
 	// Priority 1: Inline YAML from environment
 	if cfg.MonitorsYAML != "" {
-		slog.Info("Loading monitors from environment...")
+		slog.Debug("Loading monitors from environment...")
 		monitors, err := parseMonitorsYAML([]byte(cfg.MonitorsYAML))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse BEACON_MONITORS: %w", err)
@@ -43,7 +43,7 @@ func (cfg *Config) loadMonitors() ([]MonitorConfig, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	slog.Info("Loading monitors from config file...", "path", cfg.ConfigPath)
+	slog.Debug("Loading monitors from config file", "path", cfg.ConfigPath)
 	monitors, err := parseMonitorsYAML(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)

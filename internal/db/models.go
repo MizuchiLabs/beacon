@@ -11,8 +11,8 @@ import (
 type Check struct {
 	ID           int64     `json:"id"`
 	MonitorID    int64     `json:"monitorId"`
-	StatusCode   *int64    `json:"statusCode"`
-	ResponseTime *int64    `json:"responseTime"`
+	StatusCode   int64     `json:"statusCode"`
+	ResponseTime int64     `json:"responseTime"`
 	Error        *string   `json:"error"`
 	IsUp         bool      `json:"isUp"`
 	CheckedAt    time.Time `json:"checkedAt"`

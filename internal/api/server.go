@@ -3,7 +3,6 @@ package api
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -65,10 +64,6 @@ func (s *Server) Start(ctx context.Context) error {
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		MaxHeaderBytes:    8192, // 8KB
-		TLSConfig: &tls.Config{
-			MinVersion:         tls.VersionTLS13,
-			InsecureSkipVerify: s.cfg.Insecure,
-		},
 	}
 
 	// Channel to catch server errors

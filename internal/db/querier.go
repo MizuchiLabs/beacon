@@ -6,6 +6,7 @@ package db
 
 import (
 	"context"
+	"time"
 )
 
 type Querier interface {
@@ -17,12 +18,11 @@ type Querier interface {
 	DeleteMonitor(ctx context.Context, id int64) error
 	DeletePushSubscription(ctx context.Context, arg *DeletePushSubscriptionParams) error
 	DeletePushSubscriptionByEndpoint(ctx context.Context, endpoint string) error
-	GetChecks(ctx context.Context, seconds *string) ([]*Check, error)
 	GetMonitor(ctx context.Context, id int64) (*Monitor, error)
 	GetMonitorStats(ctx context.Context, seconds *string) ([]*GetMonitorStatsRow, error)
 	GetMonitors(ctx context.Context) ([]*Monitor, error)
+	GetPercentiles(ctx context.Context, since time.Time) ([]*GetPercentilesRow, error)
 	GetPushSubscriptionsByMonitor(ctx context.Context, monitorID int64) ([]*PushSubscription, error)
-	GetResponseTimesForPercentiles(ctx context.Context, seconds *string) ([]*GetResponseTimesForPercentilesRow, error)
 	GetStatusDataPoints(ctx context.Context, arg *GetStatusDataPointsParams) ([]*GetStatusDataPointsRow, error)
 	GetTimeSeriesDataPoints(ctx context.Context, arg *GetTimeSeriesDataPointsParams) ([]*GetTimeSeriesDataPointsRow, error)
 	GetVAPIDKeys(ctx context.Context) (*VapidKey, error)

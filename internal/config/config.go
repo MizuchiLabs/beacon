@@ -21,7 +21,7 @@ import (
 )
 
 type EnvConfig struct {
-	Debug        bool   `env:"DEBUG"           envDefault:"false"`
+	Debug        bool   `env:"BEACON_DEBUG"    envDefault:"false"`
 	ServerPort   string `env:"BEACON_PORT"     envDefault:"3000"`
 	DBPath       string `env:"BEACON_DB_PATH"  envDefault:"data/beacon.db"`
 	Insecure     bool   `env:"BEACON_INSECURE" envDefault:"false"`

@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 )
 
 const cleanupChecks = `-- name: CleanupChecks :exec
@@ -37,8 +38,8 @@ RETURNING
 
 type CreateCheckParams struct {
 	MonitorID    int64   `json:"monitorId"`
-	StatusCode   *int64  `json:"statusCode"`
-	ResponseTime *int64  `json:"responseTime"`
+	StatusCode   int64   `json:"statusCode"`
+	ResponseTime int64   `json:"responseTime"`
 	Error        *string `json:"error"`
 	IsUp         bool    `json:"isUp"`
 }
@@ -64,48 +65,6 @@ func (q *Queries) CreateCheck(ctx context.Context, arg *CreateCheckParams) (*Che
 	return &i, err
 }
 
-const getChecks = `-- name: GetChecks :many
-SELECT
-  id, monitor_id, status_code, response_time, error, is_up, checked_at
-FROM
-  checks
-WHERE
-  checked_at >= datetime('now', '-' || ?1 || ' seconds')
-ORDER BY
-  checked_at DESC
-`
-
-func (q *Queries) GetChecks(ctx context.Context, seconds *string) ([]*Check, error) {
-	rows, err := q.query(ctx, q.getChecksStmt, getChecks, seconds)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []*Check
-	for rows.Next() {
-		var i Check
-		if err := rows.Scan(
-			&i.ID,
-			&i.MonitorID,
-			&i.StatusCode,
-			&i.ResponseTime,
-			&i.Error,
-			&i.IsUp,
-			&i.CheckedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, &i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getMonitorStats = `-- name: GetMonitorStats :many
 SELECT
   m.id,
@@ -113,18 +72,21 @@ SELECT
   m.url,
   m.check_interval,
   COUNT(c.id) AS total_checks,
-  SUM(
-    CASE
-      WHEN c.is_up THEN 1
-      ELSE 0
-    END
-  ) AS up_checks,
-  AVG(
-    CASE
-      WHEN c.is_up
-      AND c.response_time IS NOT NULL THEN c.response_time
-    END
-  ) AS avg_response_time
+  CAST(
+    ROUND(
+      COALESCE(
+        SUM(
+          CASE
+            WHEN c.is_up THEN 1
+            ELSE 0
+          END
+        ) * 100.0 / COUNT(c.id),
+        100.0
+      ),
+      2
+    ) AS REAL
+  ) AS uptime_pct,
+  CAST(COALESCE(AVG(c.response_time), 0.0) AS INTEGER) AS avg_response_time
 FROM
   monitors m
   LEFT JOIN checks c ON c.monitor_id = m.id
@@ -136,13 +98,13 @@ ORDER BY
 `
 
 type GetMonitorStatsRow struct {
-	ID              int64    `json:"id"`
-	Name            string   `json:"name"`
-	Url             string   `json:"url"`
-	CheckInterval   int64    `json:"checkInterval"`
-	TotalChecks     int64    `json:"totalChecks"`
-	UpChecks        *float64 `json:"upChecks"`
-	AvgResponseTime *float64 `json:"avgResponseTime"`
+	ID              int64   `json:"id"`
+	Name            string  `json:"name"`
+	Url             string  `json:"url"`
+	CheckInterval   int64   `json:"checkInterval"`
+	TotalChecks     int64   `json:"totalChecks"`
+	UptimePct       float64 `json:"uptimePct"`
+	AvgResponseTime int64   `json:"avgResponseTime"`
 }
 
 func (q *Queries) GetMonitorStats(ctx context.Context, seconds *string) ([]*GetMonitorStatsRow, error) {
@@ -160,7 +122,7 @@ func (q *Queries) GetMonitorStats(ctx context.Context, seconds *string) ([]*GetM
 			&i.Url,
 			&i.CheckInterval,
 			&i.TotalChecks,
-			&i.UpChecks,
+			&i.UptimePct,
 			&i.AvgResponseTime,
 		); err != nil {
 			return nil, err
@@ -176,36 +138,94 @@ func (q *Queries) GetMonitorStats(ctx context.Context, seconds *string) ([]*GetM
 	return items, nil
 }
 
-const getResponseTimesForPercentiles = `-- name: GetResponseTimesForPercentiles :many
+const getPercentiles = `-- name: GetPercentiles :many
+WITH
+  ordered AS (
+    SELECT
+      monitor_id,
+      response_time,
+      PERCENT_RANK() OVER (
+        PARTITION BY
+          monitor_id
+        ORDER BY
+          response_time
+      ) AS pct
+    FROM
+      checks
+    WHERE
+      checked_at >= ?1
+      AND is_up = 1
+      AND response_time IS NOT NULL
+  )
 SELECT
   monitor_id,
-  response_time
+  CAST(
+    MAX(
+      CASE
+        WHEN pct <= 0.50 THEN response_time
+      END
+    ) AS INTEGER
+  ) AS p50,
+  CAST(
+    MAX(
+      CASE
+        WHEN pct <= 0.75 THEN response_time
+      END
+    ) AS INTEGER
+  ) AS p75,
+  CAST(
+    MAX(
+      CASE
+        WHEN pct <= 0.90 THEN response_time
+      END
+    ) AS INTEGER
+  ) AS p90,
+  CAST(
+    MAX(
+      CASE
+        WHEN pct <= 0.95 THEN response_time
+      END
+    ) AS INTEGER
+  ) AS p95,
+  CAST(
+    MAX(
+      CASE
+        WHEN pct <= 0.99 THEN response_time
+      END
+    ) AS INTEGER
+  ) AS p99
 FROM
-  checks
-WHERE
-  checked_at >= datetime('now', '-' || ?1 || ' seconds')
-  AND is_up = 1
-  AND response_time IS NOT NULL
-ORDER BY
-  monitor_id,
-  response_time
+  ordered
+GROUP BY
+  monitor_id
 `
 
-type GetResponseTimesForPercentilesRow struct {
-	MonitorID    int64  `json:"monitorId"`
-	ResponseTime *int64 `json:"responseTime"`
+type GetPercentilesRow struct {
+	MonitorID int64 `json:"monitorId"`
+	P50       int64 `json:"p50"`
+	P75       int64 `json:"p75"`
+	P90       int64 `json:"p90"`
+	P95       int64 `json:"p95"`
+	P99       int64 `json:"p99"`
 }
 
-func (q *Queries) GetResponseTimesForPercentiles(ctx context.Context, seconds *string) ([]*GetResponseTimesForPercentilesRow, error) {
-	rows, err := q.query(ctx, q.getResponseTimesForPercentilesStmt, getResponseTimesForPercentiles, seconds)
+func (q *Queries) GetPercentiles(ctx context.Context, since time.Time) ([]*GetPercentilesRow, error) {
+	rows, err := q.query(ctx, q.getPercentilesStmt, getPercentiles, since)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []*GetResponseTimesForPercentilesRow
+	var items []*GetPercentilesRow
 	for rows.Next() {
-		var i GetResponseTimesForPercentilesRow
-		if err := rows.Scan(&i.MonitorID, &i.ResponseTime); err != nil {
+		var i GetPercentilesRow
+		if err := rows.Scan(
+			&i.MonitorID,
+			&i.P50,
+			&i.P75,
+			&i.P90,
+			&i.P95,
+			&i.P99,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, &i)
@@ -221,17 +241,15 @@ func (q *Queries) GetResponseTimesForPercentiles(ctx context.Context, seconds *s
 
 const getStatusDataPoints = `-- name: GetStatusDataPoints :many
 SELECT
-  c.monitor_id,
+  monitor_id,
   CAST(
-    (
-      strftime('%s', c.checked_at) / CAST(?1 AS INTEGER)
-    ) * CAST(?1 AS INTEGER) AS INTEGER
+    CAST(strftime('%s', checked_at) AS INTEGER) / CAST(?1 AS INTEGER) * CAST(?1 AS INTEGER) AS INTEGER
   ) AS bucket_ts,
   COUNT(*) AS total_count,
   CAST(
     SUM(
       CASE
-        WHEN NOT c.is_up THEN 1
+        WHEN NOT is_up THEN 1
         ELSE 0
       END
     ) AS REAL
@@ -239,8 +257,8 @@ SELECT
   CAST(
     SUM(
       CASE
-        WHEN c.is_up
-        AND c.response_time > ?2 THEN 1
+        WHEN is_up
+        AND response_time > ?2 THEN 1
         ELSE 0
       END
     ) AS REAL
@@ -248,34 +266,34 @@ SELECT
   CAST(
     SUM(
       CASE
-        WHEN c.is_up
+        WHEN is_up
         AND (
-          c.response_time IS NULL
-          OR c.response_time <= ?2
+          response_time IS NULL
+          OR response_time <= ?2
         ) THEN 1
         ELSE 0
       END
     ) AS REAL
   ) AS up_count
 FROM
-  checks c
+  checks
 WHERE
-  c.checked_at >= datetime('now', '-' || ?3 || ' seconds')
-  AND c.checked_at IS NOT NULL
+  checked_at >= ?3
+  AND checked_at IS NOT NULL
 GROUP BY
-  c.monitor_id,
+  monitor_id,
   bucket_ts
 HAVING
   bucket_ts IS NOT NULL
 ORDER BY
-  c.monitor_id,
+  monitor_id,
   bucket_ts
 `
 
 type GetStatusDataPointsParams struct {
-	BucketSize        int64   `json:"bucketSize"`
-	DegradedThreshold *int64  `json:"degradedThreshold"`
-	Seconds           *string `json:"seconds"`
+	BucketSize        int64     `json:"bucketSize"`
+	DegradedThreshold int64     `json:"degradedThreshold"`
+	Since             time.Time `json:"since"`
 }
 
 type GetStatusDataPointsRow struct {
@@ -288,7 +306,7 @@ type GetStatusDataPointsRow struct {
 }
 
 func (q *Queries) GetStatusDataPoints(ctx context.Context, arg *GetStatusDataPointsParams) ([]*GetStatusDataPointsRow, error) {
-	rows, err := q.query(ctx, q.getStatusDataPointsStmt, getStatusDataPoints, arg.BucketSize, arg.DegradedThreshold, arg.Seconds)
+	rows, err := q.query(ctx, q.getStatusDataPointsStmt, getStatusDataPoints, arg.BucketSize, arg.DegradedThreshold, arg.Since)
 	if err != nil {
 		return nil, err
 	}
@@ -321,15 +339,9 @@ const getTimeSeriesDataPoints = `-- name: GetTimeSeriesDataPoints :many
 SELECT
   monitor_id,
   CAST(
-    (
-      strftime('%s', checked_at) / CAST(?1 AS INTEGER)
-    ) * CAST(?1 AS INTEGER) AS INTEGER
+    CAST(strftime('%s', checked_at) AS INTEGER) / CAST(?1 AS INTEGER) * CAST(?1 AS INTEGER) AS INTEGER
   ) AS bucket_ts,
-  AVG(
-    CASE
-      WHEN response_time IS NOT NULL THEN response_time
-    END
-  ) AS avg_response_time,
+  CAST(COALESCE(AVG(response_time), 0.0) AS INTEGER) AS avg_response_time,
   CAST(
     SUM(
       CASE
@@ -342,7 +354,7 @@ SELECT
 FROM
   checks
 WHERE
-  checked_at >= datetime('now', '-' || ?2 || ' seconds')
+  checked_at >= ?2
   AND checked_at IS NOT NULL
 GROUP BY
   monitor_id,
@@ -355,20 +367,20 @@ ORDER BY
 `
 
 type GetTimeSeriesDataPointsParams struct {
-	BucketSize int64   `json:"bucketSize"`
-	Seconds    *string `json:"seconds"`
+	BucketSize int64     `json:"bucketSize"`
+	Since      time.Time `json:"since"`
 }
 
 type GetTimeSeriesDataPointsRow struct {
-	MonitorID       int64    `json:"monitorId"`
-	BucketTs        int64    `json:"bucketTs"`
-	AvgResponseTime *float64 `json:"avgResponseTime"`
-	UpCount         float64  `json:"upCount"`
-	TotalCount      int64    `json:"totalCount"`
+	MonitorID       int64   `json:"monitorId"`
+	BucketTs        int64   `json:"bucketTs"`
+	AvgResponseTime int64   `json:"avgResponseTime"`
+	UpCount         float64 `json:"upCount"`
+	TotalCount      int64   `json:"totalCount"`
 }
 
 func (q *Queries) GetTimeSeriesDataPoints(ctx context.Context, arg *GetTimeSeriesDataPointsParams) ([]*GetTimeSeriesDataPointsRow, error) {
-	rows, err := q.query(ctx, q.getTimeSeriesDataPointsStmt, getTimeSeriesDataPoints, arg.BucketSize, arg.Seconds)
+	rows, err := q.query(ctx, q.getTimeSeriesDataPointsStmt, getTimeSeriesDataPoints, arg.BucketSize, arg.Since)
 	if err != nil {
 		return nil, err
 	}

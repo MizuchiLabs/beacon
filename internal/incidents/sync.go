@@ -81,12 +81,12 @@ func (i *IncidentManager) Start(ctx context.Context) error {
 func (i *IncidentManager) syncRepo() error {
 	if _, err := os.Stat(i.RepoPath); os.IsNotExist(err) {
 		slog.Info("Cloning incidents repository", "url", i.RepoURL)
-		cmd := exec.Command("git", "clone", "--depth", "1", i.RepoURL, i.RepoPath)
+		cmd := exec.Command("git", "clone", "--depth", "1", i.RepoURL, i.RepoPath) // #nosec G204
 		return cmd.Run()
 	}
 
 	slog.Debug("Pulling latest incidents from repository")
-	cmd := exec.Command("git", "-C", i.RepoPath, "pull", "--rebase")
+	cmd := exec.Command("git", "-C", i.RepoPath, "pull", "--rebase") // #nosec G204
 	return cmd.Run()
 }
 
@@ -99,8 +99,6 @@ func (i *IncidentManager) loadIncidents() error {
 	i.mu.Lock()
 	i.incidents = incidents
 	i.mu.Unlock()
-
-	slog.Info("Loaded incidents", "count", len(incidents))
 	return nil
 }
 
@@ -114,7 +112,7 @@ func (i *IncidentManager) GetIncidents() []Incident {
 	return incidents
 }
 
-func (s *IncidentManager) GetIncidentByID(id string) (*Incident, bool) {
+func (s *IncidentManager) GetIncident(id string) (*Incident, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

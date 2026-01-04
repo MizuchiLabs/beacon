@@ -16,15 +16,20 @@ type Checker struct {
 	client *http.Client
 }
 
+const (
+	minTimeout     = 5 * time.Second
+	defaultTimeout = 30 * time.Second
+)
+
 func New(timeout time.Duration, insecure bool) *Checker {
-	if timeout < 5*time.Second {
-		timeout = 30 * time.Second
+	if timeout < minTimeout {
+		timeout = defaultTimeout
 	}
 	return &Checker{
 		client: &http.Client{
 			Timeout: timeout,
 			Transport: &http.Transport{
-				TLSClientConfig:   &tls.Config{InsecureSkipVerify: insecure},
+				TLSClientConfig:   &tls.Config{InsecureSkipVerify: insecure}, // #nosec G402
 				DisableKeepAlives: true,
 			},
 		},
@@ -35,7 +40,7 @@ func (c *Checker) Check(ctx context.Context, url string) *db.CreateCheckParams {
 	start := time.Now()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return checkErr(err)
+		return checkErr(err, 0)
 	}
 	req.Header.Set("User-Agent", "Beacon/1.0")
 
@@ -52,16 +57,16 @@ func (c *Checker) Check(ctx context.Context, url string) *db.CreateCheckParams {
 	code := int64(resp.StatusCode)
 	return &db.CreateCheckParams{
 		IsUp:         resp.StatusCode >= 200 && resp.StatusCode < 400,
-		StatusCode:   &code,
-		ResponseTime: &ms,
+		StatusCode:   code,
+		ResponseTime: ms,
 	}
 }
 
-func checkErr(err error, ms ...int64) *db.CreateCheckParams {
+func checkErr(err error, responseTime int64) *db.CreateCheckParams {
 	msg := fmt.Sprintf("request failed: %v", err)
-	p := &db.CreateCheckParams{IsUp: false, Error: &msg}
-	if len(ms) > 0 {
-		p.ResponseTime = &ms[0]
+	return &db.CreateCheckParams{
+		IsUp:         false,
+		Error:        &msg,
+		ResponseTime: responseTime,
 	}
-	return p
 }

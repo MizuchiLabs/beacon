@@ -38,6 +38,12 @@ func main() {
 				Aliases: []string{"v"},
 				Usage:   "Print version information",
 			},
+			&cli.BoolFlag{
+				Name:    "debug",
+				Aliases: []string{"d"},
+				Usage:   "Enable debug logging",
+				Sources: cli.EnvVars("BEACON_DEBUG"),
+			},
 			&cli.StringFlag{
 				Name:    "port",
 				Aliases: []string{"p"},

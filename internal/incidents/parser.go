@@ -53,7 +53,7 @@ func ParseIncidentsDir(dirPath string) ([]Incident, error) {
 			continue
 		}
 
-		data, err := os.ReadFile(filepath.Join(dirPath, entry.Name()))
+		data, err := os.ReadFile(filepath.Join(dirPath, entry.Name())) // #nosec G304
 		if err != nil {
 			continue
 		}

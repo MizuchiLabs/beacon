@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"strings"
 
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/mizuchilabs/beacon/internal/db"
@@ -90,9 +91,6 @@ func (n *Notifier) SendMonitorDownNotification(
 	}
 
 	// Send to all subscribers
-	successCount := 0
-	failedCount := 0
-
 	for _, sub := range subscriptions {
 		if err := n.sendPushNotification(sub, payloadBytes); err != nil {
 			slog.Error("Failed to send push notification",
@@ -100,16 +98,12 @@ func (n *Notifier) SendMonitorDownNotification(
 				"subscription_id", sub.ID,
 				"error", err,
 			)
-			failedCount++
 
-			// If subscription is invalid/expired, delete it
 			if isSubscriptionError(err) {
 				if deleteErr := n.conn.Queries.DeletePushSubscriptionByEndpoint(ctx, sub.Endpoint); deleteErr != nil {
 					slog.Error("Failed to delete invalid subscription", "error", deleteErr)
 				}
 			}
-		} else {
-			successCount++
 		}
 	}
 
@@ -196,25 +190,9 @@ func (n *Notifier) sendPushNotification(
 
 // isSubscriptionError checks if the error indicates an invalid/expired subscription
 func isSubscriptionError(err error) bool {
-	// Common error patterns for invalid subscriptions
 	errStr := err.Error()
-	return contains(errStr, "410") || // Gone
-		contains(errStr, "404") || // Not Found
-		contains(errStr, "expired") ||
-		contains(errStr, "invalid")
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&
-		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-			somewhereInMiddle(s, substr)))
-}
-
-func somewhereInMiddle(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
+	return strings.Contains(errStr, "410") ||
+		strings.Contains(errStr, "404") ||
+		strings.Contains(errStr, "expired") ||
+		strings.Contains(errStr, "invalid")
 }
