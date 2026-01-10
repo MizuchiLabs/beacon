@@ -1,7 +1,7 @@
 {
 	"name": "beacon",
-	"private": true,
 	"version": "0.0.1",
+	"private": true,
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
@@ -10,8 +10,15 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"format": "prettier --write .",
-		"lint": "prettier --check ."
+		"format": "oxfmt --write .",
+		"lint": "oxlint --fix"
+	},
+	"dependencies": {
+		"@fontsource-variable/manrope": "^5.2.8",
+		"@fontsource-variable/victor-mono": "^5.2.8",
+		"d3-array": "^3.2.4",
+		"d3-scale": "^4.0.2",
+		"d3-shape": "^3.2.0"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.10.1",
@@ -43,12 +50,5 @@
 		"typescript": "^5.9.3",
 		"vite": "^7.3.0",
 		"vite-plugin-compression2": "^2.4.0"
-	},
-	"dependencies": {
-		"@fontsource-variable/manrope": "^5.2.8",
-		"@fontsource-variable/victor-mono": "^5.2.8",
-		"d3-array": "^3.2.4",
-		"d3-scale": "^4.0.2",
-		"d3-shape": "^3.2.0"
 	}
 }
