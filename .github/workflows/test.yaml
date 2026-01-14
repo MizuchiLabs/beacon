@@ -68,4 +68,3 @@ jobs:
           delete-ghost-images: true
           delete-partial-images: true
           delete-orphaned-images: true
-          token: ${{ secrets.GITHUB_TOKEN }}

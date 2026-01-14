@@ -37,10 +37,10 @@ importers:
         specifier: ^3.0.10
         version: 3.0.10(@sveltejs/kit@2.49.4(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.46.3)(vite@7.3.1(jiti@2.6.1)(lightningcss@1.30.2)))(svelte@5.46.3)(typescript@5.9.3)(vite@7.3.1(jiti@2.6.1)(lightningcss@1.30.2)))
       '@sveltejs/kit':
-        specifier: ^2.49.2
+        specifier: ^2.49.4
         version: 2.49.4(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.46.3)(vite@7.3.1(jiti@2.6.1)(lightningcss@1.30.2)))(svelte@5.46.3)(typescript@5.9.3)(vite@7.3.1(jiti@2.6.1)(lightningcss@1.30.2))
       '@sveltejs/vite-plugin-svelte':
-        specifier: ^6.2.1
+        specifier: ^6.2.4
         version: 6.2.4(svelte@5.46.3)(vite@7.3.1(jiti@2.6.1)(lightningcss@1.30.2))
       '@tailwindcss/forms':
         specifier: ^0.5.11
@@ -52,16 +52,16 @@ importers:
         specifier: ^4.1.18
         version: 4.1.18(vite@7.3.1(jiti@2.6.1)(lightningcss@1.30.2))
       '@tanstack/svelte-query':
-        specifier: ^6.0.13
-        version: 6.0.14(svelte@5.46.3)
+        specifier: ^6.0.15
+        version: 6.0.15(svelte@5.46.3)
       '@types/d3-scale':
         specifier: ^4.0.9
         version: 4.0.9
       '@types/d3-shape':
-        specifier: ^3.1.7
+        specifier: ^3.1.8
         version: 3.1.8
       bits-ui:
-        specifier: ^2.14.4
+        specifier: ^2.15.4
         version: 2.15.4(@internationalized/date@3.10.1)(@sveltejs/kit@2.49.4(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.46.3)(vite@7.3.1(jiti@2.6.1)(lightningcss@1.30.2)))(svelte@5.46.3)(typescript@5.9.3)(vite@7.3.1(jiti@2.6.1)(lightningcss@1.30.2)))(svelte@5.46.3)
       clsx:
         specifier: ^2.1.1
@@ -82,7 +82,7 @@ importers:
         specifier: ^0.7.2
         version: 0.7.2(prettier-plugin-svelte@3.4.1(prettier@3.7.4)(svelte@5.46.3))(prettier@3.7.4)
       svelte:
-        specifier: ^5.46.1
+        specifier: ^5.46.3
         version: 5.46.3
       svelte-check:
         specifier: ^4.3.5
@@ -106,7 +106,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
       vite:
-        specifier: ^7.3.0
+        specifier: ^7.3.1
         version: 7.3.1(jiti@2.6.1)(lightningcss@1.30.2)
       vite-plugin-compression2:
         specifier: ^2.4.0
@@ -617,11 +617,11 @@ packages:
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7
 
-  '@tanstack/query-core@5.90.16':
-    resolution: {integrity: sha512-MvtWckSVufs/ja463/K4PyJeqT+HMlJWtw6PrCpywznd2NSgO3m4KwO9RqbFqGg6iDE8vVMFWMeQI4Io3eEYww==}
+  '@tanstack/query-core@5.90.17':
+    resolution: {integrity: sha512-hDww+RyyYhjhUfoYQ4es6pbgxY7LNiPWxt4l1nJqhByjndxJ7HIjDxTBtfvMr5HwjYavMrd+ids5g4Rfev3lVQ==}
 
-  '@tanstack/svelte-query@6.0.14':
-    resolution: {integrity: sha512-gKuHxbyGP2pCQgE/Px9FtlyFmHTt0OV5xTrKrk7PMKGkv3LPWTTwDb7xlMDe1V7U2K5ci+jq1j3HsuTPqIZxjA==}
+  '@tanstack/svelte-query@6.0.15':
+    resolution: {integrity: sha512-l9j5SWiixjtMM9OFDRqF+P2rfrMs62+xigGMPIOgBFYZoVQTmO5CtF12oTgtoSzgRmc/Ur9iI9a6elYu8Wmu3w==}
     peerDependencies:
       svelte: ^5.25.0
 
@@ -712,8 +712,8 @@ packages:
     resolution: {integrity: sha512-zxV/SsA+U4yte8051P4ECydjD/S+qeYtnaIyAs9tgHCqfguma/aAQDjo85A9Z6EKhBirHRJHXIgJUlffT4wdLg==}
     engines: {node: '>=12'}
 
-  d3-format@3.1.0:
-    resolution: {integrity: sha512-YyUI6AEuY/Wpt8KWLgZHsIU86atmikuoOmCfommt0LYHiQSPjvX2AcFc38PX0CBpr2RCyZhjex+NS/LPOv6YqA==}
+  d3-format@3.1.1:
+    resolution: {integrity: sha512-ryitBnaRbXQtgZ/gU50GSn6jQRwinSCQclpakXymvLd8ytTgE5bmSfgYcUxD7XYL34qHhFDyVk71qqKsfSyvmA==}
     engines: {node: '>=12'}
 
   d3-geo-voronoi@2.1.0:
@@ -1635,11 +1635,11 @@ snapshots:
       tailwindcss: 4.1.18
       vite: 7.3.1(jiti@2.6.1)(lightningcss@1.30.2)
 
-  '@tanstack/query-core@5.90.16': {}
+  '@tanstack/query-core@5.90.17': {}
 
-  '@tanstack/svelte-query@6.0.14(svelte@5.46.3)':
+  '@tanstack/svelte-query@6.0.15(svelte@5.46.3)':
     dependencies:
-      '@tanstack/query-core': 5.90.16
+      '@tanstack/query-core': 5.90.17
       svelte: 5.46.3
 
   '@types/cookie@0.6.0': {}
@@ -1717,7 +1717,7 @@ snapshots:
       d3-quadtree: 3.0.1
       d3-timer: 3.0.1
 
-  d3-format@3.1.0: {}
+  d3-format@3.1.1: {}
 
   d3-geo-voronoi@2.1.0:
     dependencies:
@@ -1759,7 +1759,7 @@ snapshots:
   d3-scale@4.0.2:
     dependencies:
       d3-array: 3.2.4
-      d3-format: 3.1.0
+      d3-format: 3.1.1
       d3-interpolate: 3.0.1
       d3-time: 3.1.0
       d3-time-format: 4.1.0
