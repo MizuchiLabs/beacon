@@ -12,7 +12,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20
 	github.com/pressly/goose/v3 v3.26.0
 	github.com/rs/cors v1.11.1
-	github.com/urfave/cli/v3 v3.6.1
+	github.com/urfave/cli/v3 v3.6.2
 	github.com/vearutop/statigz v1.5.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.44.1
