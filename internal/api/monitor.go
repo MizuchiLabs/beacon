@@ -57,7 +57,7 @@ func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
 
 	seconds, _ := strconv.ParseInt(secondsStr, 10, 64)
 
-	stats, err := s.cfg.Conn.Queries.GetMonitorStats(r.Context(), &secondsStr)
+	stats, err := s.cfg.Conn.Q.GetMonitorStats(r.Context(), &secondsStr)
 	if err != nil {
 		slog.Error("failed to get monitor stats", "error", err)
 		util.RespondError(w, http.StatusInternalServerError, "failed to retrieve monitors")
@@ -67,7 +67,7 @@ func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
 	since := time.Now().Add(-time.Duration(seconds) * time.Second)
 	slog.Debug("GetMonitors", "seconds", seconds, "since", since)
 
-	percentiles, err := s.cfg.Conn.Queries.GetPercentiles(r.Context(), since)
+	percentiles, err := s.cfg.Conn.Q.GetPercentiles(r.Context(), since)
 	if err != nil {
 		slog.Error("failed to get percentiles", "error", err)
 		util.RespondError(w, http.StatusInternalServerError, "failed to retrieve percentiles")
@@ -80,12 +80,7 @@ func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var pointsByMonitor map[int64][]DataPoint
-	if s.cfg.ChartType == "bars" {
-		pointsByMonitor, err = s.getStatusDataPoints(r.Context(), seconds, since)
-	} else {
-		pointsByMonitor, err = s.getTimeSeriesDataPoints(r.Context(), seconds, since)
-	}
+	pointsByMonitor, err := s.getDataPoints(r.Context(), seconds, since)
 	if err != nil {
 		slog.Error("failed to get data points", "error", err)
 		util.RespondError(w, http.StatusInternalServerError, "failed to retrieve chart data")
@@ -109,50 +104,17 @@ func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
 	util.RespondJSON(w, http.StatusOK, result)
 }
 
-func (s *Server) getStatusDataPoints(
+func (s *Server) getDataPoints(
 	ctx context.Context,
 	seconds int64,
 	since time.Time,
 ) (map[int64][]DataPoint, error) {
-	bucketSize := seconds / 80
-	if bucketSize == 0 {
-		bucketSize = 1
-	}
+	bucketSize := s.computeBucketSize(seconds)
 
-	params := &db.GetStatusDataPointsParams{
+	rows, err := s.cfg.Conn.Q.GetDataPoints(ctx, &db.GetDataPointsParams{
 		BucketSize:        bucketSize,
 		DegradedThreshold: 500,
 		Since:             since,
-	}
-
-	rows, err := s.cfg.Conn.Queries.GetStatusDataPoints(ctx, params)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make(map[int64][]DataPoint)
-	for _, row := range rows {
-		total := float64(row.TotalCount)
-		result[row.MonitorID] = append(result[row.MonitorID], DataPoint{
-			Timestamp:     time.Unix(row.BucketTs, 0),
-			ResponseTime:  0,
-			IsUp:          row.UpCount > float64(row.TotalCount)/2,
-			UpRatio:       row.UpCount / total,
-			DegradedRatio: row.DegradedCount / total,
-			DownRatio:     row.DownCount / total,
-		})
-	}
-	return result, nil
-}
-
-func (s *Server) getTimeSeriesDataPoints(
-	ctx context.Context,
-	seconds int64,
-	since time.Time,
-) (map[int64][]DataPoint, error) {
-	rows, err := s.cfg.Conn.Queries.GetTimeSeriesDataPoints(ctx, &db.GetTimeSeriesDataPointsParams{
-		BucketSize: computeBucketSize(seconds),
-		Since:      since,
 	})
 	if err != nil {
 		return nil, err
@@ -160,16 +122,37 @@ func (s *Server) getTimeSeriesDataPoints(
 
 	result := make(map[int64][]DataPoint)
 	for _, row := range rows {
-		result[row.MonitorID] = append(result[row.MonitorID], DataPoint{
+		total := float64(row.TotalCount)
+		if total == 0 {
+			total = 1 // prevent division by zero
+		}
+
+		dp := DataPoint{
 			Timestamp:    time.Unix(row.BucketTs, 0),
 			ResponseTime: row.AvgResponseTime,
-			IsUp:         row.UpCount > float64(row.TotalCount)/2,
-		})
+			IsUp:         row.UpCount > total/2,
+		}
+
+		if s.cfg.ChartType == "bars" {
+			dp.UpRatio = row.UpCount / total
+			dp.DegradedRatio = row.DegradedCount / total
+			dp.DownRatio = row.DownCount / total
+		}
+
+		result[row.MonitorID] = append(result[row.MonitorID], dp)
 	}
 	return result, nil
 }
 
-func computeBucketSize(seconds int64) int64 {
+func (s *Server) computeBucketSize(seconds int64) int64 {
+	if s.cfg.ChartType == "bars" {
+		size := seconds / 80
+		if size == 0 {
+			return 1
+		}
+		return size
+	}
+	// area chart buckets
 	switch {
 	case seconds <= 86400:
 		return 1800

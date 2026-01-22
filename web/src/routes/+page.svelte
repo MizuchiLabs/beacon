@@ -33,10 +33,7 @@
 		</div>
 
 		<Select.Root type="single" bind:value={timeRange}>
-			<Select.Trigger
-				class="w-[150px] rounded-lg bg-card dark:bg-card"
-				aria-label="Select time range"
-			>
+			<Select.Trigger class="rounded-lg bg-card dark:bg-card" aria-label="Select time range">
 				{selectedRange ? selectedRange.label : 'Last 24 hours'}
 			</Select.Trigger>
 			<Select.Content class="rounded-xl">
@@ -49,9 +46,9 @@
 
 	<!-- Monitor Grid -->
 	{#if statsQuery.isPending}
-		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+		<div class="grid gap-4 md:grid-cols-2">
 			{#each Array(6) as _}
-				<Skeleton class="h-[300px] rounded-lg" />
+				<Skeleton class="h-50 rounded-lg" />
 			{/each}
 		</div>
 	{:else if statsQuery.isError}

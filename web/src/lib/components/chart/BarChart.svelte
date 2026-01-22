@@ -81,7 +81,7 @@
 				rx: 3,
 				ry: 3,
 				stroke: 'none',
-				initialY: 100,
+				initially: 100,
 				initialHeight: 0,
 				motion: {
 					x: { type: 'tween', duration: 500, easing: cubicInOut },
@@ -91,7 +91,7 @@
 				}
 			}
 		}}
-		padding={{ top: 0, bottom: 0, left: 8, right: 8 }}
+		padding={{ top: 0, bottom: 0, left: 0, right: 0 }}
 	>
 		{#snippet tooltip()}
 			<Chart.Tooltip

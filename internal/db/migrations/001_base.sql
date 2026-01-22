@@ -32,9 +32,9 @@ CREATE TABLE push_subscriptions (
   FOREIGN KEY (monitor_id) REFERENCES monitors (id) ON DELETE CASCADE
 );
 
--- VAPID keys for push notifications (single row table)
+-- VAPID keys for push notifications (singleton)
 CREATE TABLE vapid_keys (
-  id INTEGER PRIMARY KEY CHECK (id = 1), -- ensure only one row
+  id INTEGER PRIMARY KEY CHECK (id = 1),
   public_key TEXT NOT NULL,
   private_key TEXT NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -44,6 +44,8 @@ CREATE TABLE vapid_keys (
 CREATE INDEX idx_checks_monitor_id ON checks (monitor_id, checked_at DESC);
 
 CREATE INDEX idx_checks_checked_at ON checks (checked_at);
+
+CREATE INDEX idx_checks_monitor_time_up ON checks (monitor_id, checked_at, is_up, response_time);
 
 CREATE UNIQUE INDEX idx_push_sub_endpoint ON push_subscriptions (endpoint, monitor_id);
 

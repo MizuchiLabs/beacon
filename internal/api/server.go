@@ -29,7 +29,6 @@ func NewServer(cfg *config.Config) *Server {
 }
 
 func (s *Server) Start(ctx context.Context) error {
-	defer s.cfg.Conn.Close()
 	s.setupRoutes()
 
 	// Start scheduler

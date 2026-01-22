@@ -43,6 +43,8 @@ func (c *Checker) Check(ctx context.Context, url string) *db.CreateCheckParams {
 		return checkErr(err, 0)
 	}
 	req.Header.Set("User-Agent", "Beacon/1.0")
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Connection", "close")
 
 	resp, err := c.client.Do(req)
 	ms := time.Since(start).Milliseconds()

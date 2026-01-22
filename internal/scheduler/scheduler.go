@@ -49,7 +49,7 @@ func New(
 
 func (s *Scheduler) Start(ctx context.Context) error {
 	// Load active monitors
-	monitors, err := s.conn.Queries.GetMonitors(ctx)
+	monitors, err := s.conn.Q.GetMonitors(ctx)
 	if err != nil {
 		slog.Error("failed to load monitors", "error", err)
 		return err
@@ -102,12 +102,15 @@ func (s *Scheduler) runMonitor(ctx context.Context, job *monitorJob) {
 }
 
 func (s *Scheduler) performCheck(ctx context.Context, monitor *db.Monitor) {
-	result := s.checker.Check(ctx, monitor.Url)
+	// Add timeout to prevent hanging checks
+	checkCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	result := s.checker.Check(checkCtx, monitor.Url)
 	result.MonitorID = monitor.ID
 
 	// Store check result
-	_, err := s.conn.Queries.CreateCheck(ctx, result)
-	if err != nil {
+	if err := s.conn.Q.CreateCheck(checkCtx, result); err != nil {
 		slog.Error("Failed to store check", "monitor_id", monitor.ID, "error", err)
 		return
 	}
@@ -135,7 +138,7 @@ func (s *Scheduler) cleanupJob(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			daysStr := strconv.Itoa(s.RetentionDays)
-			if err := s.conn.Queries.CleanupChecks(ctx, &daysStr); err != nil {
+			if err := s.conn.Q.CleanupChecks(ctx, &daysStr); err != nil {
 				slog.Error("Failed to cleanup old checks", "error", err)
 			}
 		case <-ctx.Done():

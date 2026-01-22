@@ -22,7 +22,7 @@ type PushSubscriptionKeys struct {
 
 // GetVAPIDPublicKey returns the VAPID public key for client subscription
 func (s *Server) GetVAPIDPublicKey(w http.ResponseWriter, r *http.Request) {
-	keys, err := s.cfg.Conn.Queries.GetVAPIDKeys(r.Context())
+	keys, err := s.cfg.Conn.Q.GetVAPIDKeys(r.Context())
 	if err != nil {
 		http.Error(w, "Failed to get VAPID public key", http.StatusInternalServerError)
 		return
@@ -55,7 +55,7 @@ func (s *Server) SubscribeToPushNotifications(w http.ResponseWriter, r *http.Req
 	}
 
 	// Store subscription
-	err = s.cfg.Conn.Queries.CreatePushSubscription(r.Context(), &db.CreatePushSubscriptionParams{
+	err = s.cfg.Conn.Q.CreatePushSubscription(r.Context(), &db.CreatePushSubscriptionParams{
 		MonitorID: monitorID,
 		Endpoint:  req.Endpoint,
 		P256dhKey: req.Keys.P256dh,
@@ -93,7 +93,7 @@ func (s *Server) UnsubscribeFromPushNotifications(w http.ResponseWriter, r *http
 		return
 	}
 
-	err = s.cfg.Conn.Queries.DeletePushSubscription(r.Context(), &db.DeletePushSubscriptionParams{
+	err = s.cfg.Conn.Q.DeletePushSubscription(r.Context(), &db.DeletePushSubscriptionParams{
 		Endpoint:  req.Endpoint,
 		MonitorID: monitorID,
 	})

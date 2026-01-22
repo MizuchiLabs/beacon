@@ -48,6 +48,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deletePushSubscriptionByEndpointStmt, err = db.PrepareContext(ctx, deletePushSubscriptionByEndpoint); err != nil {
 		return nil, fmt.Errorf("error preparing query DeletePushSubscriptionByEndpoint: %w", err)
 	}
+	if q.getDataPointsStmt, err = db.PrepareContext(ctx, getDataPoints); err != nil {
+		return nil, fmt.Errorf("error preparing query GetDataPoints: %w", err)
+	}
 	if q.getMonitorStmt, err = db.PrepareContext(ctx, getMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMonitor: %w", err)
 	}
@@ -121,6 +124,11 @@ func (q *Queries) Close() error {
 	if q.deletePushSubscriptionByEndpointStmt != nil {
 		if cerr := q.deletePushSubscriptionByEndpointStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deletePushSubscriptionByEndpointStmt: %w", cerr)
+		}
+	}
+	if q.getDataPointsStmt != nil {
+		if cerr := q.getDataPointsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getDataPointsStmt: %w", cerr)
 		}
 	}
 	if q.getMonitorStmt != nil {
@@ -220,6 +228,7 @@ type Queries struct {
 	deleteMonitorStmt                    *sql.Stmt
 	deletePushSubscriptionStmt           *sql.Stmt
 	deletePushSubscriptionByEndpointStmt *sql.Stmt
+	getDataPointsStmt                    *sql.Stmt
 	getMonitorStmt                       *sql.Stmt
 	getMonitorStatsStmt                  *sql.Stmt
 	getMonitorsStmt                      *sql.Stmt
@@ -244,6 +253,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteMonitorStmt:                    q.deleteMonitorStmt,
 		deletePushSubscriptionStmt:           q.deletePushSubscriptionStmt,
 		deletePushSubscriptionByEndpointStmt: q.deletePushSubscriptionByEndpointStmt,
+		getDataPointsStmt:                    q.getDataPointsStmt,
 		getMonitorStmt:                       q.getMonitorStmt,
 		getMonitorStatsStmt:                  q.getMonitorStatsStmt,
 		getMonitorsStmt:                      q.getMonitorsStmt,

@@ -29,7 +29,7 @@
 	} satisfies Chart.ChartConfig;
 </script>
 
-<ChartContainer config={chartConfig} class="h-full w-full">
+<ChartContainer config={chartConfig} class="h-18 w-full">
 	<AreaChart
 		data={chartData}
 		x="date"
@@ -41,12 +41,12 @@
 				color: 'var(--primary)'
 			}
 		]}
-		padding={{ top: 0, bottom: 0, left: 0, right: 0 }}
 		props={{
 			area: { curve: curveCatmullRom.alpha(0.5) },
 			grid: { x: false, y: false },
 			yAxis: { format: () => '' }
 		}}
+		padding={{ top: 0, bottom: 24, left: 0, right: 0 }}
 	>
 		{#snippet marks({ series, getAreaProps })}
 			<defs>

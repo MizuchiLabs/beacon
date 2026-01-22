@@ -21,7 +21,7 @@ func (q *Queries) CleanupChecks(ctx context.Context, days *string) error {
 	return err
 }
 
-const createCheck = `-- name: CreateCheck :one
+const createCheck = `-- name: CreateCheck :exec
 INSERT INTO
   checks (
     monitor_id,
@@ -32,8 +32,6 @@ INSERT INTO
   )
 VALUES
   (?, ?, ?, ?, ?)
-RETURNING
-  id, monitor_id, status_code, response_time, error, is_up, checked_at
 `
 
 type CreateCheckParams struct {
@@ -44,25 +42,114 @@ type CreateCheckParams struct {
 	IsUp         bool    `json:"isUp"`
 }
 
-func (q *Queries) CreateCheck(ctx context.Context, arg *CreateCheckParams) (*Check, error) {
-	row := q.queryRow(ctx, q.createCheckStmt, createCheck,
+func (q *Queries) CreateCheck(ctx context.Context, arg *CreateCheckParams) error {
+	_, err := q.exec(ctx, q.createCheckStmt, createCheck,
 		arg.MonitorID,
 		arg.StatusCode,
 		arg.ResponseTime,
 		arg.Error,
 		arg.IsUp,
 	)
-	var i Check
-	err := row.Scan(
-		&i.ID,
-		&i.MonitorID,
-		&i.StatusCode,
-		&i.ResponseTime,
-		&i.Error,
-		&i.IsUp,
-		&i.CheckedAt,
-	)
-	return &i, err
+	return err
+}
+
+const getDataPoints = `-- name: GetDataPoints :many
+SELECT
+  monitor_id,
+  CAST(
+    CAST(strftime('%s', checked_at) AS INTEGER) / CAST(?1 AS INTEGER) * CAST(?1 AS INTEGER) AS INTEGER
+  ) AS bucket_ts,
+  COUNT(*) AS total_count,
+  CAST(COALESCE(AVG(response_time), 0.0) AS INTEGER) AS avg_response_time,
+  CAST(
+    SUM(
+      CASE
+        WHEN is_up
+        AND (
+          response_time IS NULL
+          OR response_time <= ?2
+        ) THEN 1
+        ELSE 0
+      END
+    ) AS REAL
+  ) AS up_count,
+  CAST(
+    SUM(
+      CASE
+        WHEN is_up
+        AND response_time > ?2 THEN 1
+        ELSE 0
+      END
+    ) AS REAL
+  ) AS degraded_count,
+  CAST(
+    SUM(
+      CASE
+        WHEN NOT is_up THEN 1
+        ELSE 0
+      END
+    ) AS REAL
+  ) AS down_count
+FROM
+  checks
+WHERE
+  checked_at >= ?3
+  AND checked_at IS NOT NULL
+GROUP BY
+  monitor_id,
+  bucket_ts
+HAVING
+  bucket_ts IS NOT NULL
+ORDER BY
+  monitor_id,
+  bucket_ts
+`
+
+type GetDataPointsParams struct {
+	BucketSize        int64     `json:"bucketSize"`
+	DegradedThreshold int64     `json:"degradedThreshold"`
+	Since             time.Time `json:"since"`
+}
+
+type GetDataPointsRow struct {
+	MonitorID       int64   `json:"monitorId"`
+	BucketTs        int64   `json:"bucketTs"`
+	TotalCount      int64   `json:"totalCount"`
+	AvgResponseTime int64   `json:"avgResponseTime"`
+	UpCount         float64 `json:"upCount"`
+	DegradedCount   float64 `json:"degradedCount"`
+	DownCount       float64 `json:"downCount"`
+}
+
+func (q *Queries) GetDataPoints(ctx context.Context, arg *GetDataPointsParams) ([]*GetDataPointsRow, error) {
+	rows, err := q.query(ctx, q.getDataPointsStmt, getDataPoints, arg.BucketSize, arg.DegradedThreshold, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*GetDataPointsRow
+	for rows.Next() {
+		var i GetDataPointsRow
+		if err := rows.Scan(
+			&i.MonitorID,
+			&i.BucketTs,
+			&i.TotalCount,
+			&i.AvgResponseTime,
+			&i.UpCount,
+			&i.DegradedCount,
+			&i.DownCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getMonitorStats = `-- name: GetMonitorStats :many

@@ -26,7 +26,7 @@ type NotificationPayload struct {
 }
 
 func New(ctx context.Context, conn *db.Connection) *Notifier {
-	result, err := conn.Queries.VAPIDKeysExist(ctx)
+	result, err := conn.Q.VAPIDKeysExist(ctx)
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to check VAPID keys: %w", err))
 	}
@@ -37,7 +37,7 @@ func New(ctx context.Context, conn *db.Connection) *Notifier {
 		if err != nil {
 			log.Fatal(fmt.Errorf("failed to generate VAPID keys: %w", err))
 		}
-		if err := conn.Queries.CreateVAPIDKeys(ctx, &db.CreateVAPIDKeysParams{
+		if err := conn.Q.CreateVAPIDKeys(ctx, &db.CreateVAPIDKeysParams{
 			PublicKey:  publicKey,
 			PrivateKey: privateKey,
 		}); err != nil {
@@ -45,7 +45,7 @@ func New(ctx context.Context, conn *db.Connection) *Notifier {
 		}
 	}
 
-	vapidKeys, err := conn.Queries.GetVAPIDKeys(ctx)
+	vapidKeys, err := conn.Q.GetVAPIDKeys(ctx)
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to get VAPID keys: %w", err))
 	}
@@ -67,7 +67,7 @@ func (n *Notifier) SendMonitorDownNotification(
 	}
 
 	// Get all subscriptions for this monitor
-	subscriptions, err := n.conn.Queries.GetPushSubscriptionsByMonitor(ctx, monitor.ID)
+	subscriptions, err := n.conn.Q.GetPushSubscriptionsByMonitor(ctx, monitor.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get subscriptions: %w", err)
 	}
@@ -100,7 +100,7 @@ func (n *Notifier) SendMonitorDownNotification(
 			)
 
 			if isSubscriptionError(err) {
-				if deleteErr := n.conn.Queries.DeletePushSubscriptionByEndpoint(ctx, sub.Endpoint); deleteErr != nil {
+				if deleteErr := n.conn.Q.DeletePushSubscriptionByEndpoint(ctx, sub.Endpoint); deleteErr != nil {
 					slog.Error("Failed to delete invalid subscription", "error", deleteErr)
 				}
 			}
@@ -115,7 +115,7 @@ func (n *Notifier) SendMonitorUpNotification(ctx context.Context, monitor *db.Mo
 	if monitor == nil {
 		return nil
 	}
-	subscriptions, err := n.conn.Queries.GetPushSubscriptionsByMonitor(ctx, monitor.ID)
+	subscriptions, err := n.conn.Q.GetPushSubscriptionsByMonitor(ctx, monitor.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get subscriptions: %w", err)
 	}
@@ -141,7 +141,7 @@ func (n *Notifier) SendMonitorUpNotification(ctx context.Context, monitor *db.Mo
 			slog.Error("Failed to send recovery notification", "error", err)
 
 			if isSubscriptionError(err) {
-				if err := n.conn.Queries.DeletePushSubscriptionByEndpoint(ctx, sub.Endpoint); err != nil {
+				if err := n.conn.Q.DeletePushSubscriptionByEndpoint(ctx, sub.Endpoint); err != nil {
 					slog.Error("Failed to delete invalid subscription", "error", err)
 				}
 			}

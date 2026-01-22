@@ -19,7 +19,7 @@
 
 			{#if configQuery.isSuccess}
 				<div class="hidden items-center gap-1.5 text-xs md:flex">
-					<DotIcon />
+					<DotIcon size={16} />
 					<span class="flex items-center gap-1.5">
 						{configQuery.data?.timezone}
 					</span>

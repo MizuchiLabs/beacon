@@ -130,7 +130,7 @@ func (cfg *Config) syncMonitors(ctx context.Context) error {
 		return err
 	}
 
-	dbMonitors, err := cfg.Conn.Queries.GetMonitors(ctx)
+	dbMonitors, err := cfg.Conn.Q.GetMonitors(ctx)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (cfg *Config) syncMonitors(ctx context.Context) error {
 			// Only update if something changed
 			if dbMonitor.Name != configMonitor.Name ||
 				dbMonitor.CheckInterval != configMonitor.CheckInterval {
-				_, err := cfg.Conn.Queries.UpdateMonitor(ctx, &db.UpdateMonitorParams{
+				_, err := cfg.Conn.Q.UpdateMonitor(ctx, &db.UpdateMonitorParams{
 					ID:            dbMonitor.ID,
 					Name:          configMonitor.Name,
 					Url:           configMonitor.URL,
@@ -165,7 +165,7 @@ func (cfg *Config) syncMonitors(ctx context.Context) error {
 			}
 			delete(dbMap, url) // Remove from deletion list
 		} else {
-			_, err := cfg.Conn.Queries.CreateMonitor(ctx, &db.CreateMonitorParams{
+			_, err := cfg.Conn.Q.CreateMonitor(ctx, &db.CreateMonitorParams{
 				Name:          configMonitor.Name,
 				Url:           configMonitor.URL,
 				CheckInterval: configMonitor.CheckInterval,
@@ -179,7 +179,7 @@ func (cfg *Config) syncMonitors(ctx context.Context) error {
 
 	// Delete monitors not in config
 	for url, dbMonitor := range dbMap {
-		if err := cfg.Conn.Queries.DeleteMonitor(ctx, dbMonitor.ID); err != nil {
+		if err := cfg.Conn.Q.DeleteMonitor(ctx, dbMonitor.ID); err != nil {
 			return err
 		}
 		slog.Info("Removed monitor", "url", url)

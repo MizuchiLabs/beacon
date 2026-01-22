@@ -21,38 +21,47 @@ import (
 var migrationFS embed.FS
 
 type Connection struct {
-	mu      sync.RWMutex
-	db      *sql.DB
-	Queries *Queries
+	mu sync.RWMutex
+	db *sql.DB
+	Q  *Queries
 }
 
 // NewConnection opens a SQLite connection.
-func NewConnection(dbPath string) *Connection {
+func NewConnection(ctx context.Context, path string) *Connection {
 	// Check path
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		log.Fatalf("failed to create db dir: %v", err)
 	}
 
-	dataSource := fmt.Sprintf("file:%s", filepath.ToSlash(dbPath))
+	dataSource := fmt.Sprintf("file:%s?_txlock=immediate", filepath.ToSlash(path))
 	db, err := sql.Open("sqlite", dataSource)
 	if err != nil {
 		log.Fatalf("failed to open db: %v", err)
 	}
 
-	if err := configureSQLite(db); err != nil {
+	if err := setupSQLite(db); err != nil {
 		log.Fatalf("failed to configure db: %v", err)
 	}
 
 	conn := &Connection{
-		db:      db,
-		Queries: New(db),
+		db: db,
+		Q:  New(db),
 	}
-	conn.Migrate()
+	conn.migrate()
+
+	// Wait for shutdown signal
+	go func() {
+		<-ctx.Done()
+		if err := db.Close(); err != nil {
+			slog.Error("Failed to close database", "error", err)
+		}
+	}()
+
 	return conn
 }
 
-// configureSQLite applies performance and safety pragmas.
-func configureSQLite(db *sql.DB) error {
+// setupSQLite applies performance and safety pragmas.
+func setupSQLite(db *sql.DB) error {
 	pragmas := `
 	PRAGMA busy_timeout = 5000;
 	PRAGMA journal_mode = WAL;
@@ -61,7 +70,6 @@ func configureSQLite(db *sql.DB) error {
 	PRAGMA foreign_keys = ON;
 	PRAGMA temp_store = MEMORY;
 	PRAGMA mmap_size = 300000000;
-	PRAGMA page_size = 32768;
 	PRAGMA cache_size = -16000;`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -83,15 +91,7 @@ func (c *Connection) Get() *sql.DB {
 	return c.db
 }
 
-func (c *Connection) Close() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if err := c.db.Close(); err != nil {
-		slog.Error("Failed to close database", "error", err)
-	}
-}
-
-func (c *Connection) Migrate() {
+func (c *Connection) migrate() {
 	goose.SetBaseFS(migrationFS)
 	goose.SetLogger(goose.NopLogger())
 

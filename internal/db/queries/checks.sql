@@ -1,4 +1,4 @@
--- name: CreateCheck :one
+-- name: CreateCheck :exec
 INSERT INTO
   checks (
     monitor_id,
@@ -8,9 +8,7 @@ INSERT INTO
     is_up
   )
 VALUES
-  (?, ?, ?, ?, ?)
-RETURNING
-  *;
+  (?, ?, ?, ?, ?);
 
 -- name: CleanupChecks :exec
 DELETE FROM checks
@@ -48,21 +46,26 @@ GROUP BY
 ORDER BY
   m.id;
 
--- name: GetStatusDataPoints :many
+-- name: GetDataPoints :many
 SELECT
   monitor_id,
   CAST(
     CAST(strftime('%s', checked_at) AS INTEGER) / CAST(sqlc.arg (bucket_size) AS INTEGER) * CAST(sqlc.arg (bucket_size) AS INTEGER) AS INTEGER
   ) AS bucket_ts,
   COUNT(*) AS total_count,
+  CAST(COALESCE(AVG(response_time), 0.0) AS INTEGER) AS avg_response_time,
   CAST(
     SUM(
       CASE
-        WHEN NOT is_up THEN 1
+        WHEN is_up
+        AND (
+          response_time IS NULL
+          OR response_time <= sqlc.arg (degraded_threshold)
+        ) THEN 1
         ELSE 0
       END
     ) AS REAL
-  ) AS down_count,
+  ) AS up_count,
   CAST(
     SUM(
       CASE
@@ -75,45 +78,11 @@ SELECT
   CAST(
     SUM(
       CASE
-        WHEN is_up
-        AND (
-          response_time IS NULL
-          OR response_time <= sqlc.arg (degraded_threshold)
-        ) THEN 1
+        WHEN NOT is_up THEN 1
         ELSE 0
       END
     ) AS REAL
-  ) AS up_count
-FROM
-  checks
-WHERE
-  checked_at >= sqlc.arg (since)
-  AND checked_at IS NOT NULL
-GROUP BY
-  monitor_id,
-  bucket_ts
-HAVING
-  bucket_ts IS NOT NULL
-ORDER BY
-  monitor_id,
-  bucket_ts;
-
--- name: GetTimeSeriesDataPoints :many
-SELECT
-  monitor_id,
-  CAST(
-    CAST(strftime('%s', checked_at) AS INTEGER) / CAST(sqlc.arg (bucket_size) AS INTEGER) * CAST(sqlc.arg (bucket_size) AS INTEGER) AS INTEGER
-  ) AS bucket_ts,
-  CAST(COALESCE(AVG(response_time), 0.0) AS INTEGER) AS avg_response_time,
-  CAST(
-    SUM(
-      CASE
-        WHEN is_up THEN 1
-        ELSE 0
-      END
-    ) AS REAL
-  ) AS up_count,
-  COUNT(*) AS total_count
+  ) AS down_count
 FROM
   checks
 WHERE

@@ -33,7 +33,7 @@ func main() {
 		},
 		Commands: []*cli.Command{
 			{
-				Name:   "generate",
+				Name:   "seed",
 				Usage:  "Generate random test data (only for development)",
 				Hidden: true,
 				Action: func(ctx context.Context, cmd *cli.Command) error {

@@ -75,7 +75,7 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 	}
 
 	cfg.initLogger()
-	cfg.Conn = db.NewConnection(cfg.DBPath)
+	cfg.Conn = db.NewConnection(ctx, cfg.DBPath)
 	cfg.Checker = checker.New(cfg.Timeout, cfg.Insecure)
 	cfg.Notifier = notify.New(ctx, cfg.Conn)
 	cfg.Scheduler = scheduler.New(cfg.Conn, cfg.Checker, cfg.Notifier, cfg.RetentionDays)
