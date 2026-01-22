@@ -44,7 +44,9 @@ func (c *Config) GenerateRandomData(ctx context.Context, gen bool) {
 		slog.Error("Failed to prepare statement", "error", err)
 		return
 	}
-	defer stmt.Close()
+	defer func() {
+		_ = stmt.Close()
+	}()
 
 	for i, m := range monitors {
 		interval := max(int(m.CheckInterval), 60)
