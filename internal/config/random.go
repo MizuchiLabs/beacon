@@ -33,7 +33,9 @@ func (c *Config) GenerateRandomData(ctx context.Context, gen bool) {
 		slog.Error("Failed to begin transaction", "error", err)
 		return
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	stmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO checks (monitor_id, status_code, response_time, error, is_up, checked_at)
@@ -100,13 +102,13 @@ func generateRealisticCheck(profile int) (up bool, respTime int64) {
 	latency := rand.Float64() // #nosec G404
 	switch {
 	case latency < 0.7: // 70% fast
-		respTime = int64(rand.Intn(80) + 20) // 20-100ms
+		respTime = int64(rand.Intn(80) + 20) // #nosec G404 20-100ms
 	case latency < 0.9: // 20% moderate
-		respTime = int64(rand.Intn(150) + 100) // 100-250ms
+		respTime = int64(rand.Intn(150) + 100) // #nosec G404 100-250ms
 	case latency < 0.98: // 8% slow
-		respTime = int64(rand.Intn(300) + 250) // 250-550ms
+		respTime = int64(rand.Intn(300) + 250) // #nosec G404 250-550ms
 	default: // 2% very slow
-		respTime = int64(rand.Intn(500) + 500) // 500-1000ms
+		respTime = int64(rand.Intn(500) + 500) // #nosec G404 500-1000ms
 	}
 	return
 }
