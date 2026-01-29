@@ -8,12 +8,12 @@ before:
   hooks:
     - go fmt ./...
     - go vet ./...
+    - go test ./...
     - go mod tidy
     - go mod verify
 
 builds:
   - binary: beacon
-    dir: cmd
     env: [CGO_ENABLED=0]
     ldflags:
       - -s -w
