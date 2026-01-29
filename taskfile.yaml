@@ -9,6 +9,11 @@ env:
   LD_FLAGS: -s -w -X main.version={{.VERSION}}
 
 tasks:
+  seed:
+    desc: Generate seed data
+    cmds:
+      - go run ./examples/main.go
+
   dev:
     desc: Run backend and frontend concurrently
     deps: [backend, frontend]
@@ -16,14 +21,13 @@ tasks:
   backend:
     desc: Run backend
     cmds:
-      - go run cmd/main.go
-    silent: false
+      - go run .
 
   frontend:
     desc: Run frontend
+    dir: web
     cmds:
       - pnpm run dev
-    dir: web
 
   # 󰚰 Update deps
   update:
@@ -45,12 +49,13 @@ tasks:
       - go mod tidy
       - go fmt ./...
       - go vet ./...
+      - go test -cover ./...
 
   build:
     desc: Build binary
     cmds:
       - cd web; pnpm install; pnpm build
-      - go build -ldflags "{{.LD_FLAGS}}" -o beacon cmd/main.go
+      - go build -ldflags "{{.LD_FLAGS}}" -o beacon
 
   snapshot:
     desc: Test snapshot
