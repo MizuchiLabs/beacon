@@ -8,6 +8,12 @@
       "matchPackagePatterns": ["*"],
       "automerge": true,
       "automergeType": "branch"
+    },
+    {
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "automerge": true,
+      "automergeType": "branch",
+      "ignoreTests": true
     }
   ],
   "platformAutomerge": true,
