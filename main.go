@@ -13,10 +13,9 @@ import (
 )
 
 var (
-	Version = "unknown"
-	Commit  string
-	Date    string
-	Dirty   string
+	Version   = "dev"
+	Commit    = "none"
+	BuildDate = "unknown"
 )
 
 func main() {
