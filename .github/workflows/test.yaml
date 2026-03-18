@@ -46,19 +46,27 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Install Task
-        uses: go-task/setup-task@v1
+      - name: Build frontend
+        run: |
+          cd web
+          pnpm install
+          pnpm build
 
-      - name: Build project
-        run: task build
+      - name: Lint and test
+        run: |
+          go mod tidy
+          go mod verify
+          go fmt ./...
+          go vet ./...
+          go test ./...
 
       - name: Run GolangCI-Lint
         uses: golangci/golangci-lint-action@v9
         with:
           args: --timeout=10m
 
-      - name: Run tests
-        run: task lint
+      - name: Build backend
+        run: go build -ldflags="-s -w" -o bin/
 
       - name: ghcr.io cleanup
         uses: dataaxiom/ghcr-cleanup-action@v1

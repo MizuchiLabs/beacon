@@ -50,11 +50,11 @@ jobs:
       - name: Install Ko
         uses: ko-build/setup-ko@v0.9
 
-      - name: Install Task
-        uses: go-task/setup-task@v1
-
-      - name: Build project
-        run: task build
+      - name: Build frontend
+        run: |
+          cd web
+          pnpm install
+          pnpm build
 
       - name: Run GolangCI-Lint
         uses: golangci/golangci-lint-action@v9
