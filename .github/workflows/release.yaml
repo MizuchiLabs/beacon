@@ -23,7 +23,7 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         with:
           version: latest
 
