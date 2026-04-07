@@ -45,7 +45,6 @@ type EnvConfig struct {
 }
 
 type Config struct {
-	// Environment variables
 	EnvConfig
 
 	// Application settings

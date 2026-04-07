@@ -7,6 +7,8 @@ env:
   IMAGE_DEV: ko.local/beacon
   IMAGE_PROD: ghcr.io/mizuchilabs/beacon
   LD_FLAGS: -s -w -X main.version={{.VERSION}}
+  BEACON_CONFIG: ./examples/config.yaml
+  BEACON_CHART_TYPE: bars
 
 tasks:
   seed:

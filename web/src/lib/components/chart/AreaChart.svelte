@@ -3,7 +3,7 @@
 	import * as Chart from '$lib/components/ui/chart';
 	import { AreaChart, Area, ChartClipPath } from 'layerchart';
 	import { scaleUtc } from 'd3-scale';
-	import { curveCatmullRom } from 'd3-shape';
+	import { curveCatmullRom, curveNatural } from 'd3-shape';
 	import { cubicInOut } from 'svelte/easing';
 	import { ChartContainer } from '$lib/components/ui/chart';
 
@@ -48,7 +48,7 @@
 		}}
 		padding={{ top: 0, bottom: 24, left: 0, right: 0 }}
 	>
-		{#snippet marks({ series, getAreaProps })}
+		{#snippet marks({ context })}
 			<defs>
 				<linearGradient id="fillGradient-{monitor.id}" x1="0" y1="0" x2="0" y2="1">
 					<stop offset="0%" stop-color="var(--primary)" stop-opacity="0.25" />
@@ -60,8 +60,16 @@
 				initialWidth={0}
 				motion={{ width: { type: 'tween', duration: 800, easing: cubicInOut } }}
 			>
-				{#each series as s, i (s.key)}
-					<Area {...getAreaProps(s, i)} fill="url(#fillGradient-{monitor.id})" stroke="none" />
+				{#each context.series.visibleSeries as s (s.key)}
+					<Area
+						seriesKey={s.key}
+						curve={curveNatural}
+						fillOpacity={0.4}
+						line={{ class: 'stroke-1' }}
+						motion="tween"
+						fill="url(#fillGradient-{monitor.id})"
+						{...s.props}
+					/>
 				{/each}
 			</ChartClipPath>
 		{/snippet}

@@ -23,7 +23,7 @@ type MonitorsFile struct {
 }
 
 func (cfg *Config) loadMonitors() ([]MonitorConfig, error) {
-	// Priority 1: Inline YAML from environment
+	// Inline YAML from environment
 	if cfg.MonitorsYAML != "" {
 		slog.Debug("Loading monitors from environment...")
 		monitors, err := parseMonitorsYAML([]byte(cfg.MonitorsYAML))
@@ -33,7 +33,7 @@ func (cfg *Config) loadMonitors() ([]MonitorConfig, error) {
 		return monitors, validateMonitors(monitors)
 	}
 
-	// Priority 2: File path
+	// File path
 	data, err := os.ReadFile(cfg.ConfigPath)
 	if err != nil {
 		if os.IsNotExist(err) {

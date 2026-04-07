@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { MonitorStats } from '$lib/api/queries';
-	import { scaleBand, scaleLinear } from 'd3-scale';
-	import { BarChart as LayerBarChart, type ChartContextValue } from 'layerchart';
+	import { scaleBand } from 'd3-scale';
+	import { BarChart } from 'layerchart';
 	import { cubicInOut } from 'svelte/easing';
 	import * as Chart from '$lib/components/ui/chart';
 
@@ -43,18 +43,13 @@
 		degraded: { label: 'Degraded', color: 'var(--chart-4)' },
 		down: { label: 'Down', color: 'var(--destructive)' }
 	} satisfies Chart.ChartConfig;
-
-	let context = $state<ChartContextValue>();
 </script>
 
 <Chart.Container config={chartConfig} class="h-14 w-full">
-	<LayerBarChart
-		bind:context
+	<BarChart
 		data={chartData}
 		xScale={scaleBand().padding(0.2)}
-		yScale={scaleLinear().domain([0, 1]).nice()}
 		x="id"
-		y={(d) => d.up + d.degraded + d.down}
 		axis={false}
 		rule={false}
 		grid={false}
@@ -62,7 +57,8 @@
 			{
 				key: 'down',
 				label: 'Down',
-				color: chartConfig.down.color
+				color: chartConfig.down.color,
+				props: { rounded: 'bottom' }
 			},
 			{
 				key: 'degraded',
@@ -78,11 +74,8 @@
 		seriesLayout="stack"
 		props={{
 			bars: {
-				rx: 3,
-				ry: 3,
 				stroke: 'none',
-				initially: 100,
-				initialHeight: 0,
+				radius: 3,
 				motion: {
 					x: { type: 'tween', duration: 500, easing: cubicInOut },
 					y: { type: 'tween', duration: 500, easing: cubicInOut },
@@ -107,5 +100,5 @@
 				class="items-start border bg-background/95 text-xs shadow-xl backdrop-blur"
 			/>
 		{/snippet}
-	</LayerBarChart>
+	</BarChart>
 </Chart.Container>
