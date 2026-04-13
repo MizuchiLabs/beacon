@@ -9,7 +9,7 @@ require (
 	github.com/go-chi/httplog/v3 v3.3.0
 	github.com/lmittmann/tint v1.1.3
 	github.com/mattn/go-colorable v0.1.14
-	github.com/mattn/go-isatty v0.0.20
+	github.com/mattn/go-isatty v0.0.21
 	github.com/pressly/goose/v3 v3.27.0
 	github.com/rs/cors v1.11.1
 	github.com/urfave/cli/v3 v3.8.0
