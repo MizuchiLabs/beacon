@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -13,9 +14,9 @@ import (
 )
 
 var (
-	Version   = "dev"
-	Commit    = "none"
-	BuildDate = "unknown"
+	Version = "dev"
+	Commit  = "none"
+	Date    = "unknown"
 )
 
 func main() {
@@ -23,19 +24,13 @@ func main() {
 		EnableShellCompletion: true,
 		Suggest:               true,
 		Name:                  "beacon",
-		Version:               Version,
-		Usage:                 "beacon [command]",
-		Description:           `Beacon is a simple uptime monitoring tool for websites.`,
+		Version:               fmt.Sprintf("%s (commit: %s, built: %s)", Version, Commit, Date),
+		Usage:                 "monitoring your websites",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			cfg := config.New(ctx, cmd)
 			return api.NewServer(cfg).Start(ctx)
 		},
 		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "version",
-				Aliases: []string{"v"},
-				Usage:   "Print version information",
-			},
 			&cli.BoolFlag{
 				Name:    "debug",
 				Aliases: []string{"d"},
