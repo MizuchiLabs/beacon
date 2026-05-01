@@ -35,9 +35,9 @@ func New(repoURL, repoPath string, interval time.Duration) *IncidentManager {
 	}
 }
 
-func (i *IncidentManager) Start(ctx context.Context) error {
+func (i *IncidentManager) Start(ctx context.Context) {
 	if i == nil {
-		return nil
+		return
 	}
 
 	// Initial sync if using git
@@ -74,8 +74,6 @@ func (i *IncidentManager) Start(ctx context.Context) error {
 			}
 		}()
 	}
-
-	return nil
 }
 
 func (i *IncidentManager) syncRepo() error {

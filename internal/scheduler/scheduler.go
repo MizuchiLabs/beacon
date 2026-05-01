@@ -17,15 +17,8 @@ type Scheduler struct {
 	conn          *db.Connection
 	checker       *checker.Checker
 	notifier      *notify.Notifier
-	monitors      map[int64]*monitorJob
-	mu            sync.RWMutex
 	wg            sync.WaitGroup
 	RetentionDays int
-}
-
-type monitorJob struct {
-	monitor *db.Monitor
-	ticker  *time.Ticker
 }
 
 func New(
@@ -42,17 +35,16 @@ func New(
 		conn:          conn,
 		checker:       checker,
 		notifier:      notifier,
-		monitors:      make(map[int64]*monitorJob),
 		RetentionDays: retentionDays,
 	}
 }
 
-func (s *Scheduler) Start(ctx context.Context) error {
+func (s *Scheduler) Start(ctx context.Context) {
 	// Load active monitors
 	monitors, err := s.conn.Q.GetMonitors(ctx)
 	if err != nil {
 		slog.Error("failed to load monitors", "error", err)
-		return err
+		return
 	}
 
 	// Start monitoring
@@ -61,40 +53,30 @@ func (s *Scheduler) Start(ctx context.Context) error {
 			continue
 		}
 
-		job := &monitorJob{
-			monitor: monitor,
-			ticker:  time.NewTicker(time.Duration(monitor.CheckInterval) * time.Second),
-		}
-		s.monitors[monitor.ID] = job
-		s.wg.Add(1)
-		go s.runMonitor(ctx, job)
+		s.wg.Go(func() { s.runMonitor(ctx, monitor) })
 	}
+	s.wg.Go(func() { s.cleanupJob(ctx) })
 
-	// Start cleanup routine
-	s.wg.Add(1)
-	go s.cleanupJob(ctx)
-	return nil
+	// Wait for shutdown signal
+	go func() {
+		<-ctx.Done()
+		s.wg.Wait()
+	}()
 }
 
-func (s *Scheduler) Stop() {
-	s.mu.Lock()
-	for _, job := range s.monitors {
-		job.ticker.Stop()
-	}
-	s.mu.Unlock()
-	s.wg.Wait()
-}
-
-func (s *Scheduler) runMonitor(ctx context.Context, job *monitorJob) {
+func (s *Scheduler) runMonitor(ctx context.Context, monitor *db.Monitor) {
 	defer s.wg.Done()
 
+	ticker := time.NewTicker(time.Duration(monitor.CheckInterval) * time.Second)
+	defer ticker.Stop()
+
 	// Immediate first check
-	s.performCheck(ctx, job.monitor)
+	s.performCheck(ctx, monitor)
 
 	for {
 		select {
-		case <-job.ticker.C:
-			s.performCheck(ctx, job.monitor)
+		case <-ticker.C:
+			s.performCheck(ctx, monitor)
 		case <-ctx.Done():
 			return
 		}

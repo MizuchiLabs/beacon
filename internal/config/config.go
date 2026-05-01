@@ -71,8 +71,12 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 	cfg.Conn = db.NewConnection(ctx, cfg.DBPath)
 	cfg.Checker = checker.New(cfg.Timeout, cfg.Insecure)
 	cfg.Notifier = notify.New(ctx, cfg.Conn)
+
+	// Start background jobs
 	cfg.Scheduler = scheduler.New(cfg.Conn, cfg.Checker, cfg.Notifier, cfg.RetentionDays)
+	cfg.Scheduler.Start(ctx)
 	cfg.Incidents = incidents.New(cfg.RepoURL, cfg.RepoPath, cfg.Interval)
+	cfg.Incidents.Start(ctx)
 
 	// Sync monitors to DB
 	if err := cfg.syncMonitors(ctx); err != nil {

@@ -29,16 +29,6 @@ func NewServer(cfg *config.Config) *Server {
 func (s *Server) Start(ctx context.Context) error {
 	s.setupRoutes()
 
-	// Start scheduler
-	if err := s.cfg.Scheduler.Start(ctx); err != nil {
-		return fmt.Errorf("failed to start scheduler: %w", err)
-	}
-
-	// Start incident syncer if enabled
-	if err := s.cfg.Incidents.Start(ctx); err != nil {
-		return fmt.Errorf("failed to start incident syncer: %w", err)
-	}
-
 	chain := NewChain(
 		s.WithCORS,
 		s.WithLogger,
@@ -67,15 +57,10 @@ func (s *Server) Start(ctx context.Context) error {
 	// Wait for context cancellation or server error
 	select {
 	case <-ctx.Done():
-		slog.Info("Shutting down server gracefully...")
+		slog.Info("Shutting down server...")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
-
-		s.cfg.Scheduler.Stop()
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			return fmt.Errorf("server shutdown error: %w", err)
-		}
-		return nil
+		return server.Shutdown(shutdownCtx)
 
 	case err := <-serverErr:
 		return fmt.Errorf("server error: %w", err)
