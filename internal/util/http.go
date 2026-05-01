@@ -14,7 +14,3 @@ func RespondJSON(w http.ResponseWriter, status int, data any) {
 		slog.Error("failed to encode response", "error", err)
 	}
 }
-
-func RespondError(w http.ResponseWriter, status int, message string) {
-	RespondJSON(w, status, map[string]string{"error": message})
-}

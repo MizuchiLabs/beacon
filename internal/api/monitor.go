@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -56,34 +57,45 @@ func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
 	}
 
 	seconds, _ := strconv.ParseInt(secondsStr, 10, 64)
-
 	stats, err := s.cfg.Conn.Q.GetMonitorStats(r.Context(), &secondsStr)
 	if err != nil {
-		slog.Error("failed to get monitor stats", "error", err)
-		util.RespondError(w, http.StatusInternalServerError, "failed to retrieve monitors")
+		http.Error(w, "Failed to get monitor stats", http.StatusInternalServerError)
 		return
 	}
 
 	since := time.Now().Add(-time.Duration(seconds) * time.Second)
 	slog.Debug("GetMonitors", "seconds", seconds, "since", since)
 
-	percentiles, err := s.cfg.Conn.Q.GetPercentiles(r.Context(), since)
+	responseTimes, err := s.cfg.Conn.Q.GetResponseTimes(r.Context(), since)
 	if err != nil {
-		slog.Error("failed to get percentiles", "error", err)
-		util.RespondError(w, http.StatusInternalServerError, "failed to retrieve percentiles")
+		http.Error(w, "Failed to get response times", http.StatusInternalServerError)
 		return
 	}
+
+	timesByMonitor := make(map[int64][]int64)
+	for _, rt := range responseTimes {
+		timesByMonitor[rt.MonitorID] = append(timesByMonitor[rt.MonitorID], rt.ResponseTime)
+	}
+
 	percentilesByMonitor := make(map[int64]Percentiles)
-	for _, p := range percentiles {
-		percentilesByMonitor[p.MonitorID] = Percentiles{
-			P50: p.P50, P75: p.P75, P90: p.P90, P95: p.P95, P99: p.P99,
+	for monitorID, times := range timesByMonitor {
+		if len(times) == 0 {
+			continue
+		}
+		slices.Sort(times)
+		n := len(times)
+		percentilesByMonitor[monitorID] = Percentiles{
+			P50: times[n*50/100],
+			P75: times[n*75/100],
+			P90: times[n*90/100],
+			P95: times[n*95/100],
+			P99: times[n*99/100],
 		}
 	}
 
 	pointsByMonitor, err := s.getDataPoints(r.Context(), seconds, since)
 	if err != nil {
-		slog.Error("failed to get data points", "error", err)
-		util.RespondError(w, http.StatusInternalServerError, "failed to retrieve chart data")
+		http.Error(w, "Failed to get data points", http.StatusInternalServerError)
 		return
 	}
 

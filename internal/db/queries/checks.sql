@@ -21,7 +21,7 @@ SELECT
   m.name,
   m.url,
   m.check_interval,
-  COUNT(c.id) AS total_checks,
+  COUNT(c.monitor_id) AS total_checks,
   CAST(
     ROUND(
       COALESCE(
@@ -30,7 +30,7 @@ SELECT
             WHEN c.is_up THEN 1
             ELSE 0
           END
-        ) * 100.0 / COUNT(c.id),
+        ) * 100.0 / COUNT(c.monitor_id),
         100.0
       ),
       2
@@ -97,63 +97,14 @@ ORDER BY
   monitor_id,
   bucket_ts;
 
--- name: GetPercentiles :many
-WITH
-  ordered AS (
-    SELECT
-      monitor_id,
-      response_time,
-      PERCENT_RANK() OVER (
-        PARTITION BY
-          monitor_id
-        ORDER BY
-          response_time
-      ) AS pct
-    FROM
-      checks
-    WHERE
-      checked_at >= sqlc.arg (since)
-      AND is_up = 1
-      AND response_time IS NOT NULL
-  )
+
+-- name: GetResponseTimes :many
 SELECT
   monitor_id,
-  CAST(
-    MAX(
-      CASE
-        WHEN pct <= 0.50 THEN response_time
-      END
-    ) AS INTEGER
-  ) AS p50,
-  CAST(
-    MAX(
-      CASE
-        WHEN pct <= 0.75 THEN response_time
-      END
-    ) AS INTEGER
-  ) AS p75,
-  CAST(
-    MAX(
-      CASE
-        WHEN pct <= 0.90 THEN response_time
-      END
-    ) AS INTEGER
-  ) AS p90,
-  CAST(
-    MAX(
-      CASE
-        WHEN pct <= 0.95 THEN response_time
-      END
-    ) AS INTEGER
-  ) AS p95,
-  CAST(
-    MAX(
-      CASE
-        WHEN pct <= 0.99 THEN response_time
-      END
-    ) AS INTEGER
-  ) AS p99
+  response_time
 FROM
-  ordered
-GROUP BY
-  monitor_id;
+  checks
+WHERE
+  checked_at >= sqlc.arg (since)
+  AND is_up = 1
+  AND response_time IS NOT NULL;

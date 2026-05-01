@@ -96,22 +96,22 @@
 
 			<div class="col-span-1 flex flex-col gap-0.5 border-l pl-3">
 				<span class="text-muted-foreground">P50</span>
-				<span class="font-medium {getLatencyClass(monitor.percentiles.p50)}">
-					{monitor.percentiles.p50 ?? '-'}ms
+				<span class="font-medium {getLatencyClass(monitor.percentiles?.p50)}">
+					{monitor.percentiles?.p50 ?? '-'}ms
 				</span>
 			</div>
 
 			<div class="col-span-1 flex flex-col gap-0.5 border-l pl-3">
 				<span class="text-muted-foreground">P95</span>
-				<span class="font-medium {getLatencyClass(monitor.percentiles.p95)}">
-					{monitor.percentiles.p95 ?? '-'}ms
+				<span class="font-medium {getLatencyClass(monitor.percentiles?.p95)}">
+					{monitor.percentiles?.p95 ?? '-'}ms
 				</span>
 			</div>
 
 			<div class="col-span-1 hidden flex-col gap-0.5 border-l pl-3 sm:flex">
 				<span class="text-muted-foreground">P99</span>
-				<span class="font-medium {getLatencyClass(monitor.percentiles.p99)}">
-					{monitor.percentiles.p99 ?? '-'}ms
+				<span class="font-medium {getLatencyClass(monitor.percentiles?.p99)}">
+					{monitor.percentiles?.p99 ?? '-'}ms
 				</span>
 			</div>
 

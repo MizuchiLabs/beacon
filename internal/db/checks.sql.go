@@ -158,7 +158,7 @@ SELECT
   m.name,
   m.url,
   m.check_interval,
-  COUNT(c.id) AS total_checks,
+  COUNT(c.monitor_id) AS total_checks,
   CAST(
     ROUND(
       COALESCE(
@@ -167,7 +167,7 @@ SELECT
             WHEN c.is_up THEN 1
             ELSE 0
           END
-        ) * 100.0 / COUNT(c.id),
+        ) * 100.0 / COUNT(c.monitor_id),
         100.0
       ),
       2
@@ -225,94 +225,33 @@ func (q *Queries) GetMonitorStats(ctx context.Context, seconds *string) ([]*GetM
 	return items, nil
 }
 
-const getPercentiles = `-- name: GetPercentiles :many
-WITH
-  ordered AS (
-    SELECT
-      monitor_id,
-      response_time,
-      PERCENT_RANK() OVER (
-        PARTITION BY
-          monitor_id
-        ORDER BY
-          response_time
-      ) AS pct
-    FROM
-      checks
-    WHERE
-      checked_at >= ?1
-      AND is_up = 1
-      AND response_time IS NOT NULL
-  )
+const getResponseTimes = `-- name: GetResponseTimes :many
 SELECT
   monitor_id,
-  CAST(
-    MAX(
-      CASE
-        WHEN pct <= 0.50 THEN response_time
-      END
-    ) AS INTEGER
-  ) AS p50,
-  CAST(
-    MAX(
-      CASE
-        WHEN pct <= 0.75 THEN response_time
-      END
-    ) AS INTEGER
-  ) AS p75,
-  CAST(
-    MAX(
-      CASE
-        WHEN pct <= 0.90 THEN response_time
-      END
-    ) AS INTEGER
-  ) AS p90,
-  CAST(
-    MAX(
-      CASE
-        WHEN pct <= 0.95 THEN response_time
-      END
-    ) AS INTEGER
-  ) AS p95,
-  CAST(
-    MAX(
-      CASE
-        WHEN pct <= 0.99 THEN response_time
-      END
-    ) AS INTEGER
-  ) AS p99
+  response_time
 FROM
-  ordered
-GROUP BY
-  monitor_id
+  checks
+WHERE
+  checked_at >= ?1
+  AND is_up = 1
+  AND response_time IS NOT NULL
 `
 
-type GetPercentilesRow struct {
-	MonitorID int64 `json:"monitorId"`
-	P50       int64 `json:"p50"`
-	P75       int64 `json:"p75"`
-	P90       int64 `json:"p90"`
-	P95       int64 `json:"p95"`
-	P99       int64 `json:"p99"`
+type GetResponseTimesRow struct {
+	MonitorID    int64 `json:"monitorId"`
+	ResponseTime int64 `json:"responseTime"`
 }
 
-func (q *Queries) GetPercentiles(ctx context.Context, since time.Time) ([]*GetPercentilesRow, error) {
-	rows, err := q.query(ctx, q.getPercentilesStmt, getPercentiles, since)
+func (q *Queries) GetResponseTimes(ctx context.Context, since time.Time) ([]*GetResponseTimesRow, error) {
+	rows, err := q.query(ctx, q.getResponseTimesStmt, getResponseTimes, since)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []*GetPercentilesRow
+	var items []*GetResponseTimesRow
 	for rows.Next() {
-		var i GetPercentilesRow
-		if err := rows.Scan(
-			&i.MonitorID,
-			&i.P50,
-			&i.P75,
-			&i.P90,
-			&i.P95,
-			&i.P99,
-		); err != nil {
+		var i GetResponseTimesRow
+		if err := rows.Scan(&i.MonitorID, &i.ResponseTime); err != nil {
 			return nil, err
 		}
 		items = append(items, &i)

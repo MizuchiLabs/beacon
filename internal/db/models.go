@@ -9,7 +9,6 @@ import (
 )
 
 type Check struct {
-	ID           int64     `json:"id"`
 	MonitorID    int64     `json:"monitorId"`
 	StatusCode   int64     `json:"statusCode"`
 	ResponseTime int64     `json:"responseTime"`

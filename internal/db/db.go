@@ -60,11 +60,11 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getMonitorsStmt, err = db.PrepareContext(ctx, getMonitors); err != nil {
 		return nil, fmt.Errorf("error preparing query GetMonitors: %w", err)
 	}
-	if q.getPercentilesStmt, err = db.PrepareContext(ctx, getPercentiles); err != nil {
-		return nil, fmt.Errorf("error preparing query GetPercentiles: %w", err)
-	}
 	if q.getPushSubscriptionsByMonitorStmt, err = db.PrepareContext(ctx, getPushSubscriptionsByMonitor); err != nil {
 		return nil, fmt.Errorf("error preparing query GetPushSubscriptionsByMonitor: %w", err)
+	}
+	if q.getResponseTimesStmt, err = db.PrepareContext(ctx, getResponseTimes); err != nil {
+		return nil, fmt.Errorf("error preparing query GetResponseTimes: %w", err)
 	}
 	if q.getVAPIDKeysStmt, err = db.PrepareContext(ctx, getVAPIDKeys); err != nil {
 		return nil, fmt.Errorf("error preparing query GetVAPIDKeys: %w", err)
@@ -140,14 +140,14 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getMonitorsStmt: %w", cerr)
 		}
 	}
-	if q.getPercentilesStmt != nil {
-		if cerr := q.getPercentilesStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getPercentilesStmt: %w", cerr)
-		}
-	}
 	if q.getPushSubscriptionsByMonitorStmt != nil {
 		if cerr := q.getPushSubscriptionsByMonitorStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getPushSubscriptionsByMonitorStmt: %w", cerr)
+		}
+	}
+	if q.getResponseTimesStmt != nil {
+		if cerr := q.getResponseTimesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getResponseTimesStmt: %w", cerr)
 		}
 	}
 	if q.getVAPIDKeysStmt != nil {
@@ -216,8 +216,8 @@ type Queries struct {
 	getMonitorStmt                       *sql.Stmt
 	getMonitorStatsStmt                  *sql.Stmt
 	getMonitorsStmt                      *sql.Stmt
-	getPercentilesStmt                   *sql.Stmt
 	getPushSubscriptionsByMonitorStmt    *sql.Stmt
+	getResponseTimesStmt                 *sql.Stmt
 	getVAPIDKeysStmt                     *sql.Stmt
 	updateMonitorStmt                    *sql.Stmt
 	vAPIDKeysExistStmt                   *sql.Stmt
@@ -239,8 +239,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getMonitorStmt:                       q.getMonitorStmt,
 		getMonitorStatsStmt:                  q.getMonitorStatsStmt,
 		getMonitorsStmt:                      q.getMonitorsStmt,
-		getPercentilesStmt:                   q.getPercentilesStmt,
 		getPushSubscriptionsByMonitorStmt:    q.getPushSubscriptionsByMonitorStmt,
+		getResponseTimesStmt:                 q.getResponseTimesStmt,
 		getVAPIDKeysStmt:                     q.getVAPIDKeysStmt,
 		updateMonitorStmt:                    q.updateMonitorStmt,
 		vAPIDKeysExistStmt:                   q.vAPIDKeysExistStmt,

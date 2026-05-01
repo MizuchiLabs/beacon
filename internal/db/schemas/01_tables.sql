@@ -8,13 +8,13 @@ CREATE TABLE monitors (
 );
 
 CREATE TABLE checks (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
   monitor_id INTEGER NOT NULL,
   status_code INTEGER NOT NULL,
   response_time INTEGER NOT NULL, -- in ms
   error TEXT,
   is_up BOOLEAN NOT NULL,
   checked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (monitor_id, checked_at),
   FOREIGN KEY (monitor_id) REFERENCES monitors (id) ON DELETE CASCADE
 );
 
@@ -36,8 +36,6 @@ CREATE TABLE vapid_keys (
   private_key TEXT NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE INDEX idx_checks_monitor_id ON checks (monitor_id, checked_at DESC);
 
 CREATE INDEX idx_checks_checked_at ON checks (checked_at);
 
