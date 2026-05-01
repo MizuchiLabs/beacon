@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,6 +27,16 @@ func main() {
 		Name:                  "beacon",
 		Version:               fmt.Sprintf("%s (commit: %s, built: %s)", Version, Commit, Date),
 		Usage:                 "monitoring your websites",
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			level := slog.LevelInfo
+			if cmd.Bool("debug") {
+				level = slog.LevelDebug
+			}
+			slog.SetDefault(
+				slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})),
+			)
+			return ctx, nil
+		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			cfg := config.New(ctx, cmd)
 			return api.NewServer(cfg).Start(ctx)

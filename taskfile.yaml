@@ -4,7 +4,7 @@ env:
   CGO_ENABLED: 0
   IMAGE: ghcr.io/mizuchilabs/beacon
   BEACON_CONFIG: ./examples/config.yaml
-  BEACON_CHART_TYPE: bars
+  # BEACON_CHART_TYPE: bars
 
 tasks:
   seed:

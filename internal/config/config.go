@@ -4,14 +4,9 @@ package config
 import (
 	"context"
 	"log"
-	"log/slog"
-	"os"
 	"time"
 
 	"github.com/caarlos0/env/v11"
-	"github.com/lmittmann/tint"
-	"github.com/mattn/go-colorable"
-	"github.com/mattn/go-isatty"
 	"github.com/mizuchilabs/beacon/internal/checker"
 	"github.com/mizuchilabs/beacon/internal/db"
 	"github.com/mizuchilabs/beacon/internal/incidents"
@@ -73,7 +68,6 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 		log.Fatalf("Invalid chart type: %s", cfg.ChartType)
 	}
 
-	cfg.initLogger()
 	cfg.Conn = db.NewConnection(ctx, cfg.DBPath)
 	cfg.Checker = checker.New(cfg.Timeout, cfg.Insecure)
 	cfg.Notifier = notify.New(ctx, cfg.Conn)
@@ -86,19 +80,4 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 	}
 
 	return &cfg
-}
-
-func (cfg *Config) initLogger() {
-	level := slog.LevelInfo
-	if cfg.Debug {
-		level = slog.LevelDebug
-	}
-
-	slog.SetDefault(slog.New(
-		tint.NewHandler(colorable.NewColorable(os.Stderr), &tint.Options{
-			Level:      level,
-			TimeFormat: time.RFC3339,
-			NoColor:    !isatty.IsTerminal(os.Stderr.Fd()),
-		}),
-	))
 }
