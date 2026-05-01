@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
 	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils.js";
 
 	let {
 		ref = $bindable(null),
@@ -12,11 +12,8 @@
 
 <div
 	bind:this={ref}
-	data-slot="empty-description"
-	class={cn(
-		"text-sm/relaxed text-muted-foreground [&>a:hover]:text-primary text-sm/relaxed [&>a]:underline [&>a]:underline-offset-4",
-		className
-	)}
+	data-slot="alert-action"
+	class={cn("absolute top-2 right-2", className)}
 	{...restProps}
 >
 	{@render children?.()}

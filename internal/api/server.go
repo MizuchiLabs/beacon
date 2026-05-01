@@ -6,24 +6,22 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/http/pprof"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/httplog/v3"
 	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/mizuchilabs/beacon/web"
 	"github.com/vearutop/statigz"
-	"github.com/vearutop/statigz/brotli"
 )
 
 type Server struct {
-	mux *chi.Mux
+	mux *http.ServeMux
 	cfg *config.Config
 }
 
 func NewServer(cfg *config.Config) *Server {
 	return &Server{
-		mux: chi.NewMux(),
+		mux: http.NewServeMux(),
 		cfg: cfg,
 	}
 }
@@ -41,36 +39,26 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to start incident syncer: %w", err)
 	}
 
-	logOpts := &httplog.Options{
-		Level:           slog.LevelError,
-		Schema:          httplog.SchemaOTEL,
-		RecoverPanics:   true,
-		LogRequestBody:  func(r *http.Request) bool { return s.cfg.Debug },
-		LogResponseBody: func(r *http.Request) bool { return s.cfg.Debug },
-	}
-
-	// Create middleware chain
 	chain := NewChain(
 		s.WithCORS,
-		httplog.RequestLogger(slog.Default(), logOpts),
+		s.WithLogger,
+		WithRateLimit,
+		WithBodyLimit,
+		WithSecurityHeaders,
 	)
-
 	server := &http.Server{
-		Addr:              "0.0.0.0:" + s.cfg.ServerPort,
+		Addr:              ":" + s.cfg.ServerPort,
 		Handler:           chain.Then(s.mux),
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      15 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		MaxHeaderBytes:    8192, // 8KB
 	}
 
-	// Channel to catch server errors
 	serverErr := make(chan error, 1)
-
-	// Start server in a goroutine
 	go func() {
-		slog.Info("Server listening on", "address", "http://127.0.0.1:"+s.cfg.ServerPort)
+		slog.Info("Server listening on", "port", s.cfg.ServerPort)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			serverErr <- err
 		}
@@ -95,28 +83,28 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) setupRoutes() {
-	s.mux.Route("/api", func(r chi.Router) {
-		// read-only endpoints
-		r.Get("/monitors", s.GetMonitors)
-		r.Get("/config", s.GetConfig)
-		r.Get("/incidents", s.GetIncidents)
-		r.Get("/incidents/{id}", s.GetIncident)
+	s.mux.HandleFunc("GET /api/monitors", s.GetMonitors)
+	s.mux.HandleFunc("GET /api/config", s.GetConfig)
+	s.mux.HandleFunc("GET /api/incidents", s.GetIncidents)
+	s.mux.HandleFunc("GET /api/incidents/{id}", s.GetIncident)
 
-		// Push notification endpoints
-		r.Post("/monitor/{id}/subscribe", s.SubscribeToPushNotifications)
-		r.Post("/monitor/{id}/unsubscribe", s.UnsubscribeFromPushNotifications)
-		r.Get("/vapid-public-key", s.GetVAPIDPublicKey)
+	// Push notifications
+	s.mux.HandleFunc("POST /api/monitor/{id}/subscribe", s.SubscribeToPushNotifications)
+	s.mux.HandleFunc("POST /api/monitor/{id}/unsubscribe", s.UnsubscribeFromPushNotifications)
+	s.mux.HandleFunc("GET /api/vapid-public-key", s.GetVAPIDPublicKey)
 
-		// Health check endpoint
-		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		})
+	s.mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
 	})
 
 	// Static files
-	s.mux.Handle("/*", statigz.FileServer(
-		web.StaticFS,
-		brotli.AddEncoding,
-		statigz.FSPrefix("build"),
-	))
+	s.mux.Handle("/", statigz.FileServer(web.StaticFS, statigz.FSPrefix("build")))
+
+	if s.cfg.Debug {
+		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
+		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		s.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		s.mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		s.mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	}
 }

@@ -3,7 +3,6 @@ package api
 import (
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/mizuchilabs/beacon/internal/util"
 )
 
@@ -23,7 +22,7 @@ func (s *Server) GetIncident(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := chi.URLParam(r, "id")
+	id := r.PathValue("id")
 	incident, found := s.cfg.Incidents.GetIncident(id)
 	if !found {
 		http.Error(w, "Incident not found", http.StatusNotFound)

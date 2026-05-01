@@ -1,12 +1,10 @@
 module github.com/mizuchilabs/beacon
 
-go 1.25.7
+go 1.26.1
 
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/caarlos0/env/v11 v11.4.1
-	github.com/go-chi/chi/v5 v5.2.5
-	github.com/go-chi/httplog/v3 v3.3.0
 	github.com/lmittmann/tint v1.1.3
 	github.com/mattn/go-colorable v0.1.14
 	github.com/mattn/go-isatty v0.0.22
@@ -14,12 +12,12 @@ require (
 	github.com/rs/cors v1.11.1
 	github.com/urfave/cli/v3 v3.8.0
 	github.com/vearutop/statigz v1.5.0
+	golang.org/x/time v0.15.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.50.0
 )
 
 require (
-	github.com/andybalholm/brotli v1.2.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect

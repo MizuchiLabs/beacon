@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/mizuchilabs/beacon/internal/db"
 	"github.com/mizuchilabs/beacon/internal/util"
 )
@@ -35,7 +34,7 @@ func (s *Server) GetVAPIDPublicKey(w http.ResponseWriter, r *http.Request) {
 
 // SubscribeToPushNotifications subscribes a user to push notifications for a monitor
 func (s *Server) SubscribeToPushNotifications(w http.ResponseWriter, r *http.Request) {
-	monitorIDStr := chi.URLParam(r, "id")
+	monitorIDStr := r.PathValue("id")
 	monitorID, err := strconv.ParseInt(monitorIDStr, 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid monitor ID", http.StatusBadRequest)
@@ -73,7 +72,7 @@ func (s *Server) SubscribeToPushNotifications(w http.ResponseWriter, r *http.Req
 
 // UnsubscribeFromPushNotifications unsubscribes a user from push notifications
 func (s *Server) UnsubscribeFromPushNotifications(w http.ResponseWriter, r *http.Request) {
-	monitorIDStr := chi.URLParam(r, "id")
+	monitorIDStr := r.PathValue("id")
 	monitorID, err := strconv.ParseInt(monitorIDStr, 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid monitor ID", http.StatusBadRequest)
