@@ -1,9 +1,11 @@
-// Package web embeds various files for the backend
+// Package web embeds the web assets
 package web
 
 import (
 	"embed"
 )
 
-//go:embed build/*
+//go:generate pnpm install
+//go:generate pnpm build
+//go:embed all:build
 var StaticFS embed.FS

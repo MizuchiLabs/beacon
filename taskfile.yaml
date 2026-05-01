@@ -4,9 +4,7 @@ output: prefixed
 
 env:
   CGO_ENABLED: 0
-  IMAGE_DEV: ko.local/beacon
-  IMAGE_PROD: ghcr.io/mizuchilabs/beacon
-  LD_FLAGS: -s -w -X main.version={{.VERSION}}
+  IMAGE: ghcr.io/mizuchilabs/beacon
   BEACON_CONFIG: ./examples/config.yaml
   BEACON_CHART_TYPE: bars
 
@@ -53,31 +51,23 @@ tasks:
       - go vet ./...
       - govulncheck ./...
       - go test -cover ./...
+      - gosec -exclude-generated ./...
 
   build:
     desc: Build binary
     cmds:
-      - cd web; pnpm install; pnpm build
-      - go build -ldflags "{{.LD_FLAGS}}" -o beacon
+      - go generate ./...
+      - go build -ldflags="-s -w" -trimpath -o bin/beacon
 
   snapshot:
-    desc: Test snapshot
+    desc: Build snapshot
     cmds:
-      - goreleaser --snapshot --clean --skip=validate
+      - goreleaser --snapshot --clean --skip=validate,sign,sbom,archive
+      - docker tag goreleaser.ko.local:latest $IMAGE:nightly
+      - grype $IMAGE:nightly
 
-  # 󰡨  Build container with ko
-  docker:dev:
-    desc: Build OCI image with ko
-    deps: [build:web]
-    dir: cmd
+  snapshot:push:
+    desc: Build and push snapshot to registry
+    deps: [snapshot]
     cmds:
-      - KO_DOCKER_REPO=$IMAGE_DEV ko build --bare .
-      - grype $IMAGE_DEV
-
-  docker:prod:
-    desc: Build OCI image with ko
-    deps: [build:web]
-    dir: cmd
-    cmds:
-      - KO_DOCKER_REPO=$IMAGE_PROD ko build --bare .
-      - grype $IMAGE_PROD
+      - docker push $IMAGE:nightly
