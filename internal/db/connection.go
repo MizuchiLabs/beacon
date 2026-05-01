@@ -13,12 +13,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pressly/goose/v3"
+	"github.com/mizuchilabs/sqlite-schema-diff/pkg/diff"
+	"github.com/mizuchilabs/sqlite-schema-diff/pkg/parser"
 	_ "modernc.org/sqlite"
 )
 
-//go:embed migrations/*.sql
-var migrationFS embed.FS
+//go:embed schemas/*.sql
+var schemaFS embed.FS
 
 type Connection struct {
 	mu sync.RWMutex
@@ -43,11 +44,11 @@ func NewConnection(ctx context.Context, path string) *Connection {
 		log.Fatalf("failed to configure db: %v", err)
 	}
 
+	migrate(db)
 	conn := &Connection{
 		db: db,
 		Q:  New(db),
 	}
-	conn.migrate()
 
 	// Wait for shutdown signal
 	go func() {
@@ -91,14 +92,10 @@ func (c *Connection) Get() *sql.DB {
 	return c.db
 }
 
-func (c *Connection) migrate() {
-	goose.SetBaseFS(migrationFS)
-	goose.SetLogger(goose.NopLogger())
-
-	if err := goose.SetDialect("sqlite3"); err != nil {
-		log.Fatal(err)
-	}
-	if err := goose.Up(c.db, "migrations"); err != nil {
-		log.Fatal(err)
+func migrate(db *sql.DB) {
+	parser.SetBaseFS(schemaFS)
+	if err := diff.Apply(db, "schemas", diff.ApplyOptions{}); err != nil {
+		slog.Error("failed to apply schema changes", "error", err)
+		return
 	}
 }

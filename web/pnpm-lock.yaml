@@ -14,15 +14,6 @@ importers:
       '@fontsource-variable/victor-mono':
         specifier: ^5.2.8
         version: 5.2.8
-      d3-array:
-        specifier: ^3.2.4
-        version: 3.2.4
-      d3-scale:
-        specifier: ^4.0.2
-        version: 4.0.2
-      d3-shape:
-        specifier: ^3.2.0
-        version: 3.2.0
     devDependencies:
       '@internationalized/date':
         specifier: ^3.12.1
@@ -66,6 +57,15 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      d3-array:
+        specifier: ^3.2.4
+        version: 3.2.4
+      d3-scale:
+        specifier: ^4.0.2
+        version: 4.0.2
+      d3-shape:
+        specifier: ^3.2.0
+        version: 3.2.0
       layerchart:
         specifier: 2.0.0-next.48
         version: 2.0.0-next.48(@sveltejs/kit@2.59.0(@sveltejs/vite-plugin-svelte@7.0.0(svelte@5.55.5)(vite@8.0.10(jiti@2.6.1)))(svelte@5.55.5)(typescript@6.0.3)(vite@8.0.10(jiti@2.6.1)))(svelte@5.55.5)

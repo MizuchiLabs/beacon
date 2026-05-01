@@ -1,5 +1,3 @@
--- +goose Up
--- Monitors 
 CREATE TABLE monitors (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -9,7 +7,6 @@ CREATE TABLE monitors (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Checks 
 CREATE TABLE checks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   monitor_id INTEGER NOT NULL,
@@ -40,7 +37,6 @@ CREATE TABLE vapid_keys (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- indexes for common queries
 CREATE INDEX idx_checks_monitor_id ON checks (monitor_id, checked_at DESC);
 
 CREATE INDEX idx_checks_checked_at ON checks (checked_at);
@@ -50,12 +46,3 @@ CREATE INDEX idx_checks_monitor_time_up ON checks (monitor_id, checked_at, is_up
 CREATE UNIQUE INDEX idx_push_sub_endpoint ON push_subscriptions (endpoint, monitor_id);
 
 CREATE INDEX idx_push_sub_monitor ON push_subscriptions (monitor_id);
-
--- +goose Down
-DROP TABLE IF EXISTS monitors;
-
-DROP TABLE IF EXISTS checks;
-
-DROP TABLE IF EXISTS push_subscriptions;
-
-DROP TABLE IF EXISTS vapid_keys;
