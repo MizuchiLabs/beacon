@@ -1,7 +1,5 @@
 version: "3"
 
-output: prefixed
-
 env:
   CGO_ENABLED: 0
   IMAGE: ghcr.io/mizuchilabs/beacon
@@ -29,20 +27,17 @@ tasks:
     cmds:
       - pnpm run dev
 
-  # 󰚰 Update deps
   update:
     desc: Update dependencies
     cmds:
       - go get -u ./...
       - cd web && pnpm update --latest
 
-  #  Generate code
   gen:
     desc: Generate sqlc
     cmds:
       - sqlc generate
 
-  # 󰉠  Lint / static checks
   lint:
     desc: Run go vet & lint
     cmds:
@@ -57,7 +52,7 @@ tasks:
     desc: Build binary
     cmds:
       - go generate ./...
-      - go build -ldflags="-s -w" -trimpath -o bin/beacon
+      - go build -ldflags="-s -w" -trimpath -o beacon
 
   snapshot:
     desc: Build snapshot
