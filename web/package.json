@@ -39,7 +39,7 @@
 		"d3-shape": "^3.2.0",
 		"layerchart": "2.0.0-next.64",
 		"mode-watcher": "^1.1.0",
-		"oxfmt": "^0.51.0",
+		"oxfmt": "^0.52.0",
 		"oxlint": "^1.65.0",
 		"svelte": "^5.55.7",
 		"svelte-check": "^4.4.8",
