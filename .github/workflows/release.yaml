@@ -1,6 +1,8 @@
 name: Release
 
 on:
+  schedule:
+    - cron: "0 0 * * 5"
   push:
     tags:
       - "v*"
@@ -10,6 +12,8 @@ permissions:
   contents: write
   packages: write
   id-token: write
+  issues: write
+  pull-requests: write
 
 jobs:
   release:
@@ -69,10 +73,41 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: goreleaser/goreleaser-action@v7
+      - name: Verify build
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: goreleaser/goreleaser-action@v7
         with:
           version: latest
-          args: release --clean --skip=validate
+          args: release --snapshot --clean
+        env:
+          COSIGN_YES: "true"
+          GOPRIVATE: github.com/mizuchilabs/*
+
+      - name: Run Semantic Release
+        id: semantic
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          npx semantic-release --plugins "@semantic-release/commit-analyzer,@semantic-release/release-notes-generator,@semantic-release/github"
+          git fetch --tags --force
+          NEW_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ "$PREV_TAG" != "$NEW_TAG" ] && [ -n "$NEW_TAG" ]; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "New release $NEW_TAG generated"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            echo "No new release generated"
+          fi
+
+      - name: Run GoReleaser
+        if: github.event_name == 'push' || steps.semantic.outputs.released == 'true'
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          version: latest
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COSIGN_YES: "true"
