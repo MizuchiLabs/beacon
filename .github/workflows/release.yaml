@@ -29,16 +29,14 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - uses: pnpm/action-setup@v6
-        with:
-          version: latest
-
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 24
-          cache: "pnpm"
-          cache-dependency-path: "web/pnpm-lock.yaml"
+          node-version: "lts/*"
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: latest
 
       - name: Install UPX
         run: |
@@ -57,10 +55,8 @@ jobs:
         uses: ko-build/setup-ko@v0.9
 
       - name: Build frontend
-        run: |
-          cd web
-          pnpm install
-          pnpm build
+        working-directory: web
+        run: pnpm install && pnpm build
 
       - name: Run GolangCI-Lint
         uses: golangci/golangci-lint-action@v9
