@@ -12,8 +12,7 @@
   "packageRules": [
     {
       "matchPackagePatterns": ["*"],
-      "automerge": true,
-      "automergeType": "branch"
+      "automerge": true
     }
   ],
   "platformAutomerge": true,
