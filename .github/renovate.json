@@ -7,8 +7,6 @@
     "security:minimumReleaseAgeNpm",
     ":maintainLockFilesWeekly"
   ],
-  "timezone": "Europe/Vienna",
-  "lockFileMaintenance": { "enabled": true },
   "packageRules": [
     {
       "matchPackagePatterns": ["*"],
