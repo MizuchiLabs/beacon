@@ -1,6 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":semanticCommits", ":disableDependencyDashboard"],
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":disableDependencyDashboard",
+    "security:minimumReleaseAgeNpm",
+    ":maintainLockFilesWeekly"
+  ],
   "timezone": "Europe/Vienna",
   "lockFileMaintenance": { "enabled": true },
   "packageRules": [
@@ -8,12 +14,6 @@
       "matchPackagePatterns": ["*"],
       "automerge": true,
       "automergeType": "branch"
-    },
-    {
-      "matchUpdateTypes": ["lockFileMaintenance"],
-      "automerge": true,
-      "automergeType": "branch",
-      "ignoreTests": true
     }
   ],
   "platformAutomerge": true,
