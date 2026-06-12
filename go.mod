@@ -5,7 +5,7 @@ go 1.26.1
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/caarlos0/env/v11 v11.4.1
-	github.com/mizuchilabs/sqlite-schema-diff v0.1.9
+	github.com/mizuchilabs/sqlite-schema-diff v0.1.10
 	github.com/rs/cors v1.11.1
 	github.com/urfave/cli/v3 v3.9.1
 	github.com/vearutop/statigz v1.5.0
@@ -23,10 +23,10 @@ require (
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	golang.org/x/crypto v0.52.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/tools v0.43.0 // indirect
-	modernc.org/libc v1.72.3 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/tools v0.45.0 // indirect
+	modernc.org/libc v1.73.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
