@@ -24,8 +24,8 @@ github.com/klauspost/compress v1.18.5 h1:/h1gH5Ce+VWNLSWqPzOVn6XBO+vJbCNGvjoaGBF
 github.com/klauspost/compress v1.18.5/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
 github.com/mattn/go-isatty v0.0.22 h1:j8l17JJ9i6VGPUFUYoTUKPSgKe/83EYU2zBC7YNKMw4=
 github.com/mattn/go-isatty v0.0.22/go.mod h1:ZXfXG4SQHsB/w3ZeOYbR0PrPwLy+n6xiMrJlRFqopa4=
-github.com/mizuchilabs/sqlite-schema-diff v0.1.11 h1:BP2wAvtQ5d3pZ4WDCXqDKm+beBGhLwFFtS5DTuW/LKY=
-github.com/mizuchilabs/sqlite-schema-diff v0.1.11/go.mod h1:cOMPnPjLWVUpvRfpOqSq9cAFfkuypsvFjiw8XbD+bS0=
+github.com/mizuchilabs/sqlite-schema-diff v0.1.12 h1:bcIFPDCHzQhHoNRaafrea+GJgxEd8kVRKsRbnjyLx0M=
+github.com/mizuchilabs/sqlite-schema-diff v0.1.12/go.mod h1:22T5ogVoCJ8pFXu4knPFFT2678D0ZxWqzwCUUQf8TtE=
 github.com/ncruces/go-strftime v1.0.0 h1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOFAw7w=
 github.com/ncruces/go-strftime v1.0.0/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
