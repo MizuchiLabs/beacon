@@ -52,7 +52,7 @@ jobs:
           upload-release-assets: false
 
       - name: Install Ko
-        uses: ko-build/setup-ko@v0.9
+        uses: ko-build/setup-ko@v0.10
 
       - name: Build frontend
         working-directory: web
