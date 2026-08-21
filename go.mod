@@ -5,7 +5,7 @@ go 1.26.6
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/caarlos0/env/v11 v11.4.1
-	github.com/mizuchilabs/sqlite-schema-diff v0.1.15
+	github.com/mizuchilabs/sqlite-schema-diff v0.1.16
 	github.com/rs/cors v1.11.1
 	github.com/urfave/cli/v3 v3.11.0
 	github.com/vearutop/statigz v1.5.0
