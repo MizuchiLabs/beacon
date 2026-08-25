@@ -44,7 +44,7 @@ importers:
         version: 4.3.3(vite@8.2.2(jiti@2.7.0))
       '@tanstack/svelte-query':
         specifier: ^6.1.38
-        version: 6.1.38(svelte@5.56.10)
+        version: 6.1.39(svelte@5.56.10)
       '@types/d3-scale':
         specifier: ^4.0.9
         version: 4.0.9
@@ -681,11 +681,11 @@ packages:
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
 
-  '@tanstack/query-core@5.101.4':
-    resolution: {integrity: sha512-gNwcvOJcRbLWPOLG/2OBm+zM+Yv+MKsXKEOWC57USuZDEsI71hEErQsiEGx5wX9rzWWkfwM0fVSPoiIFSsxfiw==}
+  '@tanstack/query-core@5.102.0':
+    resolution: {integrity: sha512-tvBzr11Q7StuMCEsIJdqX8TAWt6WZIzfw/yrSAjObZDerwTTPeCxeLXN2R8ZSn4ZxFpQV819Xn8QmoO+vtnDvw==}
 
-  '@tanstack/svelte-query@6.1.38':
-    resolution: {integrity: sha512-oV5S/+uAot23p3lJChLAHr82+8ApgQMyIgroWPpN0d6Y6TlThRbLSXnhx6CoUk6AkwlCPxf9vh4SOHa0eXHiWg==}
+  '@tanstack/svelte-query@6.1.39':
+    resolution: {integrity: sha512-nlJyy4Fkc5STJy0Rdj9je7WE1OPam0bBch+SWQZH5sHylOHi5i+jofdUXdEKVRsm6LakrbQH5Hvd7s/lFVB1uQ==}
     peerDependencies:
       svelte: ^5.25.0
 
@@ -1903,11 +1903,11 @@ snapshots:
       tailwindcss: 4.3.3
       vite: 8.2.2(jiti@2.7.0)
 
-  '@tanstack/query-core@5.101.4': {}
+  '@tanstack/query-core@5.102.0': {}
 
-  '@tanstack/svelte-query@6.1.38(svelte@5.56.10)':
+  '@tanstack/svelte-query@6.1.39(svelte@5.56.10)':
     dependencies:
-      '@tanstack/query-core': 5.101.4
+      '@tanstack/query-core': 5.102.0
       svelte: 5.56.10
 
   '@types/cookie@0.6.0': {}
