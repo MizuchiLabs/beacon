@@ -12,6 +12,7 @@ before:
 
 builds:
   - binary: "{{ .ProjectName }}"
+    main: ./cmd/beacon
     env: [CGO_ENABLED=0]
     flags:
       - -trimpath
@@ -28,6 +29,7 @@ builds:
     goarch:
       - amd64
       - arm64
+      - riscv64
     ignore:
       - goos: windows
         goarch: arm64
@@ -39,7 +41,7 @@ upx:
     goos: [linux]
 
 kos:
-  - main: .
+  - main: ./cmd/beacon
     base_image: alpine
     repositories: [ghcr.io/mizuchilabs/beacon]
     bare: true

@@ -10,7 +10,7 @@ tasks:
   seed:
     desc: Generate seed data
     cmds:
-      - go run ./examples/main.go
+      - go run ./cmd/seed
 
   dev:
     desc: Run backend and frontend concurrently
@@ -19,7 +19,7 @@ tasks:
   backend:
     desc: Run backend
     cmds:
-      - go run .
+      - go run ./cmd/beacon
 
   frontend:
     desc: Run frontend
@@ -52,7 +52,7 @@ tasks:
     desc: Build binary
     cmds:
       - go generate ./...
-      - go build -ldflags="-s -w" -trimpath -o beacon
+      - go build -ldflags="-s -w" -trimpath -o beacon ./cmd/beacon
 
   snapshot:
     desc: Build snapshot
