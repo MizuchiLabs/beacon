@@ -5,16 +5,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
-	"strings"
+	"net/http"
 
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/mizuchilabs/beacon/internal/db"
 )
 
 type Notifier struct {
-	conn      *db.Connection
+	q         *db.Queries
 	vapidKeys *db.VapidKey
 }
 
@@ -25,8 +26,8 @@ type NotificationPayload struct {
 	MonitorID int64  `json:"monitorId"`
 }
 
-func New(ctx context.Context, conn *db.Connection) *Notifier {
-	result, err := conn.Q.VAPIDKeysExist(ctx)
+func New(ctx context.Context, q *db.Queries) *Notifier {
+	result, err := q.VAPIDKeysExist(ctx)
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to check VAPID keys: %w", err))
 	}
@@ -37,7 +38,7 @@ func New(ctx context.Context, conn *db.Connection) *Notifier {
 		if err != nil {
 			log.Fatal(fmt.Errorf("failed to generate VAPID keys: %w", err))
 		}
-		if err := conn.Q.CreateVAPIDKeys(ctx, &db.CreateVAPIDKeysParams{
+		if err := q.CreateVAPIDKeys(ctx, &db.CreateVAPIDKeysParams{
 			PublicKey:  publicKey,
 			PrivateKey: privateKey,
 		}); err != nil {
@@ -45,29 +46,30 @@ func New(ctx context.Context, conn *db.Connection) *Notifier {
 		}
 	}
 
-	vapidKeys, err := conn.Q.GetVAPIDKeys(ctx)
+	vapidKeys, err := q.GetVAPIDKeys(ctx)
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to get VAPID keys: %w", err))
 	}
 
 	return &Notifier{
-		conn:      conn,
+		q:         q,
 		vapidKeys: vapidKeys,
 	}
 }
 
-// SendMonitorDownNotification sends push notifications to all subscribers when a monitor goes down
-func (n *Notifier) SendMonitorDownNotification(
+// SendMonitorNotification sends push notifications to all subscribers of a
+// monitor after an up/down state transition.
+func (n *Notifier) SendMonitorNotification(
 	ctx context.Context,
 	monitor *db.Monitor,
+	up bool,
 	reason string,
 ) error {
 	if monitor == nil {
 		return nil
 	}
 
-	// Get all subscriptions for this monitor
-	subscriptions, err := n.conn.Q.GetPushSubscriptionsByMonitor(ctx, monitor.ID)
+	subscriptions, err := n.q.GetPushSubscriptionsByMonitor(ctx, monitor.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get subscriptions: %w", err)
 	}
@@ -77,59 +79,17 @@ func (n *Notifier) SendMonitorDownNotification(
 		return nil
 	}
 
-	// Create notification payload
 	payload := NotificationPayload{
-		Title:     fmt.Sprintf("🔴 %s is Down", monitor.Name),
-		Body:      fmt.Sprintf("%s is currently unreachable. Reason: %s", monitor.Url, reason),
-		URL:       "/", // Could be a link to specific monitor page
-		MonitorID: monitor.ID,
-	}
-
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal payload: %w", err)
-	}
-
-	// Send to all subscribers
-	for _, sub := range subscriptions {
-		if err := n.sendPushNotification(sub, payloadBytes); err != nil {
-			slog.Error("Failed to send push notification",
-				"monitor_id", monitor.ID,
-				"subscription_id", sub.ID,
-				"error", err,
-			)
-
-			if isSubscriptionError(err) {
-				if deleteErr := n.conn.Q.DeletePushSubscriptionByEndpoint(ctx, sub.Endpoint); deleteErr != nil {
-					slog.Error("Failed to delete invalid subscription", "error", deleteErr)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-// SendMonitorUpNotification sends notifications when a monitor comes back up
-func (n *Notifier) SendMonitorUpNotification(ctx context.Context, monitor *db.Monitor) error {
-	if monitor == nil {
-		return nil
-	}
-	subscriptions, err := n.conn.Q.GetPushSubscriptionsByMonitor(ctx, monitor.ID)
-	if err != nil {
-		return fmt.Errorf("failed to get subscriptions: %w", err)
-	}
-
-	if len(subscriptions) == 0 {
-		return nil
-	}
-
-	payload := NotificationPayload{
-		Title:     fmt.Sprintf("✅ %s is Back Up", monitor.Name),
-		Body:      fmt.Sprintf("%s is now responding normally.", monitor.Url),
 		URL:       "/",
 		MonitorID: monitor.ID,
 	}
+	if up {
+		payload.Title = fmt.Sprintf("✅ %s is Back Up", monitor.Name)
+		payload.Body = fmt.Sprintf("%s is now responding normally.", monitor.Url)
+	} else {
+		payload.Title = fmt.Sprintf("🔴 %s is Down", monitor.Name)
+		payload.Body = fmt.Sprintf("%s is currently unreachable. Reason: %s", monitor.Url, reason)
+	}
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
@@ -137,13 +97,24 @@ func (n *Notifier) SendMonitorUpNotification(ctx context.Context, monitor *db.Mo
 	}
 
 	for _, sub := range subscriptions {
-		if err := n.sendPushNotification(sub, payloadBytes); err != nil {
-			slog.Error("Failed to send recovery notification", "error", err)
+		status, err := n.sendPushNotification(sub, payloadBytes)
+		if err == nil {
+			continue
+		}
 
-			if isSubscriptionError(err) {
-				if err := n.conn.Q.DeletePushSubscriptionByEndpoint(ctx, sub.Endpoint); err != nil {
-					slog.Error("Failed to delete invalid subscription", "error", err)
-				}
+		slog.Error("Failed to send push notification",
+			"monitor_id", monitor.ID,
+			"subscription_id", sub.ID,
+			"error", err,
+		)
+
+		// 404/410 mean the endpoint is gone and will never succeed again
+		if status == http.StatusNotFound || status == http.StatusGone {
+			if deleteErr := n.q.DeletePushSubscriptionByEndpoint(
+				ctx,
+				sub.Endpoint,
+			); deleteErr != nil {
+				slog.Error("Failed to delete invalid subscription", "error", deleteErr)
 			}
 		}
 	}
@@ -151,11 +122,12 @@ func (n *Notifier) SendMonitorUpNotification(ctx context.Context, monitor *db.Mo
 	return nil
 }
 
+// sendPushNotification returns the HTTP status reported by the push service,
+// or 0 if the request failed before a response was received.
 func (n *Notifier) sendPushNotification(
 	subscription *db.PushSubscription,
 	payload []byte,
-) error {
-	// Create push subscription object
+) (int, error) {
 	sub := &webpush.Subscription{
 		Endpoint: subscription.Endpoint,
 		Keys: webpush.Keys{
@@ -164,7 +136,6 @@ func (n *Notifier) sendPushNotification(
 		},
 	}
 
-	// Send the notification
 	resp, err := webpush.SendNotification(payload, sub, &webpush.Options{
 		Subscriber:      "mailto:beacon@mizuchi.dev", // Contact email for push notifications
 		VAPIDPublicKey:  n.vapidKeys.PublicKey,
@@ -172,27 +143,14 @@ func (n *Notifier) sendPushNotification(
 		TTL:             30, // Time to live in seconds
 	})
 	if err != nil {
-		return fmt.Errorf("failed to send push: %w", err)
+		return 0, fmt.Errorf("failed to send push: %w", err)
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Error("Failed to close response body", "error", err)
-		}
-	}()
+	defer func() { _ = resp.Body.Close() }()
+	_, _ = io.Copy(io.Discard, resp.Body)
 
-	// Check response status
-	if resp.StatusCode != 201 {
-		return fmt.Errorf("push service returned status %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusCreated {
+		return resp.StatusCode, fmt.Errorf("push service returned status %d", resp.StatusCode)
 	}
 
-	return nil
-}
-
-// isSubscriptionError checks if the error indicates an invalid/expired subscription
-func isSubscriptionError(err error) bool {
-	errStr := err.Error()
-	return strings.Contains(errStr, "410") ||
-		strings.Contains(errStr, "404") ||
-		strings.Contains(errStr, "expired") ||
-		strings.Contains(errStr, "invalid")
+	return resp.StatusCode, nil
 }
