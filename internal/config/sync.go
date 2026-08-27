@@ -22,11 +22,11 @@ type MonitorsFile struct {
 	Monitors []MonitorConfig `yaml:"monitors"`
 }
 
-func (cfg *Config) loadMonitors() ([]MonitorConfig, error) {
+func loadMonitors(env EnvConfig) ([]MonitorConfig, error) {
 	// Inline YAML from environment
-	if cfg.MonitorsYAML != "" {
+	if env.MonitorsYAML != "" {
 		slog.Debug("Loading monitors from environment...")
-		monitors, err := parseMonitorsYAML([]byte(cfg.MonitorsYAML))
+		monitors, err := parseMonitorsYAML([]byte(env.MonitorsYAML))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse BEACON_MONITORS: %w", err)
 		}
@@ -34,16 +34,16 @@ func (cfg *Config) loadMonitors() ([]MonitorConfig, error) {
 	}
 
 	// File path
-	data, err := os.ReadFile(cfg.ConfigPath)
+	data, err := os.ReadFile(env.ConfigPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			slog.Warn("Config file not found, using empty monitors", "path", cfg.ConfigPath)
+			slog.Warn("Config file not found, using empty monitors", "path", env.ConfigPath)
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	slog.Debug("Loading monitors from config file", "path", cfg.ConfigPath)
+	slog.Debug("Loading monitors from config file", "path", env.ConfigPath)
 	monitors, err := parseMonitorsYAML(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
@@ -124,13 +124,15 @@ func validateMonitors(monitors []MonitorConfig) error {
 	return nil
 }
 
-func (cfg *Config) syncMonitors(ctx context.Context) error {
-	monitors, err := cfg.loadMonitors()
+// SyncMonitors loads monitors from the configured YAML source and syncs them
+// into the database, creating, updating, and removing monitors as needed.
+func SyncMonitors(ctx context.Context, q *db.Queries, env EnvConfig) error {
+	monitors, err := loadMonitors(env)
 	if err != nil {
 		return err
 	}
 
-	dbMonitors, err := cfg.Conn.Q.GetMonitors(ctx)
+	dbMonitors, err := q.GetMonitors(ctx)
 	if err != nil {
 		return err
 	}
@@ -152,7 +154,7 @@ func (cfg *Config) syncMonitors(ctx context.Context) error {
 			// Only update if something changed
 			if dbMonitor.Name != configMonitor.Name ||
 				dbMonitor.CheckInterval != configMonitor.CheckInterval {
-				_, err := cfg.Conn.Q.UpdateMonitor(ctx, &db.UpdateMonitorParams{
+				_, err := q.UpdateMonitor(ctx, &db.UpdateMonitorParams{
 					ID:            dbMonitor.ID,
 					Name:          configMonitor.Name,
 					Url:           configMonitor.URL,
@@ -165,7 +167,7 @@ func (cfg *Config) syncMonitors(ctx context.Context) error {
 			}
 			delete(dbMap, url) // Remove from deletion list
 		} else {
-			_, err := cfg.Conn.Q.CreateMonitor(ctx, &db.CreateMonitorParams{
+			_, err := q.CreateMonitor(ctx, &db.CreateMonitorParams{
 				Name:          configMonitor.Name,
 				Url:           configMonitor.URL,
 				CheckInterval: configMonitor.CheckInterval,
@@ -179,7 +181,7 @@ func (cfg *Config) syncMonitors(ctx context.Context) error {
 
 	// Delete monitors not in config
 	for url, dbMonitor := range dbMap {
-		if err := cfg.Conn.Q.DeleteMonitor(ctx, dbMonitor.ID); err != nil {
+		if err := q.DeleteMonitor(ctx, dbMonitor.ID); err != nil {
 			return err
 		}
 		slog.Info("Removed monitor", "url", url)
