@@ -3,8 +3,7 @@ CREATE TABLE monitors (
   name TEXT NOT NULL,
   url TEXT NOT NULL UNIQUE,
   check_interval INTEGER NOT NULL DEFAULT 60, -- in seconds
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 CREATE TABLE checks (
@@ -13,7 +12,7 @@ CREATE TABLE checks (
   response_time INTEGER NOT NULL, -- in ms
   error TEXT,
   is_up BOOLEAN NOT NULL,
-  checked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  checked_at INTEGER NOT NULL DEFAULT (unixepoch()), -- unix seconds
   PRIMARY KEY (monitor_id, checked_at),
   FOREIGN KEY (monitor_id) REFERENCES monitors (id) ON DELETE CASCADE
 );
@@ -25,7 +24,7 @@ CREATE TABLE push_subscriptions (
   endpoint TEXT NOT NULL,
   p256dh_key TEXT NOT NULL, -- encryption key
   auth_key TEXT NOT NULL, -- authentication secret
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
   FOREIGN KEY (monitor_id) REFERENCES monitors (id) ON DELETE CASCADE
 );
 
@@ -34,7 +33,7 @@ CREATE TABLE vapid_keys (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   public_key TEXT NOT NULL,
   private_key TEXT NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 CREATE INDEX idx_checks_checked_at ON checks (checked_at);

@@ -7,17 +7,16 @@ package db
 
 import (
 	"context"
-	"time"
 )
 
 const cleanupChecks = `-- name: CleanupChecks :exec
 DELETE FROM checks
 WHERE
-  checked_at < datetime('now', '-' || ?1 || ' days')
+  checked_at < ?1
 `
 
-func (q *Queries) CleanupChecks(ctx context.Context, days *string) error {
-	_, err := q.exec(ctx, q.cleanupChecksStmt, cleanupChecks, days)
+func (q *Queries) CleanupChecks(ctx context.Context, cutoff int64) error {
+	_, err := q.db.ExecContext(ctx, cleanupChecks, cutoff)
 	return err
 }
 
@@ -43,7 +42,7 @@ type CreateCheckParams struct {
 }
 
 func (q *Queries) CreateCheck(ctx context.Context, arg *CreateCheckParams) error {
-	_, err := q.exec(ctx, q.createCheckStmt, createCheck,
+	_, err := q.db.ExecContext(ctx, createCheck,
 		arg.MonitorID,
 		arg.StatusCode,
 		arg.ResponseTime,
@@ -56,22 +55,17 @@ func (q *Queries) CreateCheck(ctx context.Context, arg *CreateCheckParams) error
 const getDataPoints = `-- name: GetDataPoints :many
 SELECT
   monitor_id,
-  CAST(
-    CAST(strftime('%s', checked_at) AS INTEGER) / CAST(?1 AS INTEGER) * CAST(?1 AS INTEGER) AS INTEGER
-  ) AS bucket_ts,
+  checked_at - (checked_at % ?1) AS bucket_ts,
   COUNT(*) AS total_count,
   CAST(COALESCE(AVG(response_time), 0.0) AS INTEGER) AS avg_response_time,
   CAST(
     SUM(
       CASE
         WHEN is_up
-        AND (
-          response_time IS NULL
-          OR response_time <= ?2
-        ) THEN 1
+        AND response_time <= ?2 THEN 1
         ELSE 0
       END
-    ) AS REAL
+    ) AS INTEGER
   ) AS up_count,
   CAST(
     SUM(
@@ -80,7 +74,7 @@ SELECT
         AND response_time > ?2 THEN 1
         ELSE 0
       END
-    ) AS REAL
+    ) AS INTEGER
   ) AS degraded_count,
   CAST(
     SUM(
@@ -88,41 +82,38 @@ SELECT
         WHEN NOT is_up THEN 1
         ELSE 0
       END
-    ) AS REAL
+    ) AS INTEGER
   ) AS down_count
 FROM
   checks
 WHERE
   checked_at >= ?3
-  AND checked_at IS NOT NULL
 GROUP BY
   monitor_id,
   bucket_ts
-HAVING
-  bucket_ts IS NOT NULL
 ORDER BY
   monitor_id,
   bucket_ts
 `
 
 type GetDataPointsParams struct {
-	BucketSize        int64     `json:"bucketSize"`
-	DegradedThreshold int64     `json:"degradedThreshold"`
-	Since             time.Time `json:"since"`
+	BucketSize        int64 `json:"bucketSize"`
+	DegradedThreshold int64 `json:"degradedThreshold"`
+	Since             int64 `json:"since"`
 }
 
 type GetDataPointsRow struct {
-	MonitorID       int64   `json:"monitorId"`
-	BucketTs        int64   `json:"bucketTs"`
-	TotalCount      int64   `json:"totalCount"`
-	AvgResponseTime int64   `json:"avgResponseTime"`
-	UpCount         float64 `json:"upCount"`
-	DegradedCount   float64 `json:"degradedCount"`
-	DownCount       float64 `json:"downCount"`
+	MonitorID       int64 `json:"monitorId"`
+	BucketTs        int64 `json:"bucketTs"`
+	TotalCount      int64 `json:"totalCount"`
+	AvgResponseTime int64 `json:"avgResponseTime"`
+	UpCount         int64 `json:"upCount"`
+	DegradedCount   int64 `json:"degradedCount"`
+	DownCount       int64 `json:"downCount"`
 }
 
 func (q *Queries) GetDataPoints(ctx context.Context, arg *GetDataPointsParams) ([]*GetDataPointsRow, error) {
-	rows, err := q.query(ctx, q.getDataPointsStmt, getDataPoints, arg.BucketSize, arg.DegradedThreshold, arg.Since)
+	rows, err := q.db.QueryContext(ctx, getDataPoints, arg.BucketSize, arg.DegradedThreshold, arg.Since)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +168,7 @@ SELECT
 FROM
   monitors m
   LEFT JOIN checks c ON c.monitor_id = m.id
-  AND c.checked_at >= datetime('now', '-' || ?1 || ' seconds')
+  AND c.checked_at >= ?1
 GROUP BY
   m.id
 ORDER BY
@@ -194,8 +185,8 @@ type GetMonitorStatsRow struct {
 	AvgResponseTime int64   `json:"avgResponseTime"`
 }
 
-func (q *Queries) GetMonitorStats(ctx context.Context, seconds *string) ([]*GetMonitorStatsRow, error) {
-	rows, err := q.query(ctx, q.getMonitorStatsStmt, getMonitorStats, seconds)
+func (q *Queries) GetMonitorStats(ctx context.Context, since int64) ([]*GetMonitorStatsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getMonitorStats, since)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +225,6 @@ FROM
 WHERE
   checked_at >= ?1
   AND is_up = 1
-  AND response_time IS NOT NULL
 `
 
 type GetResponseTimesRow struct {
@@ -242,8 +232,8 @@ type GetResponseTimesRow struct {
 	ResponseTime int64 `json:"responseTime"`
 }
 
-func (q *Queries) GetResponseTimes(ctx context.Context, since time.Time) ([]*GetResponseTimesRow, error) {
-	rows, err := q.query(ctx, q.getResponseTimesStmt, getResponseTimes, since)
+func (q *Queries) GetResponseTimes(ctx context.Context, since int64) ([]*GetResponseTimesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getResponseTimes, since)
 	if err != nil {
 		return nil, err
 	}
@@ -263,4 +253,38 @@ func (q *Queries) GetResponseTimes(ctx context.Context, since time.Time) ([]*Get
 		return nil, err
 	}
 	return items, nil
+}
+
+const upsertCheck = `-- name: UpsertCheck :exec
+INSERT INTO
+  checks (monitor_id, status_code, response_time, error, is_up, checked_at)
+VALUES
+  (?, ?, ?, ?, ?, ?)
+ON CONFLICT (monitor_id, checked_at) DO UPDATE
+SET
+  status_code = excluded.status_code,
+  response_time = excluded.response_time,
+  error = excluded.error,
+  is_up = excluded.is_up
+`
+
+type UpsertCheckParams struct {
+	MonitorID    int64   `json:"monitorId"`
+	StatusCode   int64   `json:"statusCode"`
+	ResponseTime int64   `json:"responseTime"`
+	Error        *string `json:"error"`
+	IsUp         bool    `json:"isUp"`
+	CheckedAt    int64   `json:"checkedAt"`
+}
+
+func (q *Queries) UpsertCheck(ctx context.Context, arg *UpsertCheckParams) error {
+	_, err := q.db.ExecContext(ctx, upsertCheck,
+		arg.MonitorID,
+		arg.StatusCode,
+		arg.ResponseTime,
+		arg.Error,
+		arg.IsUp,
+		arg.CheckedAt,
+	)
+	return err
 }

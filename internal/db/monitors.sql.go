@@ -13,7 +13,7 @@ const createMonitor = `-- name: CreateMonitor :one
 INSERT INTO
   monitors (name, url, check_interval)
 VALUES
-  (?, ?, ?) RETURNING id, name, url, check_interval, created_at, updated_at
+  (?, ?, ?) RETURNING id, name, url, check_interval, created_at
 `
 
 type CreateMonitorParams struct {
@@ -23,7 +23,7 @@ type CreateMonitorParams struct {
 }
 
 func (q *Queries) CreateMonitor(ctx context.Context, arg *CreateMonitorParams) (*Monitor, error) {
-	row := q.queryRow(ctx, q.createMonitorStmt, createMonitor, arg.Name, arg.Url, arg.CheckInterval)
+	row := q.db.QueryRowContext(ctx, createMonitor, arg.Name, arg.Url, arg.CheckInterval)
 	var i Monitor
 	err := row.Scan(
 		&i.ID,
@@ -31,7 +31,6 @@ func (q *Queries) CreateMonitor(ctx context.Context, arg *CreateMonitorParams) (
 		&i.Url,
 		&i.CheckInterval,
 		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return &i, err
 }
@@ -43,42 +42,19 @@ WHERE
 `
 
 func (q *Queries) DeleteMonitor(ctx context.Context, id int64) error {
-	_, err := q.exec(ctx, q.deleteMonitorStmt, deleteMonitor, id)
+	_, err := q.db.ExecContext(ctx, deleteMonitor, id)
 	return err
-}
-
-const getMonitor = `-- name: GetMonitor :one
-SELECT
-  id, name, url, check_interval, created_at, updated_at
-FROM
-  monitors
-WHERE
-  id = ?
-`
-
-func (q *Queries) GetMonitor(ctx context.Context, id int64) (*Monitor, error) {
-	row := q.queryRow(ctx, q.getMonitorStmt, getMonitor, id)
-	var i Monitor
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Url,
-		&i.CheckInterval,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return &i, err
 }
 
 const getMonitors = `-- name: GetMonitors :many
 SELECT
-  id, name, url, check_interval, created_at, updated_at
+  id, name, url, check_interval, created_at
 FROM
   monitors
 `
 
 func (q *Queries) GetMonitors(ctx context.Context) ([]*Monitor, error) {
-	rows, err := q.query(ctx, q.getMonitorsStmt, getMonitors)
+	rows, err := q.db.QueryContext(ctx, getMonitors)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +68,6 @@ func (q *Queries) GetMonitors(ctx context.Context) ([]*Monitor, error) {
 			&i.Url,
 			&i.CheckInterval,
 			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -114,7 +89,7 @@ SET
   url = COALESCE(?, url),
   check_interval = COALESCE(?, check_interval)
 WHERE
-  id = ? RETURNING id, name, url, check_interval, created_at, updated_at
+  id = ? RETURNING id, name, url, check_interval, created_at
 `
 
 type UpdateMonitorParams struct {
@@ -125,7 +100,7 @@ type UpdateMonitorParams struct {
 }
 
 func (q *Queries) UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (*Monitor, error) {
-	row := q.queryRow(ctx, q.updateMonitorStmt, updateMonitor,
+	row := q.db.QueryRowContext(ctx, updateMonitor,
 		arg.Name,
 		arg.Url,
 		arg.CheckInterval,
@@ -138,7 +113,6 @@ func (q *Queries) UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (
 		&i.Url,
 		&i.CheckInterval,
 		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return &i, err
 }

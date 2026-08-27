@@ -2,7 +2,11 @@
 INSERT INTO
   push_subscriptions (monitor_id, endpoint, p256dh_key, auth_key)
 VALUES
-  (?, ?, ?, ?);
+  (?, ?, ?, ?)
+ON CONFLICT (endpoint, monitor_id) DO UPDATE
+SET
+  p256dh_key = excluded.p256dh_key,
+  auth_key = excluded.auth_key;
 
 -- name: DeletePushSubscription :exec
 DELETE FROM push_subscriptions

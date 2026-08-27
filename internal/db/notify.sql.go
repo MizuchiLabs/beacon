@@ -14,6 +14,10 @@ INSERT INTO
   push_subscriptions (monitor_id, endpoint, p256dh_key, auth_key)
 VALUES
   (?, ?, ?, ?)
+ON CONFLICT (endpoint, monitor_id) DO UPDATE
+SET
+  p256dh_key = excluded.p256dh_key,
+  auth_key = excluded.auth_key
 `
 
 type CreatePushSubscriptionParams struct {
@@ -24,7 +28,7 @@ type CreatePushSubscriptionParams struct {
 }
 
 func (q *Queries) CreatePushSubscription(ctx context.Context, arg *CreatePushSubscriptionParams) error {
-	_, err := q.exec(ctx, q.createPushSubscriptionStmt, createPushSubscription,
+	_, err := q.db.ExecContext(ctx, createPushSubscription,
 		arg.MonitorID,
 		arg.Endpoint,
 		arg.P256dhKey,
@@ -46,7 +50,7 @@ type CreateVAPIDKeysParams struct {
 }
 
 func (q *Queries) CreateVAPIDKeys(ctx context.Context, arg *CreateVAPIDKeysParams) error {
-	_, err := q.exec(ctx, q.createVAPIDKeysStmt, createVAPIDKeys, arg.PublicKey, arg.PrivateKey)
+	_, err := q.db.ExecContext(ctx, createVAPIDKeys, arg.PublicKey, arg.PrivateKey)
 	return err
 }
 
@@ -63,7 +67,7 @@ type DeletePushSubscriptionParams struct {
 }
 
 func (q *Queries) DeletePushSubscription(ctx context.Context, arg *DeletePushSubscriptionParams) error {
-	_, err := q.exec(ctx, q.deletePushSubscriptionStmt, deletePushSubscription, arg.Endpoint, arg.MonitorID)
+	_, err := q.db.ExecContext(ctx, deletePushSubscription, arg.Endpoint, arg.MonitorID)
 	return err
 }
 
@@ -74,7 +78,7 @@ WHERE
 `
 
 func (q *Queries) DeletePushSubscriptionByEndpoint(ctx context.Context, endpoint string) error {
-	_, err := q.exec(ctx, q.deletePushSubscriptionByEndpointStmt, deletePushSubscriptionByEndpoint, endpoint)
+	_, err := q.db.ExecContext(ctx, deletePushSubscriptionByEndpoint, endpoint)
 	return err
 }
 
@@ -93,7 +97,7 @@ WHERE
 `
 
 func (q *Queries) GetPushSubscriptionsByMonitor(ctx context.Context, monitorID int64) ([]*PushSubscription, error) {
-	rows, err := q.query(ctx, q.getPushSubscriptionsByMonitorStmt, getPushSubscriptionsByMonitor, monitorID)
+	rows, err := q.db.QueryContext(ctx, getPushSubscriptionsByMonitor, monitorID)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +139,7 @@ WHERE
 `
 
 func (q *Queries) GetVAPIDKeys(ctx context.Context) (*VapidKey, error) {
-	row := q.queryRow(ctx, q.getVAPIDKeysStmt, getVAPIDKeys)
+	row := q.db.QueryRowContext(ctx, getVAPIDKeys)
 	var i VapidKey
 	err := row.Scan(
 		&i.ID,
@@ -156,7 +160,7 @@ WHERE
 `
 
 func (q *Queries) VAPIDKeysExist(ctx context.Context) (int64, error) {
-	row := q.queryRow(ctx, q.vAPIDKeysExistStmt, vAPIDKeysExist)
+	row := q.db.QueryRowContext(ctx, vAPIDKeysExist)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

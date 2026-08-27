@@ -10,10 +10,22 @@ INSERT INTO
 VALUES
   (?, ?, ?, ?, ?);
 
+-- name: UpsertCheck :exec
+INSERT INTO
+  checks (monitor_id, status_code, response_time, error, is_up, checked_at)
+VALUES
+  (?, ?, ?, ?, ?, ?)
+ON CONFLICT (monitor_id, checked_at) DO UPDATE
+SET
+  status_code = excluded.status_code,
+  response_time = excluded.response_time,
+  error = excluded.error,
+  is_up = excluded.is_up;
+
 -- name: CleanupChecks :exec
 DELETE FROM checks
 WHERE
-  checked_at < datetime('now', '-' || sqlc.arg (days) || ' days');
+  checked_at < sqlc.arg (cutoff);
 
 -- name: GetMonitorStats :many
 SELECT
@@ -40,7 +52,7 @@ SELECT
 FROM
   monitors m
   LEFT JOIN checks c ON c.monitor_id = m.id
-  AND c.checked_at >= datetime('now', '-' || sqlc.arg (seconds) || ' seconds')
+  AND c.checked_at >= sqlc.arg (since)
 GROUP BY
   m.id
 ORDER BY
@@ -49,22 +61,17 @@ ORDER BY
 -- name: GetDataPoints :many
 SELECT
   monitor_id,
-  CAST(
-    CAST(strftime('%s', checked_at) AS INTEGER) / CAST(sqlc.arg (bucket_size) AS INTEGER) * CAST(sqlc.arg (bucket_size) AS INTEGER) AS INTEGER
-  ) AS bucket_ts,
+  checked_at - (checked_at % sqlc.arg (bucket_size)) AS bucket_ts,
   COUNT(*) AS total_count,
   CAST(COALESCE(AVG(response_time), 0.0) AS INTEGER) AS avg_response_time,
   CAST(
     SUM(
       CASE
         WHEN is_up
-        AND (
-          response_time IS NULL
-          OR response_time <= sqlc.arg (degraded_threshold)
-        ) THEN 1
+        AND response_time <= sqlc.arg (degraded_threshold) THEN 1
         ELSE 0
       END
-    ) AS REAL
+    ) AS INTEGER
   ) AS up_count,
   CAST(
     SUM(
@@ -73,7 +80,7 @@ SELECT
         AND response_time > sqlc.arg (degraded_threshold) THEN 1
         ELSE 0
       END
-    ) AS REAL
+    ) AS INTEGER
   ) AS degraded_count,
   CAST(
     SUM(
@@ -81,22 +88,18 @@ SELECT
         WHEN NOT is_up THEN 1
         ELSE 0
       END
-    ) AS REAL
+    ) AS INTEGER
   ) AS down_count
 FROM
   checks
 WHERE
   checked_at >= sqlc.arg (since)
-  AND checked_at IS NOT NULL
 GROUP BY
   monitor_id,
   bucket_ts
-HAVING
-  bucket_ts IS NOT NULL
 ORDER BY
   monitor_id,
   bucket_ts;
-
 
 -- name: GetResponseTimes :many
 SELECT
@@ -106,5 +109,4 @@ FROM
   checks
 WHERE
   checked_at >= sqlc.arg (since)
-  AND is_up = 1
-  AND response_time IS NOT NULL;
+  AND is_up = 1;

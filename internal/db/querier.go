@@ -6,11 +6,10 @@ package db
 
 import (
 	"context"
-	"time"
 )
 
 type Querier interface {
-	CleanupChecks(ctx context.Context, days *string) error
+	CleanupChecks(ctx context.Context, cutoff int64) error
 	CreateCheck(ctx context.Context, arg *CreateCheckParams) error
 	CreateMonitor(ctx context.Context, arg *CreateMonitorParams) (*Monitor, error)
 	CreatePushSubscription(ctx context.Context, arg *CreatePushSubscriptionParams) error
@@ -19,13 +18,13 @@ type Querier interface {
 	DeletePushSubscription(ctx context.Context, arg *DeletePushSubscriptionParams) error
 	DeletePushSubscriptionByEndpoint(ctx context.Context, endpoint string) error
 	GetDataPoints(ctx context.Context, arg *GetDataPointsParams) ([]*GetDataPointsRow, error)
-	GetMonitor(ctx context.Context, id int64) (*Monitor, error)
-	GetMonitorStats(ctx context.Context, seconds *string) ([]*GetMonitorStatsRow, error)
+	GetMonitorStats(ctx context.Context, since int64) ([]*GetMonitorStatsRow, error)
 	GetMonitors(ctx context.Context) ([]*Monitor, error)
 	GetPushSubscriptionsByMonitor(ctx context.Context, monitorID int64) ([]*PushSubscription, error)
-	GetResponseTimes(ctx context.Context, since time.Time) ([]*GetResponseTimesRow, error)
+	GetResponseTimes(ctx context.Context, since int64) ([]*GetResponseTimesRow, error)
 	GetVAPIDKeys(ctx context.Context) (*VapidKey, error)
 	UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (*Monitor, error)
+	UpsertCheck(ctx context.Context, arg *UpsertCheckParams) error
 	VAPIDKeysExist(ctx context.Context) (int64, error)
 }
 

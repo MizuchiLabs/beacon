@@ -4,40 +4,35 @@
 
 package db
 
-import (
-	"time"
-)
-
 type Check struct {
-	MonitorID    int64     `json:"monitorId"`
-	StatusCode   int64     `json:"statusCode"`
-	ResponseTime int64     `json:"responseTime"`
-	Error        *string   `json:"error"`
-	IsUp         bool      `json:"isUp"`
-	CheckedAt    time.Time `json:"checkedAt"`
+	MonitorID    int64   `json:"monitorId"`
+	StatusCode   int64   `json:"statusCode"`
+	ResponseTime int64   `json:"responseTime"`
+	Error        *string `json:"error"`
+	IsUp         bool    `json:"isUp"`
+	CheckedAt    int64   `json:"checkedAt"`
 }
 
 type Monitor struct {
-	ID            int64     `json:"id"`
-	Name          string    `json:"name"`
-	Url           string    `json:"url"`
-	CheckInterval int64     `json:"checkInterval"`
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
+	ID            int64  `json:"id"`
+	Name          string `json:"name"`
+	Url           string `json:"url"`
+	CheckInterval int64  `json:"checkInterval"`
+	CreatedAt     int64  `json:"createdAt"`
 }
 
 type PushSubscription struct {
-	ID        int64     `json:"id"`
-	MonitorID int64     `json:"monitorId"`
-	Endpoint  string    `json:"endpoint"`
-	P256dhKey string    `json:"p256dhKey"`
-	AuthKey   string    `json:"authKey"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        int64  `json:"id"`
+	MonitorID int64  `json:"monitorId"`
+	Endpoint  string `json:"endpoint"`
+	P256dhKey string `json:"p256dhKey"`
+	AuthKey   string `json:"authKey"`
+	CreatedAt int64  `json:"createdAt"`
 }
 
 type VapidKey struct {
-	ID         int64     `json:"id"`
-	PublicKey  string    `json:"publicKey"`
-	PrivateKey string    `json:"privateKey"`
-	CreatedAt  time.Time `json:"createdAt"`
+	ID         int64  `json:"id"`
+	PublicKey  string `json:"publicKey"`
+	PrivateKey string `json:"privateKey"`
+	CreatedAt  int64  `json:"createdAt"`
 }

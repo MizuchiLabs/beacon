@@ -4,14 +4,6 @@ INSERT INTO
 VALUES
   (?, ?, ?) RETURNING *;
 
--- name: GetMonitor :one
-SELECT
-  *
-FROM
-  monitors
-WHERE
-  id = ?;
-
 -- name: GetMonitors :many
 SELECT
   *
