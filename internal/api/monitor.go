@@ -57,16 +57,16 @@ func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
 	}
 
 	seconds, _ := strconv.ParseInt(secondsStr, 10, 64)
-	stats, err := s.cfg.Conn.Q.GetMonitorStats(r.Context(), &secondsStr)
+	since := time.Now().Unix() - seconds
+	slog.Debug("GetMonitors", "seconds", seconds, "since", time.Unix(since, 0))
+
+	stats, err := s.cfg.Q.GetMonitorStats(r.Context(), since)
 	if err != nil {
 		http.Error(w, "Failed to get monitor stats", http.StatusInternalServerError)
 		return
 	}
 
-	since := time.Now().Add(-time.Duration(seconds) * time.Second)
-	slog.Debug("GetMonitors", "seconds", seconds, "since", since)
-
-	responseTimes, err := s.cfg.Conn.Q.GetResponseTimes(r.Context(), since)
+	responseTimes, err := s.cfg.Q.GetResponseTimes(r.Context(), since)
 	if err != nil {
 		http.Error(w, "Failed to get response times", http.StatusInternalServerError)
 		return
@@ -119,11 +119,11 @@ func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getDataPoints(
 	ctx context.Context,
 	seconds int64,
-	since time.Time,
+	since int64,
 ) (map[int64][]DataPoint, error) {
 	bucketSize := s.computeBucketSize(seconds)
 
-	rows, err := s.cfg.Conn.Q.GetDataPoints(ctx, &db.GetDataPointsParams{
+	rows, err := s.cfg.Q.GetDataPoints(ctx, &db.GetDataPointsParams{
 		BucketSize:        bucketSize,
 		DegradedThreshold: 500,
 		Since:             since,
@@ -135,20 +135,17 @@ func (s *Server) getDataPoints(
 	result := make(map[int64][]DataPoint)
 	for _, row := range rows {
 		total := float64(row.TotalCount)
-		if total == 0 {
-			total = 1 // prevent division by zero
-		}
 
 		dp := DataPoint{
 			Timestamp:    time.Unix(row.BucketTs, 0),
 			ResponseTime: row.AvgResponseTime,
-			IsUp:         row.UpCount > total/2,
+			IsUp:         float64(row.UpCount) > total/2,
 		}
 
 		if s.cfg.ChartType == "bars" {
-			dp.UpRatio = row.UpCount / total
-			dp.DegradedRatio = row.DegradedCount / total
-			dp.DownRatio = row.DownCount / total
+			dp.UpRatio = float64(row.UpCount) / total
+			dp.DegradedRatio = float64(row.DegradedCount) / total
+			dp.DownRatio = float64(row.DownCount) / total
 		}
 
 		result[row.MonitorID] = append(result[row.MonitorID], dp)
