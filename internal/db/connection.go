@@ -6,11 +6,9 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/mizuchilabs/sqlite-schema-diff/pkg/diff"
@@ -21,44 +19,36 @@ import (
 //go:embed schemas/*.sql
 var schemaFS embed.FS
 
-type Connection struct {
-	mu sync.RWMutex
-	db *sql.DB
-	Q  *Queries
-}
+var basePath = "data/beacon.db"
 
-// NewConnection opens a SQLite connection.
-func NewConnection(ctx context.Context, path string) *Connection {
-	// Check path
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		log.Fatalf("failed to create db dir: %v", err)
+func NewConnection(ctx context.Context) *Queries {
+	if err := os.MkdirAll("data", 0o750); err != nil {
+		slog.Error("Failed to create data directory", "error", err)
 	}
 
-	dataSource := fmt.Sprintf("file:%s?_txlock=immediate", filepath.ToSlash(path))
-	db, err := sql.Open("sqlite", dataSource)
+	dataSource := fmt.Sprintf("file:%s?_txlock=immediate", filepath.ToSlash(basePath))
+
+	sqliteDB, err := sql.Open("sqlite", dataSource)
 	if err != nil {
-		log.Fatalf("failed to open db: %v", err)
+		slog.Error("Failed to open database", "err", err)
+		os.Exit(1)
 	}
 
-	if err := setupSQLite(db); err != nil {
-		log.Fatalf("failed to configure db: %v", err)
+	if err := setupSQLite(sqliteDB); err != nil {
+		slog.Error("Failed to configure database", "err", err)
+		os.Exit(1)
 	}
-
-	migrate(db)
-	conn := &Connection{
-		db: db,
-		Q:  New(db),
-	}
+	migrate(sqliteDB)
 
 	// Wait for shutdown signal
 	go func() {
 		<-ctx.Done()
-		if err := db.Close(); err != nil {
+		if err := sqliteDB.Close(); err != nil {
 			slog.Error("Failed to close database", "error", err)
 		}
 	}()
 
-	return conn
+	return New(sqliteDB)
 }
 
 // setupSQLite applies performance and safety pragmas.
@@ -84,12 +74,6 @@ func setupSQLite(db *sql.DB) error {
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(0)
 	return nil
-}
-
-func (c *Connection) Get() *sql.DB {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.db
 }
 
 func migrate(db *sql.DB) {
