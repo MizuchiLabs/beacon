@@ -3,7 +3,7 @@ package config
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"time"
 
 	"github.com/caarlos0/env/v11"
@@ -50,10 +50,10 @@ type Config struct {
 }
 
 // New loads configuration from environment variables
-func New(ctx context.Context, cmd *cli.Command) *Config {
+func New(ctx context.Context, cmd *cli.Command) (*Config, error) {
 	cfg, err := env.ParseAs[Config]()
 	if err != nil {
-		log.Fatalf("Failed to parse environment variables: %v", err)
+		return nil, err
 	}
 
 	if cmd != nil {
@@ -64,16 +64,19 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 	}
 
 	if cfg.ChartType != "bars" && cfg.ChartType != "area" {
-		log.Fatalf("Invalid chart type: %s", cfg.ChartType)
+		return nil, fmt.Errorf("invalid chart type: %s", cfg.ChartType)
 	}
 
 	cfg.Q = db.NewConnection(ctx)
 	cfg.Checker = checker.New(cfg.Timeout, cfg.Insecure)
-	cfg.Notifier = notify.New(ctx, cfg.Q)
+	cfg.Notifier, err = notify.New(ctx, cfg.Q)
+	if err != nil {
+		return nil, err
+	}
 
 	// Sync monitors to DB before starting background jobs
 	if err := SyncMonitors(ctx, cfg.Q, cfg.EnvConfig); err != nil {
-		log.Fatalf("Failed to sync monitors to DB: %v", err)
+		return nil, err
 	}
 
 	cfg.Scheduler = scheduler.New(cfg.Q, cfg.Checker, cfg.Notifier, cfg.RetentionDays)
@@ -81,5 +84,5 @@ func New(ctx context.Context, cmd *cli.Command) *Config {
 	cfg.Incidents = incidents.New(cfg.RepoURL, cfg.RepoPath, cfg.Interval)
 	cfg.Incidents.Start(ctx)
 
-	return &cfg
+	return &cfg, nil
 }

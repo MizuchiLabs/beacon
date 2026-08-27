@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
 
@@ -26,35 +25,35 @@ type NotificationPayload struct {
 	MonitorID int64  `json:"monitorId"`
 }
 
-func New(ctx context.Context, q *db.Queries) *Notifier {
+func New(ctx context.Context, q *db.Queries) (*Notifier, error) {
 	result, err := q.VAPIDKeysExist(ctx)
 	if err != nil {
-		log.Fatal(fmt.Errorf("failed to check VAPID keys: %w", err))
+		return nil, fmt.Errorf("failed to check VAPID keys: %w", err)
 	}
 
 	// Generate VAPID keys if missing
 	if result == 0 {
 		privateKey, publicKey, err := webpush.GenerateVAPIDKeys()
 		if err != nil {
-			log.Fatal(fmt.Errorf("failed to generate VAPID keys: %w", err))
+			return nil, fmt.Errorf("failed to generate VAPID keys: %w", err)
 		}
 		if err := q.CreateVAPIDKeys(ctx, &db.CreateVAPIDKeysParams{
 			PublicKey:  publicKey,
 			PrivateKey: privateKey,
 		}); err != nil {
-			log.Fatal(fmt.Errorf("failed to store VAPID keys: %w", err))
+			return nil, fmt.Errorf("failed to store VAPID keys: %w", err)
 		}
 	}
 
 	vapidKeys, err := q.GetVAPIDKeys(ctx)
 	if err != nil {
-		log.Fatal(fmt.Errorf("failed to get VAPID keys: %w", err))
+		return nil, fmt.Errorf("failed to get VAPID keys: %w", err)
 	}
 
 	return &Notifier{
 		q:         q,
 		vapidKeys: vapidKeys,
-	}
+	}, nil
 }
 
 // SendMonitorNotification sends push notifications to all subscribers of a

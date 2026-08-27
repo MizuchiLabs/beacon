@@ -25,7 +25,10 @@ func main() {
 			return ctx, nil
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			cfg := config.New(ctx, cmd)
+			cfg, err := config.New(ctx, cmd)
+			if err != nil {
+				return err
+			}
 			return api.NewServer(cfg).Start(ctx)
 		},
 		Flags: []cli.Flag{
