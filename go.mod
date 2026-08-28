@@ -1,13 +1,13 @@
 module github.com/mizuchilabs/beacon
 
-go 1.26.6
+go 1.27
 
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/mizuchilabs/kata v0.1.3
-	github.com/mizuchilabs/sqlite-schema-diff v0.1.16
+	github.com/mizuchilabs/sqlite-schema-diff v0.2.0
 	github.com/rs/cors v1.11.1
 	github.com/urfave/cli/v3 v3.11.0
 	github.com/vearutop/statigz v1.5.0
