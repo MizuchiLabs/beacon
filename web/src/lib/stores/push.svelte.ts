@@ -1,4 +1,8 @@
-import { BackendURL } from '$lib/api/queries';
+import {
+	getVapidPublicKey,
+	subscribeToMonitor,
+	unsubscribeFromMonitor
+} from '$lib/api/generated/sdk.gen';
 import { SvelteMap } from 'svelte/reactivity';
 
 interface PushSubscriptionState {
@@ -67,8 +71,10 @@ class PushNotificationStore {
 	}
 
 	private async getVAPIDPublicKey(): Promise<string> {
-		const response = await fetch(`${BackendURL}/vapid-public-key`);
-		const data = await response.json();
+		const { data, error } = await getVapidPublicKey();
+		if (error || !data) {
+			throw new Error('Failed to fetch VAPID public key');
+		}
 		return data.publicKey;
 	}
 
@@ -104,19 +110,18 @@ class PushNotificationStore {
 			}
 
 			// Send subscription to backend
-			const response = await fetch(`${BackendURL}/monitor/${monitorID}/subscribe`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
+			const { error } = await subscribeToMonitor({
+				path: { id: monitorID },
+				body: {
 					endpoint: subscription.endpoint,
 					keys: {
 						p256dh: this.arrayBufferToBase64(subscription.getKey('p256dh')),
 						auth: this.arrayBufferToBase64(subscription.getKey('auth'))
 					}
-				})
+				}
 			});
 
-			if (!response.ok) {
+			if (error) {
 				throw new Error('Failed to save subscription on server');
 			}
 
@@ -144,14 +149,9 @@ class PushNotificationStore {
 
 			if (subscription) {
 				// Notify backend to remove association
-				await fetch(`${BackendURL}/monitor/${monitorID}/unsubscribe`, {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({
-						endpoint: subscription.endpoint
-					})
+				await unsubscribeFromMonitor({
+					path: { id: monitorID },
+					body: { endpoint: subscription.endpoint }
 				});
 			}
 

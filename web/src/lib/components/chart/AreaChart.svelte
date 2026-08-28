@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { MonitorStats } from '$lib/api/queries';
+	import type { MonitorStats } from '$lib/api/generated/types.gen';
 	import * as Chart from '$lib/components/ui/chart';
 	import { AreaChart, Area, ChartClipPath } from 'layerchart';
 	import { scaleUtc } from 'd3-scale';
@@ -14,7 +14,7 @@
 
 	// Transform data for chart
 	const chartData = $derived(
-		monitor.data_points.map((dp) => ({
+		(monitor.data_points ?? []).map((dp) => ({
 			date: new Date(dp.timestamp),
 			response_time: dp.response_time || 0,
 			is_up: dp.is_up

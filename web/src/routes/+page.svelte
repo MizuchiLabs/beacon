@@ -1,10 +1,10 @@
 <script lang="ts">
+	import { GlobeIcon } from '@lucide/svelte';
 	import { useConfig, useMonitorStats } from '$lib/api/queries';
 	import * as Select from '$lib/components/ui/select';
 	import * as Empty from '$lib/components/ui/empty/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import StatusCard from '$lib/components/util/StatusCard.svelte';
-	import { GlobeIcon } from '@lucide/svelte';
 
 	let configQuery = $derived(useConfig());
 	let timeRange = $state('86400'); // 24 hours in seconds
@@ -17,7 +17,7 @@
 	];
 
 	let selectedRange = $derived(timeRanges.find((t) => t.value === timeRange));
-	const statsQuery = $derived(useMonitorStats(timeRange));
+	const statsQuery = $derived(useMonitorStats(Number(timeRange)));
 </script>
 
 <div class="mx-auto w-full space-y-6 p-6 sm:max-w-3xl">
@@ -59,7 +59,7 @@
 				</Empty.Media>
 				<Empty.Title>Failed to load monitors</Empty.Title>
 				<Empty.Description>
-					{statsQuery.error.message}
+					{statsQuery.error?.detail ?? 'Something went wrong'}
 				</Empty.Description>
 			</Empty.Header>
 		</Empty.Root>

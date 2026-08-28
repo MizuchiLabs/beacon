@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { MonitorStats } from '$lib/api/queries';
+	import type { MonitorStats } from '$lib/api/generated/types.gen';
 	import * as Card from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import AreaChart from '$lib/components/chart/AreaChart.svelte';

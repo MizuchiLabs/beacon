@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { MonitorStats } from '$lib/api/queries';
+	import type { MonitorStats } from '$lib/api/generated/types.gen';
 	import { scaleBand } from 'd3-scale';
 	import { BarChart } from 'layerchart';
 	import { cubicInOut } from 'svelte/easing';
@@ -11,7 +11,7 @@
 	let { monitor }: Props = $props();
 
 	const chartData = $derived(
-		monitor.data_points.map((dp, idx) => {
+		(monitor.data_points ?? []).map((dp, idx) => {
 			// Check if we have pre-calculated ratios from backend
 			if (dp.up_ratio !== undefined && dp.up_ratio !== null) {
 				return {

@@ -1,6 +1,12 @@
 import { browser } from '$app/environment';
 import { QueryClient } from '@tanstack/svelte-query';
+import { client } from './generated/client.gen';
+import { getMonitorsQueryKey } from './generated/@tanstack/svelte-query.gen';
 import { toast } from 'svelte-sonner';
+
+// Relative base URL: same-origin in production, routed to the Go backend by
+// the Vite dev proxy in development.
+client.setConfig({ baseUrl: '/' });
 
 export const queryClient = new QueryClient({
 	defaultOptions: {
@@ -21,3 +27,5 @@ export const queryClient = new QueryClient({
 		}
 	}
 });
+
+queryClient.setQueryDefaults(getMonitorsQueryKey(), { refetchInterval: 60000 });

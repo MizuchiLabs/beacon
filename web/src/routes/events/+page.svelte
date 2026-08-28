@@ -17,7 +17,7 @@
 
 	let incidents = $derived(useIncidents());
 
-	function getSeverityConfig(severity: string) {
+	function getSeverityConfig(severity?: string) {
 		switch (severity) {
 			case 'critical':
 				return { variant: 'destructive' as const, icon: CircleAlertIcon, label: 'Critical' };
@@ -28,11 +28,11 @@
 			case 'maintenance':
 				return { variant: 'outline' as const, icon: WrenchIcon, label: 'Maintenance' };
 			default:
-				return { variant: 'secondary' as const, icon: InfoIcon, label: severity };
+				return { variant: 'secondary' as const, icon: InfoIcon, label: severity ?? 'Unknown' };
 		}
 	}
 
-	function getStatusConfig(status: string) {
+	function getStatusConfig(status?: string) {
 		switch (status) {
 			case 'investigating':
 				return { variant: 'default' as const, icon: SearchIcon, label: 'Investigating' };
@@ -43,7 +43,7 @@
 			case 'resolved':
 				return { variant: 'outline' as const, icon: CheckIcon, label: 'Resolved' };
 			default:
-				return { variant: 'secondary' as const, icon: InfoIcon, label: status };
+				return { variant: 'secondary' as const, icon: InfoIcon, label: status ?? 'Unknown' };
 		}
 	}
 
@@ -68,7 +68,9 @@
 		}
 	}
 
-	function getDuration(startedAt: string, resolvedAt: string | null | undefined) {
+	function getDuration(startedAt?: string, resolvedAt?: string | null) {
+		if (!startedAt) return 'N/A';
+
 		try {
 			const start = new Date(startedAt);
 			if (isNaN(start.getTime())) return 'N/A';
@@ -100,9 +102,9 @@
 		</p>
 	</div>
 
-	{#if incidents.isSuccess && incidents.data.length > 0}
+	{#if incidents.isSuccess && (incidents.data?.length ?? 0) > 0}
 		<div class="flex flex-col gap-4">
-			{#each incidents.data || [] as incident (incident.id)}
+			{#each incidents.data ?? [] as incident (incident.id ?? incident.started_at)}
 				{@const severity = getSeverityConfig(incident.severity)}
 				{@const status = getStatusConfig(incident.status)}
 
@@ -119,10 +121,10 @@
 										<status.icon class="h-3 w-3" />
 										{status.label}
 									</Badge>
-									{#if incident.affected_monitors?.length > 0}
+									{#if (incident.affected_monitors?.length ?? 0) > 0}
 										<Badge variant="outline" class="gap-1">
 											<ActivityIcon class="h-3 w-3" />
-											{incident.affected_monitors.length} services
+											{incident.affected_monitors!.length} services
 										</Badge>
 									{/if}
 								</div>
@@ -139,9 +141,9 @@
 							</div>
 						</div>
 
-						{#if incident.affected_monitors?.length > 0}
+						{#if (incident.affected_monitors?.length ?? 0) > 0}
 							<div class="flex flex-wrap gap-2 pt-2">
-								{#each incident.affected_monitors as monitor}
+								{#each incident.affected_monitors! as monitor}
 									<Badge variant="secondary" class="font-mono text-xs">
 										{monitor}
 									</Badge>
@@ -150,7 +152,7 @@
 						{/if}
 					</Card.Header>
 
-					{#if incident.updates?.length > 0}
+					{#if (incident.updates?.length ?? 0) > 0}
 						<Card.Content class="pt-0">
 							<Separator class="mb-4" />
 
@@ -159,7 +161,7 @@
 								<div
 									class="relative space-y-4 pl-6 before:absolute before:top-2 before:left-[7px] before:h-[calc(100%-1rem)] before:w-px before:bg-border"
 								>
-									{#each incident.updates as update}
+									{#each incident.updates! as update}
 										{@const updateStatus = getStatusConfig(update.status)}
 
 										<div class="relative">
