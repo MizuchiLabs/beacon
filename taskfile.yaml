@@ -37,6 +37,8 @@ tasks:
     desc: Generate sqlc
     cmds:
       - sqlc generate
+      - go run ./cmd/beacon openapi
+      - cd web && pnpm openapi-ts
 
   lint:
     desc: Run go vet & lint

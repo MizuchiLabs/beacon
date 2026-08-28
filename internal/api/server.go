@@ -9,6 +9,8 @@ import (
 	"net/http/pprof"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/mizuchilabs/beacon/web"
 	"github.com/vearutop/statigz"
@@ -16,19 +18,49 @@ import (
 
 type Server struct {
 	mux *http.ServeMux
+	api huma.API
 	cfg *config.Config
 }
 
 func NewServer(cfg *config.Config) *Server {
-	return &Server{
-		mux: http.NewServeMux(),
-		cfg: cfg,
+	mux := http.NewServeMux()
+	apiCfg := huma.DefaultConfig("Beacon API", "1.0.0")
+	apiCfg.CreateHooks = nil
+	api := humago.New(mux, apiCfg)
+	s := &Server{mux: mux, api: api, cfg: cfg}
+	s.setupRoutes()
+	return s
+}
+
+func (s *Server) OpenAPI() *huma.OpenAPI {
+	return s.api.OpenAPI()
+}
+
+func (s *Server) setupRoutes() {
+	// API routes, each service registers its own operations on the huma API
+	NewConfigService(s.api, s.cfg)
+	NewMonitorService(s.api, s.cfg)
+	NewIncidentService(s.api, s.cfg)
+	NewNotifyService(s.api, s.cfg)
+
+	// Plain mux routes outside the OpenAPI spec
+	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Static files
+	s.mux.Handle("/", statigz.FileServer(web.StaticFS, statigz.FSPrefix("build")))
+
+	if s.cfg.Debug {
+		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
+		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		s.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		s.mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		s.mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 }
 
 func (s *Server) Start(ctx context.Context) error {
-	s.setupRoutes()
-
 	chain := NewChain(
 		s.WithCORS,
 		s.WithLogger,
@@ -64,32 +96,5 @@ func (s *Server) Start(ctx context.Context) error {
 
 	case err := <-serverErr:
 		return fmt.Errorf("server error: %w", err)
-	}
-}
-
-func (s *Server) setupRoutes() {
-	s.mux.HandleFunc("GET /api/monitors", s.GetMonitors)
-	s.mux.HandleFunc("GET /api/config", s.GetConfig)
-	s.mux.HandleFunc("GET /api/incidents", s.GetIncidents)
-	s.mux.HandleFunc("GET /api/incidents/{id}", s.GetIncident)
-
-	// Push notifications
-	s.mux.HandleFunc("POST /api/monitor/{id}/subscribe", s.SubscribeToPushNotifications)
-	s.mux.HandleFunc("POST /api/monitor/{id}/unsubscribe", s.UnsubscribeFromPushNotifications)
-	s.mux.HandleFunc("GET /api/vapid-public-key", s.GetVAPIDPublicKey)
-
-	s.mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	// Static files
-	s.mux.Handle("/", statigz.FileServer(web.StaticFS, statigz.FSPrefix("build")))
-
-	if s.cfg.Debug {
-		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
-		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		s.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		s.mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		s.mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 }

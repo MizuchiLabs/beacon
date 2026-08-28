@@ -1,107 +1,141 @@
 package api
 
 import (
-	"encoding/json"
+	"context"
 	"net/http"
-	"strconv"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/mizuchilabs/beacon/internal/db"
-	"github.com/mizuchilabs/beacon/internal/util"
 )
 
+// PushSubscriptionRequest is the Web Push subscription payload from the browser.
 type PushSubscriptionRequest struct {
-	Endpoint string               `json:"endpoint"`
+	Endpoint string               `json:"endpoint" format:"uri" doc:"Push service endpoint URL"`
 	Keys     PushSubscriptionKeys `json:"keys"`
 }
 
+// PushSubscriptionKeys holds the browser-generated encryption keys.
 type PushSubscriptionKeys struct {
-	P256dh string `json:"p256dh"`
-	Auth   string `json:"auth"`
+	P256dh string `json:"p256dh" doc:"Client public key"`
+	Auth   string `json:"auth"   doc:"Authentication secret"`
 }
 
-// GetVAPIDPublicKey returns the VAPID public key for client subscription
-func (s *Server) GetVAPIDPublicKey(w http.ResponseWriter, r *http.Request) {
-	keys, err := s.cfg.Q.GetVAPIDKeys(r.Context())
-	if err != nil {
-		http.Error(w, "Failed to get VAPID public key", http.StatusInternalServerError)
-		return
-	}
-
-	util.RespondJSON(w, http.StatusOK, map[string]string{
-		"publicKey": keys.PublicKey,
-	})
+type SubscribeInput struct {
+	ID   int64 `path:"id" doc:"Monitor ID"`
+	Body PushSubscriptionRequest
 }
 
-// SubscribeToPushNotifications subscribes a user to push notifications for a monitor
-func (s *Server) SubscribeToPushNotifications(w http.ResponseWriter, r *http.Request) {
-	monitorIDStr := r.PathValue("id")
-	monitorID, err := strconv.ParseInt(monitorIDStr, 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid monitor ID", http.StatusBadRequest)
-		return
+type SubscribeOutput struct {
+	Body struct {
+		Message string `json:"message"`
 	}
-
-	var req PushSubscriptionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Validate request
-	if req.Endpoint == "" || req.Keys.P256dh == "" || req.Keys.Auth == "" {
-		http.Error(w, "Missing required fields", http.StatusBadRequest)
-		return
-	}
-
-	// Store subscription
-	err = s.cfg.Q.CreatePushSubscription(r.Context(), &db.CreatePushSubscriptionParams{
-		MonitorID: monitorID,
-		Endpoint:  req.Endpoint,
-		P256dhKey: req.Keys.P256dh,
-		AuthKey:   req.Keys.Auth,
-	})
-	if err != nil {
-		http.Error(w, "Failed to subscribe", http.StatusInternalServerError)
-		return
-	}
-
-	util.RespondJSON(w, http.StatusCreated, map[string]string{
-		"message": "Subscribed successfully",
-	})
 }
 
-// UnsubscribeFromPushNotifications unsubscribes a user from push notifications
-func (s *Server) UnsubscribeFromPushNotifications(w http.ResponseWriter, r *http.Request) {
-	monitorIDStr := r.PathValue("id")
-	monitorID, err := strconv.ParseInt(monitorIDStr, 10, 64)
+type UnsubscribeInput struct {
+	ID   int64 `path:"id" doc:"Monitor ID"`
+	Body struct {
+		Endpoint string `json:"endpoint" format:"uri" doc:"Push service endpoint URL to remove"`
+	}
+}
+
+type UnsubscribeOutput struct {
+	Body struct {
+		Message string `json:"message"`
+	}
+}
+
+type VAPIDOutput struct {
+	Body struct {
+		PublicKey string `json:"publicKey" doc:"VAPID public key for push subscriptions"`
+	}
+}
+
+type NotifyService struct {
+	cfg *config.Config
+}
+
+func NewNotifyService(api huma.API, cfg *config.Config) *NotifyService {
+	svc := &NotifyService{cfg: cfg}
+	huma.Register(api, huma.Operation{
+		OperationID: "get-vapid-public-key",
+		Method:      http.MethodGet,
+		Path:        "/api/vapid-public-key",
+		Summary:     "Get VAPID public key",
+		Tags:        []string{"Notifications"},
+	}, svc.getVAPIDPublicKey)
+	huma.Register(api, huma.Operation{
+		OperationID:   "subscribe-to-monitor",
+		Method:        http.MethodPost,
+		Path:          "/api/monitors/{id}/subscribe",
+		Summary:       "Subscribe to push notifications for a monitor",
+		Tags:          []string{"Notifications"},
+		DefaultStatus: http.StatusCreated,
+	}, svc.subscribe)
+	huma.Register(api, huma.Operation{
+		OperationID: "unsubscribe-from-monitor",
+		Method:      http.MethodPost,
+		Path:        "/api/monitors/{id}/unsubscribe",
+		Summary:     "Unsubscribe from push notifications for a monitor",
+		Tags:        []string{"Notifications"},
+	}, svc.unsubscribe)
+	return svc
+}
+
+func (s *NotifyService) getVAPIDPublicKey(
+	ctx context.Context,
+	in *struct{},
+) (*VAPIDOutput, error) {
+	keys, err := s.cfg.Q.GetVAPIDKeys(ctx)
 	if err != nil {
-		http.Error(w, "Invalid monitor ID", http.StatusBadRequest)
-		return
+		return nil, huma.Error500InternalServerError("failed to get VAPID public key")
 	}
 
-	var req struct {
-		Endpoint string `json:"endpoint"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
+	out := &VAPIDOutput{}
+	out.Body.PublicKey = keys.PublicKey
+	return out, nil
+}
+
+func (s *NotifyService) subscribe(
+	ctx context.Context,
+	in *SubscribeInput,
+) (*SubscribeOutput, error) {
+	if in.Body.Endpoint == "" || in.Body.Keys.P256dh == "" || in.Body.Keys.Auth == "" {
+		return nil, huma.Error400BadRequest("missing required fields")
 	}
 
-	if req.Endpoint == "" {
-		http.Error(w, "Missing endpoint", http.StatusBadRequest)
-		return
-	}
-
-	err = s.cfg.Q.DeletePushSubscription(r.Context(), &db.DeletePushSubscriptionParams{
-		Endpoint:  req.Endpoint,
-		MonitorID: monitorID,
+	err := s.cfg.Q.CreatePushSubscription(ctx, &db.CreatePushSubscriptionParams{
+		MonitorID: in.ID,
+		Endpoint:  in.Body.Endpoint,
+		P256dhKey: in.Body.Keys.P256dh,
+		AuthKey:   in.Body.Keys.Auth,
 	})
 	if err != nil {
-		http.Error(w, "Failed to unsubscribe", http.StatusInternalServerError)
-		return
+		return nil, huma.Error500InternalServerError("failed to subscribe")
 	}
 
-	util.RespondJSON(w, http.StatusOK, map[string]string{
-		"message": "Unsubscribed successfully",
+	out := &SubscribeOutput{}
+	out.Body.Message = "Subscribed successfully"
+	return out, nil
+}
+
+func (s *NotifyService) unsubscribe(
+	ctx context.Context,
+	in *UnsubscribeInput,
+) (*UnsubscribeOutput, error) {
+	if in.Body.Endpoint == "" {
+		return nil, huma.Error400BadRequest("missing endpoint")
+	}
+
+	err := s.cfg.Q.DeletePushSubscription(ctx, &db.DeletePushSubscriptionParams{
+		Endpoint:  in.Body.Endpoint,
+		MonitorID: in.ID,
 	})
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to unsubscribe")
+	}
+
+	out := &UnsubscribeOutput{}
+	out.Body.Message = "Unsubscribed successfully"
+	return out, nil
 }

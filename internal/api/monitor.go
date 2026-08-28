@@ -2,16 +2,16 @@ package api
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 	"slices"
-	"strconv"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/mizuchilabs/beacon/internal/db"
-	"github.com/mizuchilabs/beacon/internal/util"
 )
 
+// MonitorStats is the aggregated uptime and latency stats for one monitor.
 type MonitorStats struct {
 	ID              int64       `json:"id"`
 	Name            string      `json:"name"`
@@ -23,6 +23,7 @@ type MonitorStats struct {
 	Datapoints      []DataPoint `json:"data_points"`
 }
 
+// Percentiles are response time percentiles in milliseconds.
 type Percentiles struct {
 	P50 int64 `json:"p50"`
 	P75 int64 `json:"p75"`
@@ -31,6 +32,7 @@ type Percentiles struct {
 	P99 int64 `json:"p99"`
 }
 
+// DataPoint is one aggregated check bucket on the chart.
 type DataPoint struct {
 	Timestamp     time.Time `json:"timestamp"`
 	ResponseTime  int64     `json:"response_time"`
@@ -40,36 +42,45 @@ type DataPoint struct {
 	DownRatio     float64   `json:"down_ratio,omitempty"`
 }
 
-func (s *Server) GetConfig(w http.ResponseWriter, r *http.Request) {
-	util.RespondJSON(w, http.StatusOK, map[string]any{
-		"title":             s.cfg.Title,
-		"description":       s.cfg.Description,
-		"timezone":          s.cfg.Timezone,
-		"chart_type":        s.cfg.ChartType,
-		"incidents_enabled": s.cfg.Incidents != nil,
-	})
+type GetMonitorsInput struct {
+	Seconds int64 `query:"seconds" default:"86400" minimum:"60" maximum:"31536000" doc:"How far back to aggregate, in seconds"`
 }
 
-func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
-	secondsStr := r.URL.Query().Get("seconds")
-	if secondsStr == "" {
-		secondsStr = "86400"
+type MonitorsOutput struct {
+	Body []MonitorStats
+}
+
+type MonitorService struct {
+	cfg *config.Config
+}
+
+func NewMonitorService(api huma.API, cfg *config.Config) *MonitorService {
+	svc := &MonitorService{cfg: cfg}
+	huma.Register(api, huma.Operation{
+		OperationID: "get-monitors",
+		Method:      http.MethodGet,
+		Path:        "/api/monitors",
+		Summary:     "Get monitor stats",
+		Description: "Aggregated uptime and response time stats per monitor over the requested window.",
+		Tags:        []string{"Monitors"},
+	}, svc.getMonitors)
+	return svc
+}
+
+func (s *MonitorService) getMonitors(
+	ctx context.Context,
+	in *GetMonitorsInput,
+) (*MonitorsOutput, error) {
+	since := time.Now().Unix() - in.Seconds
+
+	stats, err := s.cfg.Q.GetMonitorStats(ctx, since)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to get monitor stats")
 	}
 
-	seconds, _ := strconv.ParseInt(secondsStr, 10, 64)
-	since := time.Now().Unix() - seconds
-	slog.Debug("GetMonitors", "seconds", seconds, "since", time.Unix(since, 0))
-
-	stats, err := s.cfg.Q.GetMonitorStats(r.Context(), since)
+	responseTimes, err := s.cfg.Q.GetResponseTimes(ctx, since)
 	if err != nil {
-		http.Error(w, "Failed to get monitor stats", http.StatusInternalServerError)
-		return
-	}
-
-	responseTimes, err := s.cfg.Q.GetResponseTimes(r.Context(), since)
-	if err != nil {
-		http.Error(w, "Failed to get response times", http.StatusInternalServerError)
-		return
+		return nil, huma.Error500InternalServerError("failed to get response times")
 	}
 
 	timesByMonitor := make(map[int64][]int64)
@@ -93,10 +104,9 @@ func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	pointsByMonitor, err := s.getDataPoints(r.Context(), seconds, since)
+	pointsByMonitor, err := s.getDataPoints(ctx, in.Seconds, since)
 	if err != nil {
-		http.Error(w, "Failed to get data points", http.StatusInternalServerError)
-		return
+		return nil, huma.Error500InternalServerError("failed to get data points")
 	}
 
 	result := make([]MonitorStats, len(stats))
@@ -113,10 +123,10 @@ func (s *Server) GetMonitors(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	util.RespondJSON(w, http.StatusOK, result)
+	return &MonitorsOutput{Body: result}, nil
 }
 
-func (s *Server) getDataPoints(
+func (s *MonitorService) getDataPoints(
 	ctx context.Context,
 	seconds int64,
 	since int64,
@@ -153,7 +163,7 @@ func (s *Server) getDataPoints(
 	return result, nil
 }
 
-func (s *Server) computeBucketSize(seconds int64) int64 {
+func (s *MonitorService) computeBucketSize(seconds int64) int64 {
 	if s.cfg.ChartType == "bars" {
 		size := seconds / 80
 		if size == 0 {
