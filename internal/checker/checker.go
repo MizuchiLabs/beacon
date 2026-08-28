@@ -8,12 +8,18 @@ import (
 	"io"
 	"net/http"
 	"time"
-
-	"github.com/mizuchilabs/beacon/internal/db"
 )
 
 type Checker struct {
 	client *http.Client
+}
+
+// Result is the outcome of one HTTP check.
+type Result struct {
+	StatusCode   int64
+	ResponseTime int64 // in ms
+	Error        *string
+	IsUp         bool
 }
 
 const (
@@ -36,7 +42,7 @@ func New(timeout time.Duration, insecure bool) *Checker {
 	}
 }
 
-func (c *Checker) Check(ctx context.Context, url string) *db.CreateCheckParams {
+func (c *Checker) Check(ctx context.Context, url string) Result {
 	start := time.Now()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -57,16 +63,16 @@ func (c *Checker) Check(ctx context.Context, url string) *db.CreateCheckParams {
 	}()
 
 	code := int64(resp.StatusCode)
-	return &db.CreateCheckParams{
+	return Result{
 		IsUp:         resp.StatusCode >= 200 && resp.StatusCode < 400,
 		StatusCode:   code,
 		ResponseTime: ms,
 	}
 }
 
-func checkErr(err error, responseTime int64) *db.CreateCheckParams {
+func checkErr(err error, responseTime int64) Result {
 	msg := fmt.Sprintf("request failed: %v", err)
-	return &db.CreateCheckParams{
+	return Result{
 		IsUp:         false,
 		Error:        &msg,
 		ResponseTime: responseTime,

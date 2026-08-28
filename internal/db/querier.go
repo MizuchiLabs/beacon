@@ -10,7 +10,6 @@ import (
 
 type Querier interface {
 	CleanupChecks(ctx context.Context, cutoff int64) error
-	CreateCheck(ctx context.Context, arg *CreateCheckParams) error
 	CreateMonitor(ctx context.Context, arg *CreateMonitorParams) (*Monitor, error)
 	CreatePushSubscription(ctx context.Context, arg *CreatePushSubscriptionParams) error
 	CreateVAPIDKeys(ctx context.Context, arg *CreateVAPIDKeysParams) error

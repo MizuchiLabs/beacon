@@ -20,38 +20,6 @@ func (q *Queries) CleanupChecks(ctx context.Context, cutoff int64) error {
 	return err
 }
 
-const createCheck = `-- name: CreateCheck :exec
-INSERT INTO
-  checks (
-    monitor_id,
-    status_code,
-    response_time,
-    error,
-    is_up
-  )
-VALUES
-  (?, ?, ?, ?, ?)
-`
-
-type CreateCheckParams struct {
-	MonitorID    int64   `json:"monitorId"`
-	StatusCode   int64   `json:"statusCode"`
-	ResponseTime int64   `json:"responseTime"`
-	Error        *string `json:"error"`
-	IsUp         bool    `json:"isUp"`
-}
-
-func (q *Queries) CreateCheck(ctx context.Context, arg *CreateCheckParams) error {
-	_, err := q.db.ExecContext(ctx, createCheck,
-		arg.MonitorID,
-		arg.StatusCode,
-		arg.ResponseTime,
-		arg.Error,
-		arg.IsUp,
-	)
-	return err
-}
-
 const getDataPoints = `-- name: GetDataPoints :many
 SELECT
   monitor_id,
@@ -149,7 +117,6 @@ SELECT
   m.name,
   m.url,
   m.check_interval,
-  COUNT(c.monitor_id) AS total_checks,
   CAST(
     ROUND(
       COALESCE(
@@ -180,7 +147,6 @@ type GetMonitorStatsRow struct {
 	Name            string  `json:"name"`
 	Url             string  `json:"url"`
 	CheckInterval   int64   `json:"checkInterval"`
-	TotalChecks     int64   `json:"totalChecks"`
 	UptimePct       float64 `json:"uptimePct"`
 	AvgResponseTime int64   `json:"avgResponseTime"`
 }
@@ -199,7 +165,6 @@ func (q *Queries) GetMonitorStats(ctx context.Context, since int64) ([]*GetMonit
 			&i.Name,
 			&i.Url,
 			&i.CheckInterval,
-			&i.TotalChecks,
 			&i.UptimePct,
 			&i.AvgResponseTime,
 		); err != nil {

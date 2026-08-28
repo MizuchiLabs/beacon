@@ -1,15 +1,3 @@
--- name: CreateCheck :exec
-INSERT INTO
-  checks (
-    monitor_id,
-    status_code,
-    response_time,
-    error,
-    is_up
-  )
-VALUES
-  (?, ?, ?, ?, ?);
-
 -- name: UpsertCheck :exec
 INSERT INTO
   checks (monitor_id, status_code, response_time, error, is_up, checked_at)
@@ -33,7 +21,6 @@ SELECT
   m.name,
   m.url,
   m.check_interval,
-  COUNT(c.monitor_id) AS total_checks,
   CAST(
     ROUND(
       COALESCE(

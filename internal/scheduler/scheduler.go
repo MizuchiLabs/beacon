@@ -81,10 +81,16 @@ func (s *Scheduler) runMonitor(ctx context.Context, monitor *db.Monitor) {
 
 func (s *Scheduler) performCheck(ctx context.Context, monitor *db.Monitor) {
 	result := s.checker.Check(ctx, monitor.Url)
-	result.MonitorID = monitor.ID
+	checkedAt := time.Now().Unix()
 
-	// Store check result
-	if err := s.q.CreateCheck(ctx, result); err != nil {
+	if err := s.q.UpsertCheck(ctx, &db.UpsertCheckParams{
+		MonitorID:    monitor.ID,
+		StatusCode:   result.StatusCode,
+		ResponseTime: result.ResponseTime,
+		Error:        result.Error,
+		IsUp:         result.IsUp,
+		CheckedAt:    checkedAt,
+	}); err != nil {
 		slog.Error("Failed to store check", "monitor_id", monitor.ID, "error", err)
 		return
 	}
