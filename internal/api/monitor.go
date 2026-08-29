@@ -51,11 +51,12 @@ type MonitorsOutput struct {
 }
 
 type MonitorService struct {
-	cfg *config.Config
+	q         *db.Queries
+	chartType string
 }
 
 func NewMonitorService(api huma.API, cfg *config.Config) *MonitorService {
-	svc := &MonitorService{cfg: cfg}
+	svc := &MonitorService{q: cfg.Conn.Q, chartType: cfg.ChartType}
 	huma.Register(api, huma.Operation{
 		OperationID: "get-monitors",
 		Method:      http.MethodGet,
@@ -73,12 +74,12 @@ func (s *MonitorService) getMonitors(
 ) (*MonitorsOutput, error) {
 	since := time.Now().Unix() - in.Seconds
 
-	stats, err := s.cfg.Q.GetMonitorStats(ctx, since)
+	stats, err := s.q.GetMonitorStats(ctx, since)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to get monitor stats")
 	}
 
-	responseTimes, err := s.cfg.Q.GetResponseTimes(ctx, since)
+	responseTimes, err := s.q.GetResponseTimes(ctx, since)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to get response times")
 	}
@@ -133,7 +134,7 @@ func (s *MonitorService) getDataPoints(
 ) (map[int64][]DataPoint, error) {
 	bucketSize := s.computeBucketSize(seconds)
 
-	rows, err := s.cfg.Q.GetDataPoints(ctx, &db.GetDataPointsParams{
+	rows, err := s.q.GetDataPoints(ctx, &db.GetDataPointsParams{
 		BucketSize:        bucketSize,
 		DegradedThreshold: 500,
 		Since:             since,
@@ -152,7 +153,7 @@ func (s *MonitorService) getDataPoints(
 			IsUp:         float64(row.UpCount) > total/2,
 		}
 
-		if s.cfg.ChartType == "bars" {
+		if s.chartType == "bars" {
 			dp.UpRatio = float64(row.UpCount) / total
 			dp.DegradedRatio = float64(row.DegradedCount) / total
 			dp.DownRatio = float64(row.DownCount) / total
@@ -164,7 +165,7 @@ func (s *MonitorService) getDataPoints(
 }
 
 func (s *MonitorService) computeBucketSize(seconds int64) int64 {
-	if s.cfg.ChartType == "bars" {
+	if s.chartType == "bars" {
 		size := seconds / 80
 		if size == 0 {
 			return 1

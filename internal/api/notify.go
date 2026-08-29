@@ -52,11 +52,11 @@ type VAPIDOutput struct {
 }
 
 type NotifyService struct {
-	cfg *config.Config
+	q *db.Queries
 }
 
 func NewNotifyService(api huma.API, cfg *config.Config) *NotifyService {
-	svc := &NotifyService{cfg: cfg}
+	svc := &NotifyService{q: cfg.Conn.Q}
 	huma.Register(api, huma.Operation{
 		OperationID: "get-vapid-public-key",
 		Method:      http.MethodGet,
@@ -86,7 +86,7 @@ func (s *NotifyService) getVAPIDPublicKey(
 	ctx context.Context,
 	in *struct{},
 ) (*VAPIDOutput, error) {
-	keys, err := s.cfg.Q.GetVAPIDKeys(ctx)
+	keys, err := s.q.GetVAPIDKeys(ctx)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to get VAPID public key")
 	}
@@ -104,7 +104,7 @@ func (s *NotifyService) subscribe(
 		return nil, huma.Error400BadRequest("missing required fields")
 	}
 
-	err := s.cfg.Q.CreatePushSubscription(ctx, &db.CreatePushSubscriptionParams{
+	err := s.q.CreatePushSubscription(ctx, &db.CreatePushSubscriptionParams{
 		MonitorID: in.ID,
 		Endpoint:  in.Body.Endpoint,
 		P256dhKey: in.Body.Keys.P256dh,
@@ -127,11 +127,10 @@ func (s *NotifyService) unsubscribe(
 		return nil, huma.Error400BadRequest("missing endpoint")
 	}
 
-	err := s.cfg.Q.DeletePushSubscription(ctx, &db.DeletePushSubscriptionParams{
+	if err := s.q.DeletePushSubscription(ctx, &db.DeletePushSubscriptionParams{
 		Endpoint:  in.Body.Endpoint,
 		MonitorID: in.ID,
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, huma.Error500InternalServerError("failed to unsubscribe")
 	}
 

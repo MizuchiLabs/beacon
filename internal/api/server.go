@@ -17,50 +17,34 @@ import (
 )
 
 type Server struct {
-	mux *http.ServeMux
-	api huma.API
-	cfg *config.Config
+	mux     *http.ServeMux
+	api     huma.API
+	cfg     *config.Config
+	rootCtx context.Context
 }
 
-func NewServer(cfg *config.Config) *Server {
+func NewServer(ctx context.Context, cfg *config.Config) *Server {
 	mux := http.NewServeMux()
 	apiCfg := huma.DefaultConfig("Beacon API", "1.0.0")
 	apiCfg.CreateHooks = nil
 	api := humago.New(mux, apiCfg)
-	s := &Server{mux: mux, api: api, cfg: cfg}
-	s.setupRoutes()
-	return s
+	return &Server{
+		mux:     mux,
+		api:     api,
+		cfg:     cfg,
+		rootCtx: ctx,
+	}
 }
 
 func (s *Server) OpenAPI() *huma.OpenAPI {
 	return s.api.OpenAPI()
 }
 
-func (s *Server) setupRoutes() {
-	// API routes, each service registers its own operations on the huma API
-	NewConfigService(s.api, s.cfg)
-	NewMonitorService(s.api, s.cfg)
-	NewIncidentService(s.api, s.cfg)
-	NewNotifyService(s.api, s.cfg)
-
-	// Plain mux routes outside the OpenAPI spec
-	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	// Static files
-	s.mux.Handle("/", statigz.FileServer(web.StaticFS, statigz.FSPrefix("build")))
-
-	if s.cfg.Debug {
-		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
-		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		s.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		s.mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		s.mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+func (s *Server) Start() error {
+	if err := s.setupRoutes(); err != nil {
+		return err
 	}
-}
 
-func (s *Server) Start(ctx context.Context) error {
 	chain := NewChain(
 		s.WithCORS,
 		s.WithLogger,
@@ -88,7 +72,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// Wait for context cancellation or server error
 	select {
-	case <-ctx.Done():
+	case <-s.rootCtx.Done():
 		slog.Info("Shutting down server...")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
@@ -97,4 +81,29 @@ func (s *Server) Start(ctx context.Context) error {
 	case err := <-serverErr:
 		return fmt.Errorf("server error: %w", err)
 	}
+}
+
+func (s *Server) setupRoutes() error {
+	// API routes, each service registers its own operations on the huma API
+	NewConfigService(s.api, s.cfg)
+	NewMonitorService(s.api, s.cfg)
+	NewIncidentService(s.api, s.cfg)
+	NewNotifyService(s.api, s.cfg)
+
+	// Plain mux routes outside the OpenAPI spec
+	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Static files
+	s.mux.Handle("/", statigz.FileServer(web.StaticFS, statigz.FSPrefix("build")))
+
+	if s.cfg.Debug {
+		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
+		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		s.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		s.mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		s.mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	}
+	return nil
 }

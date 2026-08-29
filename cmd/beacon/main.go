@@ -31,7 +31,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			return api.NewServer(cfg).Start(ctx)
+			return api.NewServer(ctx, cfg).Start()
 		},
 		Commands: []*cli.Command{
 			{
@@ -47,7 +47,7 @@ func main() {
 					},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) (err error) {
-					srv := api.NewServer(&config.Config{})
+					srv := api.NewServer(ctx, &config.Config{})
 
 					out := cmd.String("output")
 					var b []byte
