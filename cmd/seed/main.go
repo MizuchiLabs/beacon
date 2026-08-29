@@ -51,12 +51,12 @@ func run(ctx context.Context, days int) error {
 		return fmt.Errorf("failed to parse environment variables: %w", err)
 	}
 
-	q := db.NewConnection(ctx)
-	if err := config.SyncMonitors(ctx, q, envCfg); err != nil {
+	conn := db.NewConnection(ctx)
+	if err := config.SyncMonitors(ctx, conn.Q, envCfg); err != nil {
 		return fmt.Errorf("failed to sync monitors: %w", err)
 	}
 
-	monitors, err := q.GetMonitors(ctx)
+	monitors, err := conn.Q.GetMonitors(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to load monitors: %w", err)
 	}
@@ -80,7 +80,7 @@ func run(ctx context.Context, days int) error {
 			}
 			params.IsUp, params.StatusCode, params.ResponseTime, params.Error = generateCheck(i)
 
-			if err := q.UpsertCheck(ctx, params); err != nil {
+			if err := conn.Q.UpsertCheck(ctx, params); err != nil {
 				return fmt.Errorf("failed to insert check for %q: %w", m.Url, err)
 			}
 			count++

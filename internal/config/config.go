@@ -42,7 +42,7 @@ type Config struct {
 	EnvConfig
 
 	// Application settings
-	Q         *db.Queries
+	Conn      *db.Connection
 	Checker   *checker.Checker
 	Scheduler *scheduler.Scheduler
 	Notifier  *notify.Notifier
@@ -67,19 +67,19 @@ func New(ctx context.Context, cmd *cli.Command) (*Config, error) {
 		return nil, fmt.Errorf("invalid chart type: %s", cfg.ChartType)
 	}
 
-	cfg.Q = db.NewConnection(ctx)
+	cfg.Conn = db.NewConnection(ctx)
 	cfg.Checker = checker.New(cfg.Timeout, cfg.Insecure)
-	cfg.Notifier, err = notify.New(ctx, cfg.Q)
+	cfg.Notifier, err = notify.New(ctx, cfg.Conn.Q)
 	if err != nil {
 		return nil, err
 	}
 
 	// Sync monitors to DB before starting background jobs
-	if err := SyncMonitors(ctx, cfg.Q, cfg.EnvConfig); err != nil {
+	if err := SyncMonitors(ctx, cfg.Conn.Q, cfg.EnvConfig); err != nil {
 		return nil, err
 	}
 
-	cfg.Scheduler = scheduler.New(cfg.Q, cfg.Checker, cfg.Notifier, cfg.RetentionDays)
+	cfg.Scheduler = scheduler.New(cfg.Conn.Q, cfg.Checker, cfg.Notifier, cfg.RetentionDays)
 	cfg.Scheduler.Start(ctx)
 	cfg.Incidents = incidents.New(cfg.RepoURL, cfg.RepoPath, cfg.Interval)
 	cfg.Incidents.Start(ctx)

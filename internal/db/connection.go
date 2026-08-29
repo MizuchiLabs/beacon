@@ -19,15 +19,19 @@ import (
 //go:embed schemas/*.sql
 var schemaFS embed.FS
 
-var basePath = "data/beacon.db"
+var DBPath = "data/beacon.db"
 
-func NewConnection(ctx context.Context) *Queries {
+type Connection struct {
+	DB *sql.DB
+	Q  *Queries
+}
+
+func NewConnection(ctx context.Context) *Connection {
 	if err := os.MkdirAll("data", 0o750); err != nil {
 		slog.Error("Failed to create data directory", "error", err)
 	}
 
-	dataSource := fmt.Sprintf("file:%s?_txlock=immediate", filepath.ToSlash(basePath))
-
+	dataSource := fmt.Sprintf("file:%s?_txlock=immediate", filepath.ToSlash(DBPath))
 	sqliteDB, err := sql.Open("sqlite", dataSource)
 	if err != nil {
 		slog.Error("Failed to open database", "err", err)
@@ -38,7 +42,7 @@ func NewConnection(ctx context.Context) *Queries {
 		slog.Error("Failed to configure database", "err", err)
 		os.Exit(1)
 	}
-	migrate(sqliteDB)
+	migrate(ctx, sqliteDB)
 
 	// Wait for shutdown signal
 	go func() {
@@ -48,7 +52,10 @@ func NewConnection(ctx context.Context) *Queries {
 		}
 	}()
 
-	return New(sqliteDB)
+	return &Connection{
+		DB: sqliteDB,
+		Q:  New(sqliteDB),
+	}
 }
 
 // setupSQLite applies performance and safety pragmas.
@@ -76,9 +83,9 @@ func setupSQLite(db *sql.DB) error {
 	return nil
 }
 
-func migrate(db *sql.DB) {
+func migrate(ctx context.Context, db *sql.DB) {
 	parser.SetBaseFS(schemaFS)
-	if err := diff.Apply(db, "schemas", diff.ApplyOptions{}); err != nil {
+	if err := diff.Apply(ctx, db, "schemas", diff.ApplyOptions{}); err != nil {
 		slog.Error("failed to apply schema changes", "error", err)
 		return
 	}
