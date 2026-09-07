@@ -10,7 +10,7 @@ type Chain struct {
 	constructors []Constructor
 }
 
-// NewChain creates a new chain for a given list of middleware constructors
+// NewChain creates a new chain for a given list of middleware constructors.
 func NewChain(constructors ...Constructor) Chain {
 	return Chain{append(([]Constructor)(nil), constructors...)}
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/mizuchilabs/beacon/internal/db"
 )
@@ -84,7 +85,7 @@ func NewNotifyService(api huma.API, cfg *config.Config) *NotifyService {
 
 func (s *NotifyService) getVAPIDPublicKey(
 	ctx context.Context,
-	in *struct{},
+	_ *struct{},
 ) (*VAPIDOutput, error) {
 	keys, err := s.q.GetVAPIDKeys(ctx)
 	if err != nil {

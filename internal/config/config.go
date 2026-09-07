@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/urfave/cli/v3"
+
 	"github.com/mizuchilabs/beacon/internal/checker"
 	"github.com/mizuchilabs/beacon/internal/db"
 	"github.com/mizuchilabs/beacon/internal/incidents"
 	"github.com/mizuchilabs/beacon/internal/notify"
 	"github.com/mizuchilabs/beacon/internal/scheduler"
-	"github.com/urfave/cli/v3"
 )
 
 type EnvConfig struct {
@@ -49,7 +50,7 @@ type Config struct {
 	Incidents *incidents.IncidentManager
 }
 
-// New loads configuration from environment variables
+// New loads configuration from environment variables.
 func New(ctx context.Context, cmd *cli.Command) (*Config, error) {
 	cfg, err := env.ParseAs[Config]()
 	if err != nil {

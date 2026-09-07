@@ -11,9 +11,10 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/vearutop/statigz"
+
 	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/mizuchilabs/beacon/web"
-	"github.com/vearutop/statigz"
 )
 
 type Server struct {
@@ -91,7 +92,7 @@ func (s *Server) setupRoutes() error {
 	NewNotifyService(s.api, s.cfg)
 
 	// Plain mux routes outside the OpenAPI spec
-	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 

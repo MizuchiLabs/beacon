@@ -12,11 +12,12 @@ import (
 )
 
 const (
-	// General per-IP rate limit
-	RPS   = 30
+	// RPS is the general per-IP rate limit.
+	RPS = 30
+	// Burst is the max burst size on top of RPS.
 	Burst = 50
 
-	// Body size limit
+	// MaxBodySize is the request body size limit.
 	MaxBodySize = 1 << 20
 )
 

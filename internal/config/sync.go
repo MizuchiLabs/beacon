@@ -8,8 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mizuchilabs/beacon/internal/db"
 	"gopkg.in/yaml.v3"
+
+	"github.com/mizuchilabs/beacon/internal/db"
 )
 
 type MonitorConfig struct {

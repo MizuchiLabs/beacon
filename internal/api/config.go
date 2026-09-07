@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/mizuchilabs/beacon/internal/config"
 )
 
@@ -39,7 +40,7 @@ func NewConfigService(api huma.API, cfg *config.Config) *ConfigService {
 	return svc
 }
 
-func (s *ConfigService) getConfig(ctx context.Context, in *struct{}) (*ConfigOutput, error) {
+func (s *ConfigService) getConfig(_ context.Context, _ *struct{}) (*ConfigOutput, error) {
 	return &ConfigOutput{Body: ConfigBody{
 		Title:            s.cfg.Title,
 		Description:      s.cfg.Description,

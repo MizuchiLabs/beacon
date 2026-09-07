@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/mizuchilabs/beacon/internal/incidents"
 )
@@ -45,8 +46,8 @@ func NewIncidentService(api huma.API, cfg *config.Config) *IncidentService {
 }
 
 func (s *IncidentService) getIncidents(
-	ctx context.Context,
-	in *struct{},
+	_ context.Context,
+	_ *struct{},
 ) (*GetIncidentsOutput, error) {
 	if s.cfg.Incidents == nil {
 		return nil, huma.Error404NotFound("incidents not configured")
@@ -56,7 +57,7 @@ func (s *IncidentService) getIncidents(
 }
 
 func (s *IncidentService) getIncident(
-	ctx context.Context,
+	_ context.Context,
 	in *GetIncidentInput,
 ) (*GetIncidentOutput, error) {
 	if s.cfg.Incidents == nil {

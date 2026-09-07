@@ -7,9 +7,10 @@ import (
 	"time"
 )
 
-// responseWriter wraps http.ResponseWriter to capture the status code and size.
+// responseWriter wraps [http.ResponseWriter] to capture the status code and size.
 type responseWriter struct {
 	http.ResponseWriter
+
 	statusCode  int
 	size        int
 	wroteHeader bool

@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/SherClockHolmes/webpush-go"
+
 	"github.com/mizuchilabs/beacon/internal/db"
 )
 
