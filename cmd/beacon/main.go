@@ -103,7 +103,7 @@ func main() {
 	}
 
 	if err := cmd.Run(sigx.NotifyContext(), os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "beacon: %v\n", err)
+		fmt.Fprintf(os.Stderr, "%s: %v\n", cmd.Name, err)
 		os.Exit(1)
 	}
 }
