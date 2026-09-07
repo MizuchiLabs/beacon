@@ -63,7 +63,7 @@ func main() {
 						return err
 					}
 
-					if err := os.WriteFile(out, b, 0o644); err != nil {
+					if err := os.WriteFile(out, b, 0o600); err != nil {
 						return fmt.Errorf("writing spec: %w", err)
 					}
 					slog.Info("OpenAPI spec written", "path", out)
