@@ -42,7 +42,7 @@ func (i *IncidentManager) Start(ctx context.Context) {
 
 	// Initial sync if using git
 	if i.RepoURL != "" {
-		if err := i.syncRepo(); err != nil {
+		if err := i.syncRepo(ctx); err != nil {
 			slog.Warn("Failed initial sync, will retry...", "error", err)
 		}
 	}
@@ -63,7 +63,7 @@ func (i *IncidentManager) Start(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case <-ticker.C:
-					if err := i.syncRepo(); err != nil {
+					if err := i.syncRepo(ctx); err != nil {
 						slog.Error("Failed to sync incidents repo", "error", err)
 						continue
 					}
@@ -76,15 +76,15 @@ func (i *IncidentManager) Start(ctx context.Context) {
 	}
 }
 
-func (i *IncidentManager) syncRepo() error {
+func (i *IncidentManager) syncRepo(ctx context.Context) error {
 	if _, err := os.Stat(i.RepoPath); os.IsNotExist(err) {
 		slog.Info("Cloning incidents repository", "url", i.RepoURL)
-		cmd := exec.Command("git", "clone", "--depth", "1", i.RepoURL, i.RepoPath) // #nosec G204
+		cmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", i.RepoURL, i.RepoPath) // #nosec G204
 		return cmd.Run()
 	}
 
 	slog.Debug("Pulling latest incidents from repository")
-	cmd := exec.Command("git", "-C", i.RepoPath, "pull", "--rebase") // #nosec G204
+	cmd := exec.CommandContext(ctx, "git", "-C", i.RepoPath, "pull", "--rebase") // #nosec G204
 	return cmd.Run()
 }
 
@@ -110,14 +110,12 @@ func (i *IncidentManager) GetIncidents() []Incident {
 	return incidents
 }
 
-func (s *IncidentManager) GetIncident(id string) (*Incident, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+func (i *IncidentManager) GetIncident(id string) (*Incident, bool) {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
 
-	for i := range s.incidents {
-		if s.incidents[i].ID == id {
-			// Return a copy
-			incident := s.incidents[i]
+	for _, incident := range i.incidents {
+		if incident.ID == id {
 			return &incident, true
 		}
 	}
