@@ -4,16 +4,17 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"time"
 
 	"github.com/caarlos0/env/v11"
-	"github.com/mizuchilabs/beacon/internal/config"
-	"github.com/mizuchilabs/beacon/internal/db"
 	"github.com/mizuchilabs/kata/logx"
 	"github.com/mizuchilabs/kata/sigx"
 	"github.com/urfave/cli/v3"
+
+	"github.com/mizuchilabs/beacon/internal/config"
+	"github.com/mizuchilabs/beacon/internal/db"
 )
 
 func main() {
@@ -107,21 +108,21 @@ func generateCheck(profile int) (up bool, code int64, responseTime int64, errStr
 		downChance = 0.05
 	}
 
-	if rand.Float64() < downChance { // #nosec G404
+	if rand.Float64() < downChance { //nolint:gosec // synthetic seed data
 		msg := "connection timeout"
 		return false, 0, 0, &msg
 	}
 
-	latency := rand.Float64() // #nosec G404
+	latency := rand.Float64() //nolint:gosec // synthetic seed data
 	switch {
 	case latency < 0.7: // 70% fast
-		responseTime = int64(rand.Intn(80) + 20) // #nosec G404
+		responseTime = int64(rand.IntN(80) + 20) //nolint:gosec // synthetic seed data
 	case latency < 0.9: // 20% moderate
-		responseTime = int64(rand.Intn(150) + 100) // #nosec G404
+		responseTime = int64(rand.IntN(150) + 100) //nolint:gosec // synthetic seed data
 	case latency < 0.98: // 8% slow
-		responseTime = int64(rand.Intn(300) + 250) // #nosec G404
+		responseTime = int64(rand.IntN(300) + 250) //nolint:gosec // synthetic seed data
 	default: // 2% very slow
-		responseTime = int64(rand.Intn(500) + 500) // #nosec G404
+		responseTime = int64(rand.IntN(500) + 500) //nolint:gosec // synthetic seed data
 	}
 
 	return true, 200, responseTime, nil
