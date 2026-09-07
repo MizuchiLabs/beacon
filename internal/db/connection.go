@@ -13,7 +13,6 @@ import (
 
 	"github.com/mizuchilabs/sqlite-schema-diff/pkg/diff"
 	"github.com/mizuchilabs/sqlite-schema-diff/pkg/parser"
-	_ "modernc.org/sqlite"
 )
 
 //go:embed schemas/*.sql

@@ -7,12 +7,15 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mizuchilabs/beacon/internal/api"
-	"github.com/mizuchilabs/beacon/internal/config"
+	_ "modernc.org/sqlite"
+
 	"github.com/mizuchilabs/kata/buildinfo"
 	"github.com/mizuchilabs/kata/logx"
 	"github.com/mizuchilabs/kata/sigx"
 	"github.com/urfave/cli/v3"
+
+	"github.com/mizuchilabs/beacon/internal/api"
+	"github.com/mizuchilabs/beacon/internal/config"
 )
 
 func main() {
