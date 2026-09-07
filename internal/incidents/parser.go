@@ -11,7 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Valid values for enums
+// Valid values for enums.
 var (
 	ValidSeverities = []string{"critical", "major", "minor", "maintenance"}
 	ValidStatuses   = []string{"investigating", "identified", "monitoring", "resolved"}
@@ -35,7 +35,7 @@ type IncidentUpdate struct {
 	CreatedAt time.Time `yaml:"created_at" json:"created_at"`
 }
 
-// ParseIncidentsDir reads all .yaml or .yml files from a directory
+// ParseIncidentsDir reads all .yaml or .yml files from a directory.
 func ParseIncidentsDir(dirPath string) ([]Incident, error) {
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -79,7 +79,7 @@ func ParseIncidentsDir(dirPath string) ([]Incident, error) {
 	return incidents, nil
 }
 
-// Validate checks if the incident has valid enum values
+// Validate checks if the incident has valid enum values.
 func (i *Incident) Validate() error {
 	if !slices.Contains(ValidSeverities, i.Severity) {
 		return fmt.Errorf("invalid severity '%s': must be one of %v", i.Severity, ValidSeverities)
