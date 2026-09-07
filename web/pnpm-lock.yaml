@@ -73,8 +73,8 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0
       layerchart:
-        specifier: 2.3.1
-        version: 2.3.1(@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0)(vite@8.2.2(jiti@2.7.0)))(svelte@5.57.0)(typescript@6.0.3)(vite@8.2.2(jiti@2.7.0)))(svelte@5.57.0)
+        specifier: 2.4.0
+        version: 2.4.0(@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0)(vite@8.2.2(jiti@2.7.0)))(svelte@5.57.0)(typescript@6.0.3)(vite@8.2.2(jiti@2.7.0)))(svelte@5.57.0)
       mode-watcher:
         specifier: ^1.1.0
         version: 1.1.0(svelte@5.57.0)
@@ -1206,8 +1206,8 @@ packages:
     resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
     engines: {node: '>=6'}
 
-  layerchart@2.3.1:
-    resolution: {integrity: sha512-fPxIozrh0MELmPwWsZndT82HjTkM8r4HsjRqMZe+v6qxXrEDODUIKfq5g9Z/UG/vusljRimnH5IIiQln//B1cw==}
+  layerchart@2.4.0:
+    resolution: {integrity: sha512-POOduarWXSi9aTbcBrPxBp7AK0lomd/tdeNnquDo6f2cUyYYx+Qjn+dgCaaBCX/JSWT31NNHDUYdtZB7ocC57A==}
     peerDependencies:
       svelte: ^5.0.0
 
@@ -2522,7 +2522,7 @@ snapshots:
 
   kleur@4.1.5: {}
 
-  layerchart@2.3.1(@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0)(vite@8.2.2(jiti@2.7.0)))(svelte@5.57.0)(typescript@6.0.3)(vite@8.2.2(jiti@2.7.0)))(svelte@5.57.0):
+  layerchart@2.4.0(@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0)(vite@8.2.2(jiti@2.7.0)))(svelte@5.57.0)(typescript@6.0.3)(vite@8.2.2(jiti@2.7.0)))(svelte@5.57.0):
     dependencies:
       '@dagrejs/dagre': 2.0.4
       '@layerstack/svelte-actions': 1.0.1-next.18
