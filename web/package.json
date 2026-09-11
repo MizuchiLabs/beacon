@@ -41,7 +41,7 @@
 		"d3-shape": "^3.2.0",
 		"layerchart": "2.4.0",
 		"mode-watcher": "^1.1.0",
-		"oxfmt": "^0.66.0",
+		"oxfmt": "^0.67.0",
 		"oxlint": "^1.80.0",
 		"svelte": "^5.56.10",
 		"svelte-check": "^4.7.6",
