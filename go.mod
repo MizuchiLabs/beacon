@@ -9,6 +9,7 @@ require (
 	github.com/mizuchilabs/kata v0.1.3
 	github.com/mizuchilabs/sqlite-schema-diff v0.2.1
 	github.com/rs/cors v1.11.1
+	github.com/stretchr/testify v1.12.1
 	github.com/urfave/cli/v3 v3.11.0
 	github.com/vearutop/statigz v1.5.0
 	golang.org/x/time v0.16.0
@@ -26,7 +27,7 @@ require (
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/stretchr/testify v1.12.1 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.56.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect

@@ -8,31 +8,35 @@ import (
 	"os/exec"
 	"sync"
 	"time"
+
+	"github.com/caarlos0/env/v11"
 )
 
 type IncidentManager struct {
-	RepoURL   string
-	RepoPath  string
-	Interval  time.Duration
 	mu        sync.RWMutex
 	incidents []Incident
+
+	RepoURL  string        `env:"BEACON_INCIDENT_REPO"`
+	RepoPath string        `env:"BEACON_INCIDENT_PATH"`
+	Interval time.Duration `env:"BEACON_INCIDENT_SYNC" envDefault:"5m"`
 }
 
-func New(repoURL, repoPath string, interval time.Duration) *IncidentManager {
-	if repoURL == "" {
-		if _, err := os.Stat(repoPath); os.IsNotExist(err) {
-			slog.Debug("No incident repo URL or local path set, incidents disabled")
-			return nil
-		}
-		slog.Info("Using local incident directory", "path", repoPath)
+func New() (*IncidentManager, error) {
+	inc, err := env.ParseAs[IncidentManager]()
+	if err != nil {
+		return nil, err
 	}
 
-	return &IncidentManager{
-		RepoURL:   repoURL,
-		RepoPath:  repoPath,
-		Interval:  interval,
-		incidents: make([]Incident, 0),
+	if inc.RepoURL == "" {
+		if _, err := os.Stat(inc.RepoPath); os.IsNotExist(err) {
+			slog.Debug("No incident repo URL or local path set, incidents disabled")
+			return nil, nil
+		}
+		slog.Info("Using local incident directory", "path", inc.RepoPath)
 	}
+	inc.incidents = make([]Incident, 0)
+
+	return &inc, nil
 }
 
 func (i *IncidentManager) Start(ctx context.Context) {

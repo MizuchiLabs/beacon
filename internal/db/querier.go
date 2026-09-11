@@ -17,6 +17,7 @@ type Querier interface {
 	DeletePushSubscription(ctx context.Context, arg *DeletePushSubscriptionParams) error
 	DeletePushSubscriptionByEndpoint(ctx context.Context, endpoint string) error
 	GetDataPoints(ctx context.Context, arg *GetDataPointsParams) ([]*GetDataPointsRow, error)
+	GetLatestCheckStates(ctx context.Context) ([]*GetLatestCheckStatesRow, error)
 	GetMonitorStats(ctx context.Context, since int64) ([]*GetMonitorStatsRow, error)
 	GetMonitors(ctx context.Context) ([]*Monitor, error)
 	GetPushSubscriptionsByMonitor(ctx context.Context, monitorID int64) ([]*PushSubscription, error)

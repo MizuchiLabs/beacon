@@ -28,12 +28,12 @@ export type ConfigBody = {
 };
 
 export type DataPoint = {
-    degraded_ratio?: number;
-    down_ratio?: number;
+    degraded_ratio: number;
+    down_ratio: number;
     is_up: boolean;
     response_time: number;
     timestamp: string;
-    up_ratio?: number;
+    up_ratio: number;
 };
 
 export type ErrorDetail = {
@@ -97,13 +97,13 @@ export type IncidentUpdate = {
 };
 
 export type MonitorStats = {
-    avg_response_time: number;
+    avg_response_time: number | null;
     check_interval: number;
     data_points: Array<DataPoint> | null;
     id: number;
     name: string;
-    percentiles: Percentiles;
-    uptime_pct: number;
+    percentiles?: Percentiles;
+    uptime_pct: number | null;
     url: string;
 };
 

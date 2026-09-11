@@ -8,20 +8,23 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/mizuchilabs/beacon/internal/db"
 )
 
+// degradedThreshold is the response time above which an up check counts as degraded.
+const degradedThreshold = 500
+
 // MonitorStats is the aggregated uptime and latency stats for one monitor.
+// Uptime, latency and percentiles are null when the window holds no checks.
 type MonitorStats struct {
-	ID              int64       `json:"id"`
-	Name            string      `json:"name"`
-	URL             string      `json:"url"`
-	CheckInterval   int64       `json:"check_interval"`
-	AvgResponseTime int64       `json:"avg_response_time"`
-	UptimePct       float64     `json:"uptime_pct"`
-	Percentiles     Percentiles `json:"percentiles"`
-	Datapoints      []DataPoint `json:"data_points"`
+	ID              int64        `json:"id"`
+	Name            string       `json:"name"`
+	URL             string       `json:"url"`
+	CheckInterval   int64        `json:"check_interval"`
+	AvgResponseTime *int64       `json:"avg_response_time"`
+	UptimePct       *float64     `json:"uptime_pct"`
+	Percentiles     *Percentiles `json:"percentiles,omitempty"`
+	Datapoints      []DataPoint  `json:"data_points"`
 }
 
 // Percentiles are response time percentiles in milliseconds.
@@ -38,9 +41,9 @@ type DataPoint struct {
 	Timestamp     time.Time `json:"timestamp"`
 	ResponseTime  int64     `json:"response_time"`
 	IsUp          bool      `json:"is_up"`
-	UpRatio       float64   `json:"up_ratio,omitempty"`
-	DegradedRatio float64   `json:"degraded_ratio,omitempty"`
-	DownRatio     float64   `json:"down_ratio,omitempty"`
+	UpRatio       float64   `json:"up_ratio"`
+	DegradedRatio float64   `json:"degraded_ratio"`
+	DownRatio     float64   `json:"down_ratio"`
 }
 
 type GetMonitorsInput struct {
@@ -52,12 +55,12 @@ type MonitorsOutput struct {
 }
 
 type MonitorService struct {
-	q         *db.Queries
-	chartType string
+	cfg *Config
+	q   *db.Queries
 }
 
-func NewMonitorService(api huma.API, cfg *config.Config) *MonitorService {
-	svc := &MonitorService{q: cfg.Conn.Q, chartType: cfg.ChartType}
+func NewMonitorService(api huma.API, cfg *Config, q *db.Queries) *MonitorService {
+	svc := &MonitorService{cfg: cfg, q: q}
 	huma.Register(api, huma.Operation{
 		OperationID: "get-monitors",
 		Method:      http.MethodGet,
@@ -90,19 +93,18 @@ func (s *MonitorService) getMonitors(
 		timesByMonitor[rt.MonitorID] = append(timesByMonitor[rt.MonitorID], rt.ResponseTime)
 	}
 
-	percentilesByMonitor := make(map[int64]Percentiles)
+	percentilesByMonitor := make(map[int64]*Percentiles)
 	for monitorID, times := range timesByMonitor {
 		if len(times) == 0 {
 			continue
 		}
 		slices.Sort(times)
-		n := len(times)
-		percentilesByMonitor[monitorID] = Percentiles{
-			P50: times[n*50/100],
-			P75: times[n*75/100],
-			P90: times[n*90/100],
-			P95: times[n*95/100],
-			P99: times[n*99/100],
+		percentilesByMonitor[monitorID] = &Percentiles{
+			P50: percentile(times, 50),
+			P75: percentile(times, 75),
+			P90: percentile(times, 90),
+			P95: percentile(times, 95),
+			P99: percentile(times, 99),
 		}
 	}
 
@@ -113,19 +115,28 @@ func (s *MonitorService) getMonitors(
 
 	result := make([]MonitorStats, len(stats))
 	for i, stat := range stats {
-		result[i] = MonitorStats{
-			ID:              stat.ID,
-			Name:            stat.Name,
-			URL:             stat.Url,
-			CheckInterval:   stat.CheckInterval,
-			UptimePct:       stat.UptimePct,
-			AvgResponseTime: stat.AvgResponseTime,
-			Percentiles:     percentilesByMonitor[stat.ID],
-			Datapoints:      pointsByMonitor[stat.ID],
+		row := MonitorStats{
+			ID:            stat.ID,
+			Name:          stat.Name,
+			URL:           stat.Url,
+			CheckInterval: stat.CheckInterval,
+			Datapoints:    pointsByMonitor[stat.ID],
 		}
+		if stat.CheckCount > 0 {
+			row.UptimePct = &stat.UptimePct
+			row.AvgResponseTime = &stat.AvgResponseTime
+			row.Percentiles = percentilesByMonitor[stat.ID]
+		}
+		result[i] = row
 	}
 
 	return &MonitorsOutput{Body: result}, nil
+}
+
+// percentile returns the nearest-rank percentile of an ascending slice.
+func percentile(sorted []int64, p int) int64 {
+	idx := (p*len(sorted)+99)/100 - 1
+	return sorted[max(idx, 0)]
 }
 
 func (s *MonitorService) getDataPoints(
@@ -137,7 +148,7 @@ func (s *MonitorService) getDataPoints(
 
 	rows, err := s.q.GetDataPoints(ctx, &db.GetDataPointsParams{
 		BucketSize:        bucketSize,
-		DegradedThreshold: 500,
+		DegradedThreshold: degradedThreshold,
 		Since:             since,
 	})
 	if err != nil {
@@ -147,26 +158,22 @@ func (s *MonitorService) getDataPoints(
 	result := make(map[int64][]DataPoint)
 	for _, row := range rows {
 		total := float64(row.TotalCount)
+		upRatio := float64(row.UpCount) / total
 
-		dp := DataPoint{
-			Timestamp:    time.Unix(row.BucketTs, 0),
-			ResponseTime: row.AvgResponseTime,
-			IsUp:         float64(row.UpCount) > total/2,
-		}
-
-		if s.chartType == "bars" {
-			dp.UpRatio = float64(row.UpCount) / total
-			dp.DegradedRatio = float64(row.DegradedCount) / total
-			dp.DownRatio = float64(row.DownCount) / total
-		}
-
-		result[row.MonitorID] = append(result[row.MonitorID], dp)
+		result[row.MonitorID] = append(result[row.MonitorID], DataPoint{
+			Timestamp:     time.Unix(row.BucketTs, 0),
+			ResponseTime:  row.AvgResponseTime,
+			IsUp:          upRatio > 0.5,
+			UpRatio:       upRatio,
+			DegradedRatio: float64(row.DegradedCount) / total,
+			DownRatio:     float64(row.DownCount) / total,
+		})
 	}
 	return result, nil
 }
 
 func (s *MonitorService) computeBucketSize(seconds int64) int64 {
-	if s.chartType == "bars" {
+	if s.cfg.ChartType == "bars" {
 		size := seconds / 80
 		if size == 0 {
 			return 1

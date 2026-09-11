@@ -6,7 +6,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/mizuchilabs/beacon/internal/incidents"
 )
 
@@ -23,11 +22,11 @@ type GetIncidentOutput struct {
 }
 
 type IncidentService struct {
-	cfg *config.Config
+	incidents *incidents.IncidentManager
 }
 
-func NewIncidentService(api huma.API, cfg *config.Config) *IncidentService {
-	svc := &IncidentService{cfg: cfg}
+func NewIncidentService(api huma.API, inc *incidents.IncidentManager) *IncidentService {
+	svc := &IncidentService{incidents: inc}
 	huma.Register(api, huma.Operation{
 		OperationID: "get-incidents",
 		Method:      http.MethodGet,
@@ -49,22 +48,22 @@ func (s *IncidentService) getIncidents(
 	_ context.Context,
 	_ *struct{},
 ) (*GetIncidentsOutput, error) {
-	if s.cfg.Incidents == nil {
+	if s.incidents == nil {
 		return nil, huma.Error404NotFound("incidents not configured")
 	}
 
-	return &GetIncidentsOutput{Body: s.cfg.Incidents.GetIncidents()}, nil
+	return &GetIncidentsOutput{Body: s.incidents.GetIncidents()}, nil
 }
 
 func (s *IncidentService) getIncident(
 	_ context.Context,
 	in *GetIncidentInput,
 ) (*GetIncidentOutput, error) {
-	if s.cfg.Incidents == nil {
+	if s.incidents == nil {
 		return nil, huma.Error404NotFound("incidents not configured")
 	}
 
-	incident, ok := s.cfg.Incidents.GetIncident(in.ID)
+	incident, ok := s.incidents.GetIncident(in.ID)
 	if !ok {
 		return nil, huma.Error404NotFound("incident not found")
 	}

@@ -8,13 +8,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/caarlos0/env/v11"
 	"github.com/mizuchilabs/kata/logx"
 	"github.com/mizuchilabs/kata/sigx"
 	"github.com/urfave/cli/v3"
 
-	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/mizuchilabs/beacon/internal/db"
+	"github.com/mizuchilabs/beacon/internal/monitors"
 )
 
 func main() {
@@ -22,21 +21,29 @@ func main() {
 		Name:  "seed",
 		Usage: "Generate random test data for all monitors",
 		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "debug",
+				Aliases: []string{"d"},
+				Usage:   "Enable debug logging",
+				Sources: cli.EnvVars("BEACON_DEBUG"),
+			},
+			&cli.StringFlag{
+				Name:    "config",
+				Aliases: []string{"c"},
+				Usage:   "Path to monitors config file",
+				Value:   "config.yaml",
+				Sources: cli.EnvVars("BEACON_CONFIG"),
+			},
 			&cli.IntFlag{
 				Name:    "days",
 				Aliases: []string{"n"},
 				Usage:   "Days of history to generate",
 				Value:   14,
 			},
-			&cli.BoolFlag{
-				Name:    "debug",
-				Aliases: []string{"d"},
-				Usage:   "Enable debug logging",
-			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			logx.Init(cmd.Bool("debug"))
-			return run(ctx, cmd.Int("days"))
+			return run(ctx, cmd)
 		},
 	}
 
@@ -46,26 +53,25 @@ func main() {
 	}
 }
 
-func run(ctx context.Context, days int) error {
-	envCfg, err := env.ParseAs[config.EnvConfig]()
+func run(ctx context.Context, cmd *cli.Command) error {
+	q, err := db.Open(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to parse environment variables: %w", err)
+		return err
 	}
 
-	conn := db.NewConnection(ctx)
-	if err := config.SyncMonitors(ctx, conn.Q, envCfg); err != nil {
+	if err := monitors.Sync(ctx, q, cmd.String("config")); err != nil {
 		return fmt.Errorf("failed to sync monitors: %w", err)
 	}
 
-	monitors, err := conn.Q.GetMonitors(ctx)
+	monitors, err := q.GetMonitors(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to load monitors: %w", err)
 	}
 	if len(monitors) == 0 {
-		return fmt.Errorf("no monitors found, add some to %s", envCfg.ConfigPath)
+		return fmt.Errorf("no monitors found, add some to %s", cmd.String("config"))
 	}
 
-	start := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
+	start := time.Now().Add(-time.Duration(cmd.Int("days")) * 24 * time.Hour)
 	now := time.Now()
 
 	for i, m := range monitors {
@@ -81,7 +87,7 @@ func run(ctx context.Context, days int) error {
 			}
 			params.IsUp, params.StatusCode, params.ResponseTime, params.Error = generateCheck(i)
 
-			if err := conn.Q.UpsertCheck(ctx, params); err != nil {
+			if err := q.UpsertCheck(ctx, params); err != nil {
 				return fmt.Errorf("failed to insert check for %q: %w", m.Url, err)
 			}
 			count++

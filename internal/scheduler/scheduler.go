@@ -8,39 +8,45 @@ import (
 	"sync"
 	"time"
 
+	"github.com/caarlos0/env/v11"
+
 	"github.com/mizuchilabs/beacon/internal/checker"
 	"github.com/mizuchilabs/beacon/internal/db"
 	"github.com/mizuchilabs/beacon/internal/notify"
 )
 
-type Scheduler struct {
-	q             *db.Queries
-	checker       *checker.Checker
-	notifier      *notify.Notifier
-	retentionDays int
-	wg            sync.WaitGroup
+const defaultRetentionDays = 30
 
-	mu     sync.Mutex
-	lastUp map[int64]bool
+type Scheduler struct {
+	q        *db.Queries
+	checker  *checker.Checker
+	notifier *notify.Notifier
+	wg       sync.WaitGroup
+	mu       sync.Mutex
+	lastUp   map[int64]bool
+
+	RetentionDays int `env:"BEACON_RETENTION_DAYS" envDefault:"30"`
 }
 
 func New(
 	q *db.Queries,
 	checker *checker.Checker,
 	notifier *notify.Notifier,
-	retentionDays int,
-) *Scheduler {
-	if retentionDays <= 1 {
-		retentionDays = 30
+) (*Scheduler, error) {
+	s, err := env.ParseAs[Scheduler]()
+	if err != nil {
+		return nil, err
 	}
 
-	return &Scheduler{
-		q:             q,
-		checker:       checker,
-		notifier:      notifier,
-		retentionDays: retentionDays,
-		lastUp:        make(map[int64]bool),
+	if s.RetentionDays <= 1 {
+		s.RetentionDays = defaultRetentionDays
 	}
+
+	s.q = q
+	s.checker = checker
+	s.notifier = notifier
+	s.lastUp = make(map[int64]bool)
+	return &s, nil
 }
 
 func (s *Scheduler) Start(ctx context.Context) {
@@ -49,6 +55,19 @@ func (s *Scheduler) Start(ctx context.Context) {
 	if err != nil {
 		slog.Error("failed to load monitors", "error", err)
 		return
+	}
+
+	// Seed the last known state so a restart does not report a recovery for an
+	// outage nobody was alerted about
+	states, err := s.q.GetLatestCheckStates(ctx)
+	if err != nil {
+		slog.Error("failed to load last check states", "error", err)
+	} else {
+		s.mu.Lock()
+		for _, state := range states {
+			s.lastUp[state.MonitorID] = state.IsUp
+		}
+		s.mu.Unlock()
 	}
 
 	// Start monitoring
@@ -128,12 +147,16 @@ func (s *Scheduler) cleanupJob(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			cutoff := time.Now().AddDate(0, 0, -s.retentionDays).Unix()
-			if err := s.q.CleanupChecks(ctx, cutoff); err != nil {
+			if err := s.q.CleanupChecks(ctx, s.cleanupCutoff()); err != nil {
 				slog.Error("Failed to cleanup old checks", "error", err)
 			}
 		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+// cleanupCutoff is the oldest check timestamp that survives a cleanup run.
+func (s *Scheduler) cleanupCutoff() int64 {
+	return time.Now().AddDate(0, 0, -s.RetentionDays).Unix()
 }

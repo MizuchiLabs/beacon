@@ -8,10 +8,15 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/caarlos0/env/v11"
 )
 
 type Checker struct {
 	client *http.Client
+
+	Timeout  time.Duration `env:"BEACON_TIMEOUT"  envDefault:"30s"`
+	Insecure bool          `env:"BEACON_INSECURE" envDefault:"false"`
 }
 
 // Result is the outcome of one HTTP check.
@@ -27,19 +32,26 @@ const (
 	defaultTimeout = 30 * time.Second
 )
 
-func New(timeout time.Duration, insecure bool) *Checker {
+func New() (*Checker, error) {
+	c, err := env.ParseAs[Checker]()
+	if err != nil {
+		return nil, err
+	}
+
+	timeout := c.Timeout
 	if timeout < minTimeout {
 		timeout = defaultTimeout
 	}
-	return &Checker{
-		client: &http.Client{
-			Timeout: timeout,
-			Transport: &http.Transport{
-				TLSClientConfig:   &tls.Config{InsecureSkipVerify: insecure}, // #nosec G402
-				DisableKeepAlives: true,
-			},
+
+	c.client = &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			TLSClientConfig:   &tls.Config{InsecureSkipVerify: c.Insecure}, // #nosec G402
+			DisableKeepAlives: true,
 		},
 	}
+
+	return &c, nil
 }
 
 func (c *Checker) Check(ctx context.Context, url string) Result {

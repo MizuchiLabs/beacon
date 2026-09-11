@@ -21,6 +21,7 @@ SELECT
   m.name,
   m.url,
   m.check_interval,
+  COUNT(c.monitor_id) AS check_count,
   CAST(
     ROUND(
       COALESCE(
@@ -30,7 +31,7 @@ SELECT
             ELSE 0
           END
         ) * 100.0 / COUNT(c.monitor_id),
-        100.0
+        0.0
       ),
       2
     ) AS REAL
@@ -44,6 +45,23 @@ GROUP BY
   m.id
 ORDER BY
   m.id;
+
+-- name: GetLatestCheckStates :many
+SELECT
+  c.monitor_id,
+  c.is_up
+FROM
+  checks c
+  JOIN (
+    SELECT
+      monitor_id,
+      MAX(checked_at) AS checked_at
+    FROM
+      checks
+    GROUP BY
+      monitor_id
+  ) latest ON latest.monitor_id = c.monitor_id
+  AND latest.checked_at = c.checked_at;
 
 -- name: GetDataPoints :many
 SELECT

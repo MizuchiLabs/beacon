@@ -15,7 +15,12 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"github.com/mizuchilabs/beacon/internal/api"
-	"github.com/mizuchilabs/beacon/internal/config"
+	"github.com/mizuchilabs/beacon/internal/checker"
+	"github.com/mizuchilabs/beacon/internal/db"
+	"github.com/mizuchilabs/beacon/internal/incidents"
+	"github.com/mizuchilabs/beacon/internal/monitors"
+	"github.com/mizuchilabs/beacon/internal/notify"
+	"github.com/mizuchilabs/beacon/internal/scheduler"
 )
 
 func main() {
@@ -29,13 +34,7 @@ func main() {
 			logx.Init(cmd.Bool("debug"))
 			return ctx, nil
 		},
-		Action: func(ctx context.Context, cmd *cli.Command) error {
-			cfg, err := config.New(ctx, cmd)
-			if err != nil {
-				return err
-			}
-			return api.NewServer(ctx, cfg).Start()
-		},
+		Action: run,
 		Commands: []*cli.Command{
 			{
 				Name:    "openapi",
@@ -49,26 +48,7 @@ func main() {
 						Value:   "web/openapi.json",
 					},
 				},
-				Action: func(ctx context.Context, cmd *cli.Command) (err error) {
-					srv := api.NewServer(ctx, &config.Config{})
-
-					out := cmd.String("output")
-					var b []byte
-					if ext := filepath.Ext(out); ext == ".yaml" || ext == ".yml" {
-						b, err = srv.OpenAPI().YAML()
-					} else {
-						b, err = srv.OpenAPI().MarshalJSON()
-					}
-					if err != nil {
-						return err
-					}
-
-					if err := os.WriteFile(out, b, 0o600); err != nil {
-						return fmt.Errorf("writing spec: %w", err)
-					}
-					slog.Info("OpenAPI spec written", "path", out)
-					return nil
-				},
+				Action: openapi,
 			},
 		},
 		Flags: []cli.Flag{
@@ -79,25 +59,11 @@ func main() {
 				Sources: cli.EnvVars("BEACON_DEBUG"),
 			},
 			&cli.StringFlag{
-				Name:    "port",
-				Aliases: []string{"p"},
-				Usage:   "Server port",
-				Value:   "3000",
-				Sources: cli.EnvVars("BEACON_PORT"),
-			},
-			&cli.StringFlag{
 				Name:    "config",
 				Aliases: []string{"c"},
 				Usage:   "Path to monitors config file",
 				Value:   "config.yaml",
 				Sources: cli.EnvVars("BEACON_CONFIG"),
-			},
-			&cli.StringFlag{
-				Name:    "chart-type",
-				Aliases: []string{"t"},
-				Usage:   "Chart type (bars or area)",
-				Value:   "area",
-				Sources: cli.EnvVars("BEACON_CHART_TYPE"),
 			},
 		},
 	}
@@ -106,4 +72,67 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", cmd.Name, err)
 		os.Exit(1)
 	}
+}
+
+func run(ctx context.Context, cmd *cli.Command) error {
+	q, err := db.Open(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Sync monitors to DB before starting background jobs
+	if err := monitors.Sync(ctx, q, cmd.String("config")); err != nil {
+		return err
+	}
+
+	chk, err := checker.New()
+	if err != nil {
+		return err
+	}
+
+	notifier, err := notify.New(ctx, q)
+	if err != nil {
+		return err
+	}
+
+	sched, err := scheduler.New(q, chk, notifier)
+	if err != nil {
+		return err
+	}
+	sched.Start(ctx)
+
+	inc, err := incidents.New()
+	if err != nil {
+		return err
+	}
+	inc.Start(ctx)
+
+	server, err := api.NewServer(ctx, q, inc)
+	if err != nil {
+		return err
+	}
+	return server.Start()
+}
+
+func openapi(_ context.Context, cmd *cli.Command) error {
+	spec := api.Spec()
+
+	out := cmd.String("output")
+	var b []byte
+	var err error
+	if ext := filepath.Ext(out); ext == ".yaml" || ext == ".yml" {
+		b, err = spec.YAML()
+	} else {
+		b, err = spec.MarshalJSON()
+	}
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(out, b, 0o600); err != nil {
+		return fmt.Errorf("writing spec: %w", err)
+	}
+
+	slog.Info("OpenAPI spec written", "path", out)
+	return nil
 }

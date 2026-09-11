@@ -33,7 +33,14 @@
 					"timestamp": { "format": "date-time", "type": "string" },
 					"up_ratio": { "format": "double", "type": "number" }
 				},
-				"required": ["timestamp", "response_time", "is_up"],
+				"required": [
+					"timestamp",
+					"response_time",
+					"is_up",
+					"up_ratio",
+					"degraded_ratio",
+					"down_ratio"
+				],
 				"type": "object"
 			},
 			"ErrorDetail": {
@@ -120,7 +127,7 @@
 			"MonitorStats": {
 				"additionalProperties": false,
 				"properties": {
-					"avg_response_time": { "format": "int64", "type": "integer" },
+					"avg_response_time": { "format": "int64", "type": ["integer", "null"] },
 					"check_interval": { "format": "int64", "type": "integer" },
 					"data_points": {
 						"items": { "$ref": "#/components/schemas/DataPoint" },
@@ -129,7 +136,7 @@
 					"id": { "format": "int64", "type": "integer" },
 					"name": { "type": "string" },
 					"percentiles": { "$ref": "#/components/schemas/Percentiles" },
-					"uptime_pct": { "format": "double", "type": "number" },
+					"uptime_pct": { "format": "double", "type": ["number", "null"] },
 					"url": { "type": "string" }
 				},
 				"required": [
@@ -139,7 +146,6 @@
 					"check_interval",
 					"avg_response_time",
 					"uptime_pct",
-					"percentiles",
 					"data_points"
 				],
 				"type": "object"

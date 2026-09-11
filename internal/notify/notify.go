@@ -8,15 +8,27 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/SherClockHolmes/webpush-go"
+	"github.com/caarlos0/env/v11"
 
 	"github.com/mizuchilabs/beacon/internal/db"
+)
+
+const (
+	// pushTTL keeps an undelivered alert at the push service long enough for
+	// a sleeping device to still receive it.
+	pushTTL     = 12 * 60 * 60
+	pushTimeout = 10 * time.Second
 )
 
 type Notifier struct {
 	q         *db.Queries
 	vapidKeys *db.VapidKey
+	client    *http.Client
+
+	Subscriber string `env:"BEACON_PUSH_SUBSCRIBER" envDefault:"mailto:beacon@mizuchi.dev"`
 }
 
 type NotificationPayload struct {
@@ -27,6 +39,12 @@ type NotificationPayload struct {
 }
 
 func New(ctx context.Context, q *db.Queries) (*Notifier, error) {
+	n, err := env.ParseAs[Notifier]()
+	if err != nil {
+		return nil, err
+	}
+	n.q = q
+
 	result, err := q.VAPIDKeysExist(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check VAPID keys: %w", err)
@@ -46,15 +64,13 @@ func New(ctx context.Context, q *db.Queries) (*Notifier, error) {
 		}
 	}
 
-	vapidKeys, err := q.GetVAPIDKeys(ctx)
+	n.vapidKeys, err = q.GetVAPIDKeys(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get VAPID keys: %w", err)
 	}
+	n.client = &http.Client{Timeout: pushTimeout}
 
-	return &Notifier{
-		q:         q,
-		vapidKeys: vapidKeys,
-	}, nil
+	return &n, nil
 }
 
 // SendMonitorNotification sends push notifications to all subscribers of a
@@ -97,7 +113,7 @@ func (n *Notifier) SendMonitorNotification(
 	}
 
 	for _, sub := range subscriptions {
-		status, err := n.sendPushNotification(sub, payloadBytes)
+		status, err := n.sendPushNotification(ctx, sub, payloadBytes)
 		if err == nil {
 			continue
 		}
@@ -125,6 +141,7 @@ func (n *Notifier) SendMonitorNotification(
 // sendPushNotification returns the HTTP status reported by the push service,
 // or 0 if the request failed before a response was received.
 func (n *Notifier) sendPushNotification(
+	ctx context.Context,
 	subscription *db.PushSubscription,
 	payload []byte,
 ) (int, error) {
@@ -136,12 +153,18 @@ func (n *Notifier) sendPushNotification(
 		},
 	}
 
-	resp, err := webpush.SendNotification(payload, sub, &webpush.Options{
-		Subscriber:      "mailto:beacon@mizuchi.dev", // Contact email for push notifications
-		VAPIDPublicKey:  n.vapidKeys.PublicKey,
-		VAPIDPrivateKey: n.vapidKeys.PrivateKey,
-		TTL:             30, // Time to live in seconds
-	})
+	resp, err := webpush.SendNotificationWithContext(
+		ctx,
+		payload,
+		sub,
+		&webpush.Options{
+			HTTPClient:      n.client,
+			Subscriber:      n.Subscriber,
+			VAPIDPublicKey:  n.vapidKeys.PublicKey,
+			VAPIDPrivateKey: n.vapidKeys.PrivateKey,
+			TTL:             pushTTL,
+		},
+	)
 	if err != nil {
 		return 0, fmt.Errorf("failed to send push: %w", err)
 	}

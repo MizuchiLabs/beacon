@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -18,43 +17,37 @@ import (
 //go:embed schemas/*.sql
 var schemaFS embed.FS
 
-var DBPath = "data/beacon.db"
+const DBPath = "data/beacon.db"
 
-type Connection struct {
-	DB *sql.DB
-	Q  *Queries
-}
-
-func NewConnection(ctx context.Context) *Connection {
-	if err := os.MkdirAll("data", 0o750); err != nil {
-		slog.Error("Failed to create data directory", "error", err)
+// Open connects to the SQLite database and applies the schema. The pool is
+// closed when ctx is cancelled.
+func Open(ctx context.Context) (*Queries, error) {
+	if err := os.MkdirAll(filepath.Dir(DBPath), 0o750); err != nil {
+		return nil, fmt.Errorf("creating database directory: %w", err)
 	}
 
 	dataSource := fmt.Sprintf("file:%s?_txlock=immediate", filepath.ToSlash(DBPath))
 	sqliteDB, err := sql.Open("sqlite", dataSource)
 	if err != nil {
-		slog.Error("Failed to open database", "err", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("opening database: %w", err)
 	}
 
 	if err := setupSQLite(sqliteDB); err != nil {
-		slog.Error("Failed to configure database", "err", err)
-		os.Exit(1)
+		_ = sqliteDB.Close()
+		return nil, err
 	}
-	migrate(ctx, sqliteDB)
 
-	// Wait for shutdown signal
+	if err := migrate(ctx, sqliteDB); err != nil {
+		_ = sqliteDB.Close()
+		return nil, fmt.Errorf("applying schema: %w", err)
+	}
+
 	go func() {
 		<-ctx.Done()
-		if err := sqliteDB.Close(); err != nil {
-			slog.Error("Failed to close database", "error", err)
-		}
+		_ = sqliteDB.Close()
 	}()
 
-	return &Connection{
-		DB: sqliteDB,
-		Q:  New(sqliteDB),
-	}
+	return New(sqliteDB), nil
 }
 
 // setupSQLite applies performance and safety pragmas.
@@ -82,10 +75,7 @@ func setupSQLite(db *sql.DB) error {
 	return nil
 }
 
-func migrate(ctx context.Context, db *sql.DB) {
+func migrate(ctx context.Context, db *sql.DB) error {
 	parser.SetBaseFS(schemaFS)
-	if err := diff.Apply(ctx, db, "schemas", diff.ApplyOptions{}); err != nil {
-		slog.Error("failed to apply schema changes", "error", err)
-		return
-	}
+	return diff.Apply(ctx, db, "schemas", diff.ApplyOptions{})
 }

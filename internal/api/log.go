@@ -56,7 +56,7 @@ func (s *Server) WithLogger(next http.Handler) http.Handler {
 			level = slog.LevelWarn
 		default:
 			level = slog.LevelInfo
-			if s.cfg.Debug {
+			if s.debug {
 				level = slog.LevelDebug
 			}
 			path := r.URL.Path
@@ -65,7 +65,7 @@ func (s *Server) WithLogger(next http.Handler) http.Handler {
 			}
 
 			// Filter out noisy successful requests (2xx/3xx) when not debugging
-			if !s.cfg.Debug {
+			if !s.debug {
 				if path == "/healthz" {
 					return
 				}

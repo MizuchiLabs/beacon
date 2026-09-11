@@ -6,7 +6,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/mizuchilabs/beacon/internal/db"
 )
 
@@ -56,8 +55,8 @@ type NotifyService struct {
 	q *db.Queries
 }
 
-func NewNotifyService(api huma.API, cfg *config.Config) *NotifyService {
-	svc := &NotifyService{q: cfg.Conn.Q}
+func NewNotifyService(api huma.API, q *db.Queries) *NotifyService {
+	svc := &NotifyService{q: q}
 	huma.Register(api, huma.Operation{
 		OperationID: "get-vapid-public-key",
 		Method:      http.MethodGet,

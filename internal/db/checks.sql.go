@@ -111,12 +111,59 @@ func (q *Queries) GetDataPoints(ctx context.Context, arg *GetDataPointsParams) (
 	return items, nil
 }
 
+const getLatestCheckStates = `-- name: GetLatestCheckStates :many
+SELECT
+  c.monitor_id,
+  c.is_up
+FROM
+  checks c
+  JOIN (
+    SELECT
+      monitor_id,
+      MAX(checked_at) AS checked_at
+    FROM
+      checks
+    GROUP BY
+      monitor_id
+  ) latest ON latest.monitor_id = c.monitor_id
+  AND latest.checked_at = c.checked_at
+`
+
+type GetLatestCheckStatesRow struct {
+	MonitorID int64 `json:"monitorId"`
+	IsUp      bool  `json:"isUp"`
+}
+
+func (q *Queries) GetLatestCheckStates(ctx context.Context) ([]*GetLatestCheckStatesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getLatestCheckStates)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*GetLatestCheckStatesRow
+	for rows.Next() {
+		var i GetLatestCheckStatesRow
+		if err := rows.Scan(&i.MonitorID, &i.IsUp); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getMonitorStats = `-- name: GetMonitorStats :many
 SELECT
   m.id,
   m.name,
   m.url,
   m.check_interval,
+  COUNT(c.monitor_id) AS check_count,
   CAST(
     ROUND(
       COALESCE(
@@ -126,7 +173,7 @@ SELECT
             ELSE 0
           END
         ) * 100.0 / COUNT(c.monitor_id),
-        100.0
+        0.0
       ),
       2
     ) AS REAL
@@ -147,6 +194,7 @@ type GetMonitorStatsRow struct {
 	Name            string  `json:"name"`
 	Url             string  `json:"url"`
 	CheckInterval   int64   `json:"checkInterval"`
+	CheckCount      int64   `json:"checkCount"`
 	UptimePct       float64 `json:"uptimePct"`
 	AvgResponseTime int64   `json:"avgResponseTime"`
 }
@@ -165,6 +213,7 @@ func (q *Queries) GetMonitorStats(ctx context.Context, since int64) ([]*GetMonit
 			&i.Name,
 			&i.Url,
 			&i.CheckInterval,
+			&i.CheckCount,
 			&i.UptimePct,
 			&i.AvgResponseTime,
 		); err != nil {
