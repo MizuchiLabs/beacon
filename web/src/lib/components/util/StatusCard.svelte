@@ -13,24 +13,35 @@
 	}
 	let { monitor, chartType }: Props = $props();
 
+	const uptime = $derived(monitor.uptime_pct);
+
 	const status = $derived(
-		monitor.uptime_pct >= 99
-			? { label: 'Operational', class: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/20' }
-			: monitor.uptime_pct >= 95
-				? { label: 'Degraded', class: 'bg-amber-500/15 text-amber-600 border-amber-500/20' }
-				: { label: 'Down', class: 'bg-red-500/15 text-red-600 border-red-500/20' }
+		uptime === null
+			? { label: 'No data', class: 'bg-muted text-muted-foreground border-border' }
+			: uptime >= 99
+				? {
+						label: 'Operational',
+						class: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/20'
+					}
+				: uptime >= 95
+					? { label: 'Degraded', class: 'bg-amber-500/15 text-amber-600 border-amber-500/20' }
+					: { label: 'Down', class: 'bg-red-500/15 text-red-600 border-red-500/20' }
 	);
 
 	const uptimeColor = $derived(
-		monitor.uptime_pct >= 99
-			? 'text-emerald-600'
-			: monitor.uptime_pct >= 95
-				? 'text-amber-600'
-				: 'text-red-600'
+		uptime === null
+			? 'text-muted-foreground'
+			: uptime >= 99
+				? 'text-emerald-600'
+				: uptime >= 95
+					? 'text-amber-600'
+					: 'text-red-600'
 	);
 
-	const getLatencyClass = (ms: number | undefined | null) => {
-		if (!ms) return 'text-muted-foreground';
+	const fmtMs = (ms: number | null | undefined) => (ms == null ? '-' : `${ms}ms`);
+
+	const getLatencyClass = (ms: number | null | undefined) => {
+		if (ms == null) return 'text-muted-foreground';
 		if (ms < 200) return 'text-emerald-600';
 		if (ms < 500) return 'text-amber-600';
 		return 'text-red-600';
@@ -67,7 +78,7 @@
 		</div>
 
 		<span class={cn('text-xl font-bold tracking-tight tabular-nums', uptimeColor)}>
-			{monitor.uptime_pct.toFixed(2)}%
+			{uptime === null ? '-' : `${uptime.toFixed(2)}%`}
 		</span>
 	</Card.Header>
 
@@ -90,34 +101,34 @@
 			<div class="col-span-1 flex flex-col gap-0.5">
 				<span class="text-muted-foreground">Avg</span>
 				<span class="font-medium {getLatencyClass(monitor.avg_response_time)}">
-					{monitor.avg_response_time ?? '-'}ms
+					{fmtMs(monitor.avg_response_time)}
 				</span>
 			</div>
 
 			<div class="col-span-1 flex flex-col gap-0.5 border-l pl-3">
 				<span class="text-muted-foreground">P50</span>
 				<span class="font-medium {getLatencyClass(monitor.percentiles?.p50)}">
-					{monitor.percentiles?.p50 ?? '-'}ms
+					{fmtMs(monitor.percentiles?.p50)}
 				</span>
 			</div>
 
 			<div class="col-span-1 flex flex-col gap-0.5 border-l pl-3">
 				<span class="text-muted-foreground">P95</span>
 				<span class="font-medium {getLatencyClass(monitor.percentiles?.p95)}">
-					{monitor.percentiles?.p95 ?? '-'}ms
+					{fmtMs(monitor.percentiles?.p95)}
 				</span>
 			</div>
 
 			<div class="col-span-1 hidden flex-col gap-0.5 border-l pl-3 sm:flex">
 				<span class="text-muted-foreground">P99</span>
 				<span class="font-medium {getLatencyClass(monitor.percentiles?.p99)}">
-					{monitor.percentiles?.p99 ?? '-'}ms
+					{fmtMs(monitor.percentiles?.p99)}
 				</span>
 			</div>
 
 			<div class="col-span-1 ml-auto hidden items-center justify-end sm:flex">
 				<Badge variant="outline" class={cn('text-xs font-medium', status.class)}>
-					{#if monitor.uptime_pct >= 95}
+					{#if uptime !== null && uptime >= 95}
 						<span class="relative mr-1.5 flex h-1.5 w-1.5">
 							<span
 								class="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-75"

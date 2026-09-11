@@ -45,6 +45,11 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
+	// API responses are never cached, a stale status page is worse than none
+	if (url.pathname.startsWith('/api/')) {
+		return;
+	}
+
 	async function respond() {
 		const cache = await caches.open(CACHE);
 
