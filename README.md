@@ -86,19 +86,23 @@ monitors:
 
 ## Environment Variables
 
-| Variable                | Default            | Description                                        |
-| ----------------------- | ------------------ | -------------------------------------------------- |
-| `BEACON_PORT`           | `3000`             | Server port                                        |
-| `BEACON_CONFIG`         | `config.yaml`      | Path to monitors configuration file                |
-| `BEACON_MONITORS`       | -                  | YAML configuration as string (alternative to file) |
-| `BEACON_DB_PATH`        | `data/beacon.db`   | SQLite database path                               |
-| `BEACON_TIMEOUT`        | `30s`              | HTTP request timeout                               |
-| `BEACON_INSECURE`       | `false`            | Skip TLS certificate verification                  |
-| `BEACON_RETENTION_DAYS` | `30`               | Days to keep check history                         |
-| `BEACON_TITLE`          | `Beacon Dashboard` | Dashboard title                                    |
-| `BEACON_DESCRIPTION`    | `Track uptime...`  | Dashboard description                              |
-| `BEACON_TIMEZONE`       | `Europe/Vienna`    | Display timezone                                   |
-| `DEBUG`                 | `false`            | Enable debug logging                               |
+| Variable                 | Default            | Description                                        |
+| ------------------------ | ------------------ | -------------------------------------------------- |
+| `BEACON_PORT`            | `3000`             | Server port                                        |
+| `BEACON_CONFIG`          | `config.yaml`      | Path to monitors configuration file                |
+| `BEACON_MONITORS`        | -                  | YAML configuration as string (alternative to file) |
+| `BEACON_TIMEOUT`         | `30s`              | HTTP request timeout                               |
+| `BEACON_INSECURE`        | `false`            | Skip TLS certificate verification                  |
+| `BEACON_RETENTION_DAYS`  | `30`               | Days to keep check history                         |
+| `BEACON_TITLE`           | `Beacon Dashboard` | Dashboard title                                    |
+| `BEACON_DESCRIPTION`     | `Track uptime...`  | Dashboard description                              |
+| `BEACON_TIMEZONE`        | `Europe/Vienna`    | Display timezone                                   |
+| `BEACON_CHART_TYPE`      | `area`             | Chart style, `area` or `bars`                      |
+| `BEACON_PUSH_SUBSCRIBER` | `mailto:beacon@...`| VAPID contact sent with push notifications         |
+| `BEACON_DEBUG`           | `false`            | Enable debug logging                               |
+
+The SQLite database is always written to `data/beacon.db` relative to the
+working directory.
 
 ### Incident Management
 
@@ -122,7 +126,6 @@ services:
       - ./config.yaml:/config.yaml:ro
     environment:
       - BEACON_CONFIG=/config.yaml
-      - BEACON_DB_PATH=/data/beacon.db
       - BEACON_RETENTION_DAYS=90
       - BEACON_TITLE=My Status Page
       - TZ=America/New_York
@@ -167,12 +170,19 @@ export BEACON_INCIDENT_PATH=/data/incidents
 git clone https://github.com/mizuchilabs/beacon.git
 cd beacon || exit
 
+# Build frontend, it gets embedded into the binary
+cd web && pnpm install && pnpm build && cd ..
+
 # Build
-go build -o beacon ./cmd
+go build -o beacon ./cmd/beacon
 
 # Run
 ./beacon --config config.yaml
 ```
+
+`task build` does the frontend build and the Go build in one step. The Go build
+alone fails on a fresh clone because the embedded `web/build` directory does not
+exist yet.
 
 ## Screenshots
 
