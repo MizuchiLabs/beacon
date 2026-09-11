@@ -23,8 +23,8 @@ const (
 
 func (s *Server) WithCORS(h http.Handler) http.Handler {
 	allowedOrigins := []string{
-		"http://127.0.0.1:" + s.cfg.ServerPort,
-		"http://localhost:" + s.cfg.ServerPort,
+		"http://127.0.0.1:" + s.cfg.Port,
+		"http://localhost:" + s.cfg.Port,
 		"http://localhost:5173",
 	}
 
@@ -62,6 +62,26 @@ func WithSecurityHeaders(next http.Handler) http.Handler {
 	})
 }
 
+// forwardedFor returns the client address from X-Forwarded-For when the direct
+// peer is a loopback or private address, which is what a local proxy looks like.
+func forwardedFor(r *http.Request, peer string) (string, bool) {
+	fwd := r.Header.Get("X-Forwarded-For")
+	if fwd == "" {
+		return "", false
+	}
+
+	peerIP := net.ParseIP(peer)
+	if peerIP == nil || (!peerIP.IsLoopback() && !peerIP.IsPrivate()) {
+		return "", false
+	}
+
+	first := strings.TrimSpace(strings.Split(fwd, ",")[0])
+	if net.ParseIP(first) == nil {
+		return "", false
+	}
+	return first, true
+}
+
 // WithRateLimit creates a simple IP-based rate limiter middleware.
 func WithRateLimit(next http.Handler) http.Handler {
 	type client struct {
@@ -89,14 +109,21 @@ func WithRateLimit(next http.Handler) http.Handler {
 	}()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Static assets and health checks are not worth limiting, and a cold
+		// page load fires far more of them than any sane burst allows.
+		if !strings.HasPrefix(r.URL.Path, "/api/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
 			ip = r.RemoteAddr
 		}
-		// Handle proxies
-		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-			ips := strings.Split(fwd, ",")
-			ip = strings.TrimSpace(ips[0])
+		// A public peer can send any X-Forwarded-For it likes, so the header is
+		// only honoured for the local reverse proxy of a container or host.
+		if fwd, ok := forwardedFor(r, ip); ok {
+			ip = fwd
 		}
 
 		mu.Lock()
