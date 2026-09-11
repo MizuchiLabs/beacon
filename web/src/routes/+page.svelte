@@ -76,7 +76,7 @@
 	{:else}
 		<div class="flex flex-col gap-4">
 			{#each statsQuery.data || [] as monitor (monitor.id)}
-				<StatusCard {monitor} chartType={configQuery.data?.chart_type ?? 'bars'} />
+				<StatusCard {monitor} chartType={configQuery.data?.chart_type ?? 'area'} />
 			{/each}
 		</div>
 	{/if}

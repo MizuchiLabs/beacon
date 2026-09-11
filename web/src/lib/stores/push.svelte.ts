@@ -3,12 +3,12 @@ import {
 	subscribeToMonitor,
 	unsubscribeFromMonitor
 } from '$lib/api/generated/sdk.gen';
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteSet } from 'svelte/reactivity';
 
 interface PushSubscriptionState {
 	supported: boolean;
 	permission: NotificationPermission;
-	subscriptions: SvelteMap<number, PushSubscription>;
+	subscriptions: SvelteSet<number>;
 	loading: boolean;
 	error: string | null;
 }
@@ -17,7 +17,7 @@ class PushNotificationStore {
 	private state = $state<PushSubscriptionState>({
 		supported: false,
 		permission: 'default',
-		subscriptions: new SvelteMap(),
+		subscriptions: new SvelteSet(),
 		loading: false,
 		error: null
 	});
@@ -28,10 +28,6 @@ class PushNotificationStore {
 
 	get permission() {
 		return this.state.permission;
-	}
-
-	get subscriptions() {
-		return this.state.subscriptions;
 	}
 
 	get loading() {
@@ -47,7 +43,7 @@ class PushNotificationStore {
 	}
 
 	get subscribedMonitorIds() {
-		return Array.from(this.state.subscriptions.keys());
+		return [...this.state.subscriptions];
 	}
 
 	checkSupport() {
@@ -83,7 +79,6 @@ class PushNotificationStore {
 		this.state.error = null;
 
 		try {
-			// Get service worker registration
 			const registration = await navigator.serviceWorker.ready;
 			if (!registration) {
 				throw new Error('Service worker not ready');
@@ -95,21 +90,18 @@ class PushNotificationStore {
 				throw new Error('Notification permission denied');
 			}
 
-			// Check for existing subscription
+			// One browser subscription serves every monitor
 			let subscription = await registration.pushManager.getSubscription();
 
 			if (!subscription) {
-				// Get VAPID public key
 				const vapidPublicKey = await this.getVAPIDPublicKey();
 
-				// Subscribe to push notifications
 				subscription = await registration.pushManager.subscribe({
 					userVisibleOnly: true,
 					applicationServerKey: this.urlBase64ToUint8Array(vapidPublicKey)
 				});
 			}
 
-			// Send subscription to backend
 			const { error } = await subscribeToMonitor({
 				path: { id: monitorID },
 				body: {
@@ -125,8 +117,7 @@ class PushNotificationStore {
 				throw new Error('Failed to save subscription on server');
 			}
 
-			// Save subscription locally
-			this.state.subscriptions.set(monitorID, subscription);
+			this.state.subscriptions.add(monitorID);
 			this.state.loading = false;
 			this.saveSubscriptions();
 			return true;
@@ -145,28 +136,23 @@ class PushNotificationStore {
 		this.state.error = null;
 
 		try {
-			const subscription = this.state.subscriptions.get(monitorID);
+			const registration = await navigator.serviceWorker.ready;
+			const subscription = await registration.pushManager.getSubscription();
 
 			if (subscription) {
-				// Notify backend to remove association
 				await unsubscribeFromMonitor({
 					path: { id: monitorID },
 					body: { endpoint: subscription.endpoint }
 				});
 			}
 
-			// Remove from local state
 			this.state.subscriptions.delete(monitorID);
 			this.state.loading = false;
 			this.saveSubscriptions();
 
-			// If no more subscriptions, unsubscribe from push manager
-			if (this.state.subscriptions.size === 0) {
-				const registration = await navigator.serviceWorker.ready;
-				const pushSubscription = await registration.pushManager.getSubscription();
-				if (pushSubscription) {
-					await pushSubscription.unsubscribe();
-				}
+			// Drop the browser subscription once no monitor uses it
+			if (this.state.subscriptions.size === 0 && subscription) {
+				await subscription.unsubscribe();
 			}
 
 			return true;
@@ -178,13 +164,8 @@ class PushNotificationStore {
 		}
 	}
 
-	isSubscribed(monitorID: number): boolean {
-		return this.state.subscriptions.has(monitorID);
-	}
-
 	private saveSubscriptions() {
-		const subscriptionData = Array.from(this.state.subscriptions.keys());
-		localStorage.setItem('monitor-subscriptions', JSON.stringify(subscriptionData));
+		localStorage.setItem('monitor-subscriptions', JSON.stringify([...this.state.subscriptions]));
 	}
 
 	private loadSubscriptions() {
@@ -192,10 +173,7 @@ class PushNotificationStore {
 			const stored = localStorage.getItem('monitor-subscriptions');
 			if (stored) {
 				const monitorIds: number[] = JSON.parse(stored);
-				// Store just the IDs - actual subscriptions are managed by the browser
-				monitorIds.forEach((id) => {
-					this.state.subscriptions.set(id, {} as PushSubscription);
-				});
+				monitorIds.forEach((id) => this.state.subscriptions.add(id));
 			}
 		} catch (error) {
 			console.error('Failed to load subscriptions:', error);

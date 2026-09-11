@@ -11,31 +11,13 @@
 	let { monitor }: Props = $props();
 
 	const chartData = $derived(
-		(monitor.data_points ?? []).map((dp, idx) => {
-			// Check if we have pre-calculated ratios from backend
-			if (dp.up_ratio !== undefined && dp.up_ratio !== null) {
-				return {
-					id: idx,
-					timestamp: new Date(dp.timestamp),
-					up: dp.up_ratio,
-					degraded: dp.degraded_ratio ?? 0,
-					down: dp.down_ratio ?? 0
-				};
-			}
-
-			// Fallback: calculate from individual point (for timeseries data)
-			const isDown = !dp.is_up;
-			const isDegraded = dp.is_up && dp.response_time && dp.response_time > 500;
-			const isUp = dp.is_up && (!dp.response_time || dp.response_time <= 500);
-
-			return {
-				id: idx,
-				timestamp: new Date(dp.timestamp),
-				up: isUp ? 1 : 0,
-				degraded: isDegraded ? 1 : 0,
-				down: isDown ? 1 : 0
-			};
-		})
+		(monitor.data_points ?? []).map((dp, idx) => ({
+			id: idx,
+			timestamp: new Date(dp.timestamp),
+			up: dp.up_ratio,
+			degraded: dp.degraded_ratio,
+			down: dp.down_ratio
+		}))
 	);
 
 	const chartConfig = {
