@@ -21,41 +21,23 @@ import (
 type Server struct {
 	api       huma.API
 	mux       *http.ServeMux
-	cfg       *Config
 	q         *db.Queries
-	incidents *incidents.IncidentManager
+	incidents *incidents.Service
 	debug     bool
-	rootCtx   context.Context
 }
 
-// Spec builds the OpenAPI description of the API without starting a server.
-func Spec() *huma.OpenAPI {
-	mux := http.NewServeMux()
-	server := &Server{api: newAPI(mux), mux: mux, cfg: &Config{}}
-	server.setupRoutes()
-	return server.api.OpenAPI()
-}
-
-func NewServer(
+func New(
 	ctx context.Context,
 	q *db.Queries,
-	inc *incidents.IncidentManager,
+	inc *incidents.Service,
 ) (*Server, error) {
-	cfg, err := loadConfig()
-	if err != nil {
-		return nil, err
-	}
-
 	mux := http.NewServeMux()
 	return &Server{
 		api:       newAPI(mux),
 		mux:       mux,
-		cfg:       cfg,
 		q:         q,
 		incidents: inc,
-		// logx owns the log level, an enabled debug level is the switch
-		debug:   slog.Default().Enabled(ctx, slog.LevelDebug),
-		rootCtx: ctx,
+		debug:     slog.Default().Enabled(ctx, slog.LevelDebug),
 	}, nil
 }
 
@@ -65,18 +47,26 @@ func newAPI(mux *http.ServeMux) huma.API {
 	return humago.New(mux, apiCfg)
 }
 
-func (s *Server) Start() error {
+// Spec builds the OpenAPI description of the API without starting a server.
+func Spec() *huma.OpenAPI {
+	mux := http.NewServeMux()
+	server := &Server{api: newAPI(mux), mux: mux}
+	server.setupRoutes()
+	return server.api.OpenAPI()
+}
+
+func (s *Server) Start(ctx context.Context, port string) error {
 	s.setupRoutes()
 
 	chain := NewChain(
-		s.WithCORS,
+		WithCORS(port),
 		s.WithLogger,
 		WithRateLimit,
 		WithBodyLimit,
 		WithSecurityHeaders,
 	)
 	server := &http.Server{
-		Addr:              ":" + s.cfg.Port,
+		Addr:              ":" + port,
 		Handler:           chain.Then(s.mux),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
@@ -87,7 +77,7 @@ func (s *Server) Start() error {
 
 	serverErr := make(chan error, 1)
 	go func() {
-		slog.Info("Server listening on", "port", s.cfg.Port)
+		slog.Info("Server listening on", "port", port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			serverErr <- err
 		}
@@ -95,7 +85,7 @@ func (s *Server) Start() error {
 
 	// Wait for context cancellation or server error
 	select {
-	case <-s.rootCtx.Done():
+	case <-ctx.Done():
 		slog.Info("Shutting down server...")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
@@ -108,8 +98,8 @@ func (s *Server) Start() error {
 
 func (s *Server) setupRoutes() {
 	// API routes, each service registers its own operations on the huma API
-	NewConfigService(s.api, s.cfg, s.incidents)
-	NewMonitorService(s.api, s.cfg, s.q)
+	NewConfigService(s.api)
+	NewMonitorService(s.api, s.q)
 	NewIncidentService(s.api, s.incidents)
 	NewNotifyService(s.api, s.q)
 

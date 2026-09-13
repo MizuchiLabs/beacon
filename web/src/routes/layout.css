@@ -4,6 +4,7 @@
 @import '@fontsource-variable/manrope';
 @import '@fontsource-variable/victor-mono';
 @import '@fontsource-variable/victor-mono/wght-italic.css';
+@import 'shadcn-svelte/tailwind.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -143,10 +144,6 @@
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-ring: var(--sidebar-ring);
 
-	--color-chart-success: var(--chart-success);
-	--color-chart-warning: var(--chart-warning);
-	--color-chart-error: var(--chart-error);
-
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
@@ -167,6 +164,14 @@
 	--font-mono: 'Victor Mono Variable', monospace;
 
 	--background-pattern: url('/src/lib/assets/pattern.svg');
+
+	--font-heading: 'Manrope Variable', sans-serif;
+
+	--radius-2xl: calc(var(--radius) * 1.8);
+
+	--radius-3xl: calc(var(--radius) * 2.2);
+
+	--radius-4xl: calc(var(--radius) * 2.6);
 }
 
 @layer base {
@@ -175,5 +180,8 @@
 	}
 	body {
 		@apply bg-background text-foreground;
+	}
+	html {
+		@apply font-sans;
 	}
 }

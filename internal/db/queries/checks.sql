@@ -15,60 +15,31 @@ DELETE FROM checks
 WHERE
   checked_at < sqlc.arg (cutoff);
 
--- name: GetMonitorStats :many
-SELECT
-  m.id,
-  m.name,
-  m.url,
-  m.check_interval,
-  COUNT(c.monitor_id) AS check_count,
-  CAST(
-    ROUND(
-      COALESCE(
-        SUM(
-          CASE
-            WHEN c.is_up THEN 1
-            ELSE 0
-          END
-        ) * 100.0 / COUNT(c.monitor_id),
-        0.0
-      ),
-      2
-    ) AS REAL
-  ) AS uptime_pct,
-  CAST(COALESCE(AVG(c.response_time), 0.0) AS INTEGER) AS avg_response_time
-FROM
-  monitors m
-  LEFT JOIN checks c ON c.monitor_id = m.id
-  AND c.checked_at >= sqlc.arg (since)
-GROUP BY
-  m.id
-ORDER BY
-  m.id;
-
--- name: GetLatestCheckStates :many
+-- name: GetLatestChecks :many
 SELECT
   c.monitor_id,
-  c.is_up
+  c.status_code,
+  c.response_time,
+  c.is_up,
+  c.checked_at
 FROM
-  checks c
-  JOIN (
+  monitors m
+  JOIN checks c ON c.monitor_id = m.id
+WHERE
+  c.checked_at = (
     SELECT
-      monitor_id,
-      MAX(checked_at) AS checked_at
+      MAX(c2.checked_at)
     FROM
-      checks
-    GROUP BY
-      monitor_id
-  ) latest ON latest.monitor_id = c.monitor_id
-  AND latest.checked_at = c.checked_at;
+      checks c2
+    WHERE
+      c2.monitor_id = m.id
+  );
 
--- name: GetDataPoints :many
+-- name: GetCheckWindow :many
 SELECT
   monitor_id,
-  checked_at - (checked_at % sqlc.arg (bucket_size)) AS bucket_ts,
-  COUNT(*) AS total_count,
-  CAST(COALESCE(AVG(response_time), 0.0) AS INTEGER) AS avg_response_time,
+  checked_at - (checked_at % sqlc.arg (step)) AS ts,
+  COUNT(*) AS total,
   CAST(
     SUM(
       CASE
@@ -77,7 +48,7 @@ SELECT
         ELSE 0
       END
     ) AS INTEGER
-  ) AS up_count,
+  ) AS up,
   CAST(
     SUM(
       CASE
@@ -86,7 +57,7 @@ SELECT
         ELSE 0
       END
     ) AS INTEGER
-  ) AS degraded_count,
+  ) AS degraded,
   CAST(
     SUM(
       CASE
@@ -94,24 +65,28 @@ SELECT
         ELSE 0
       END
     ) AS INTEGER
-  ) AS down_count
+  ) AS down,
+  CAST(SUM(response_time) AS INTEGER) AS sum_ms
 FROM
   checks
 WHERE
-  checked_at >= sqlc.arg (since)
+  checked_at >= sqlc.arg (from_ts)
 GROUP BY
   monitor_id,
-  bucket_ts
+  ts
 ORDER BY
   monitor_id,
-  bucket_ts;
+  ts;
 
--- name: GetResponseTimes :many
+-- name: GetCheckResponseTimes :many
 SELECT
   monitor_id,
   response_time
 FROM
   checks
 WHERE
-  checked_at >= sqlc.arg (since)
-  AND is_up = 1;
+  checked_at >= sqlc.arg (from_ts)
+  AND is_up
+ORDER BY
+  monitor_id,
+  response_time;

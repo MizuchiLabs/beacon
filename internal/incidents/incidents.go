@@ -12,7 +12,7 @@ import (
 	"github.com/caarlos0/env/v11"
 )
 
-type IncidentManager struct {
+type Service struct {
 	mu        sync.RWMutex
 	incidents []Incident
 
@@ -21,25 +21,24 @@ type IncidentManager struct {
 	Interval time.Duration `env:"BEACON_INCIDENT_SYNC" envDefault:"5m"`
 }
 
-func New() (*IncidentManager, error) {
-	inc, err := env.ParseAs[IncidentManager]()
+func New() (*Service, error) {
+	i, err := env.ParseAs[Service]()
 	if err != nil {
 		return nil, err
 	}
 
-	if inc.RepoURL == "" {
-		if _, err := os.Stat(inc.RepoPath); os.IsNotExist(err) {
+	if i.RepoURL == "" {
+		if _, err := os.Stat(i.RepoPath); os.IsNotExist(err) {
 			slog.Debug("No incident repo URL or local path set, incidents disabled")
 			return nil, nil
 		}
-		slog.Info("Using local incident directory", "path", inc.RepoPath)
+		slog.Info("Using local incident directory", "path", i.RepoPath)
 	}
-	inc.incidents = make([]Incident, 0)
-
-	return &inc, nil
+	i.incidents = make([]Incident, 0)
+	return &i, nil
 }
 
-func (i *IncidentManager) Start(ctx context.Context) {
+func (i *Service) Start(ctx context.Context) {
 	if i == nil {
 		return
 	}
@@ -80,7 +79,7 @@ func (i *IncidentManager) Start(ctx context.Context) {
 	}
 }
 
-func (i *IncidentManager) syncRepo(ctx context.Context) error {
+func (i *Service) syncRepo(ctx context.Context) error {
 	if _, err := os.Stat(i.RepoPath); os.IsNotExist(err) {
 		slog.Info("Cloning incidents repository", "url", i.RepoURL)
 		cmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", i.RepoURL, i.RepoPath) // #nosec G204
@@ -92,7 +91,7 @@ func (i *IncidentManager) syncRepo(ctx context.Context) error {
 	return cmd.Run()
 }
 
-func (i *IncidentManager) loadIncidents() error {
+func (i *Service) loadIncidents() error {
 	incidents, err := ParseIncidentsDir(i.RepoPath)
 	if err != nil {
 		return err
@@ -104,7 +103,7 @@ func (i *IncidentManager) loadIncidents() error {
 	return nil
 }
 
-func (i *IncidentManager) GetIncidents() []Incident {
+func (i *Service) GetIncidents() []Incident {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 
@@ -114,7 +113,7 @@ func (i *IncidentManager) GetIncidents() []Incident {
 	return incidents
 }
 
-func (i *IncidentManager) GetIncident(id string) (*Incident, bool) {
+func (i *Service) GetIncident(id string) (*Incident, bool) {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 

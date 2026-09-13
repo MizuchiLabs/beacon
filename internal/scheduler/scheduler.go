@@ -17,10 +17,10 @@ import (
 
 const defaultRetentionDays = 30
 
-type Scheduler struct {
+type Service struct {
 	q        *db.Queries
 	checker  *checker.Checker
-	notifier *notify.Notifier
+	notifier *notify.Service
 	wg       sync.WaitGroup
 	mu       sync.Mutex
 	lastUp   map[int64]bool
@@ -31,9 +31,9 @@ type Scheduler struct {
 func New(
 	q *db.Queries,
 	checker *checker.Checker,
-	notifier *notify.Notifier,
-) (*Scheduler, error) {
-	s, err := env.ParseAs[Scheduler]()
+	notifier *notify.Service,
+) (*Service, error) {
+	s, err := env.ParseAs[Service]()
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func New(
 	return &s, nil
 }
 
-func (s *Scheduler) Start(ctx context.Context) {
+func (s *Service) Start(ctx context.Context) {
 	// Load active monitors
 	monitors, err := s.q.GetMonitors(ctx)
 	if err != nil {
@@ -59,7 +59,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 
 	// Seed the last known state so a restart does not report a recovery for an
 	// outage nobody was alerted about
-	states, err := s.q.GetLatestCheckStates(ctx)
+	states, err := s.q.GetLatestChecks(ctx)
 	if err != nil {
 		slog.Error("failed to load last check states", "error", err)
 	} else {
@@ -81,7 +81,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 	s.wg.Go(func() { s.cleanupJob(ctx) })
 }
 
-func (s *Scheduler) runMonitor(ctx context.Context, monitor *db.Monitor) {
+func (s *Service) runMonitor(ctx context.Context, monitor *db.Monitor) {
 	ticker := time.NewTicker(time.Duration(monitor.CheckInterval) * time.Second)
 	defer ticker.Stop()
 
@@ -98,7 +98,7 @@ func (s *Scheduler) runMonitor(ctx context.Context, monitor *db.Monitor) {
 	}
 }
 
-func (s *Scheduler) performCheck(ctx context.Context, monitor *db.Monitor) {
+func (s *Service) performCheck(ctx context.Context, monitor *db.Monitor) {
 	result := s.checker.Check(ctx, monitor.Url)
 	checkedAt := time.Now().Unix()
 
@@ -131,7 +131,7 @@ func (s *Scheduler) performCheck(ctx context.Context, monitor *db.Monitor) {
 
 // recordState stores the check outcome and reports whether it differs from the
 // previously observed state. The first observation never counts as a transition.
-func (s *Scheduler) recordState(monitorID int64, isUp bool) bool {
+func (s *Service) recordState(monitorID int64, isUp bool) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -140,23 +140,27 @@ func (s *Scheduler) recordState(monitorID int64, isUp bool) bool {
 	return seen && prev != isUp
 }
 
-func (s *Scheduler) cleanupJob(ctx context.Context) {
+func (s *Service) cleanupJob(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Hour)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			if err := s.q.CleanupChecks(ctx, s.cleanupCutoff()); err != nil {
-				slog.Error("Failed to cleanup old checks", "error", err)
-			}
+			s.cleanup(ctx)
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
+func (s *Service) cleanup(ctx context.Context) {
+	if err := s.q.CleanupChecks(ctx, s.cleanupCutoff()); err != nil {
+		slog.Error("Failed to cleanup old checks", "error", err)
+	}
+}
+
 // cleanupCutoff is the oldest check timestamp that survives a cleanup run.
-func (s *Scheduler) cleanupCutoff() int64 {
+func (s *Service) cleanupCutoff() int64 {
 	return time.Now().AddDate(0, 0, -s.RetentionDays).Unix()
 }

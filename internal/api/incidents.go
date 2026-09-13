@@ -22,10 +22,10 @@ type GetIncidentOutput struct {
 }
 
 type IncidentService struct {
-	incidents *incidents.IncidentManager
+	incidents *incidents.Service
 }
 
-func NewIncidentService(api huma.API, inc *incidents.IncidentManager) *IncidentService {
+func NewIncidentService(api huma.API, inc *incidents.Service) *IncidentService {
 	svc := &IncidentService{incidents: inc}
 	huma.Register(api, huma.Operation{
 		OperationID: "get-incidents",
@@ -49,7 +49,7 @@ func (s *IncidentService) getIncidents(
 	_ *struct{},
 ) (*GetIncidentsOutput, error) {
 	if s.incidents == nil {
-		return nil, huma.Error404NotFound("incidents not configured")
+		return &GetIncidentsOutput{Body: []incidents.Incident{}}, nil
 	}
 
 	return &GetIncidentsOutput{Body: s.incidents.GetIncidents()}, nil
@@ -60,7 +60,7 @@ func (s *IncidentService) getIncident(
 	in *GetIncidentInput,
 ) (*GetIncidentOutput, error) {
 	if s.incidents == nil {
-		return nil, huma.Error404NotFound("incidents not configured")
+		return nil, huma.Error404NotFound("incident not found")
 	}
 
 	incident, ok := s.incidents.GetIncident(in.ID)

@@ -23,7 +23,7 @@ const (
 	pushTimeout = 10 * time.Second
 )
 
-type Notifier struct {
+type Service struct {
 	q         *db.Queries
 	vapidKeys *db.VapidKey
 	client    *http.Client
@@ -38,8 +38,8 @@ type NotificationPayload struct {
 	MonitorID int64  `json:"monitorId"`
 }
 
-func New(ctx context.Context, q *db.Queries) (*Notifier, error) {
-	n, err := env.ParseAs[Notifier]()
+func New(ctx context.Context, q *db.Queries) (*Service, error) {
+	n, err := env.ParseAs[Service]()
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func New(ctx context.Context, q *db.Queries) (*Notifier, error) {
 
 // SendMonitorNotification sends push notifications to all subscribers of a
 // monitor after an up/down state transition.
-func (n *Notifier) SendMonitorNotification(
+func (n *Service) SendMonitorNotification(
 	ctx context.Context,
 	monitor *db.Monitor,
 	up bool,
@@ -126,11 +126,8 @@ func (n *Notifier) SendMonitorNotification(
 
 		// 404/410 mean the endpoint is gone and will never succeed again
 		if status == http.StatusNotFound || status == http.StatusGone {
-			if deleteErr := n.q.DeletePushSubscriptionByEndpoint(
-				ctx,
-				sub.Endpoint,
-			); deleteErr != nil {
-				slog.Error("Failed to delete invalid subscription", "error", deleteErr)
+			if err = n.q.DeletePushSubscriptionByEndpoint(ctx, sub.Endpoint); err != nil {
+				slog.Error("Failed to delete invalid subscription", "error", err)
 			}
 		}
 	}
@@ -140,23 +137,21 @@ func (n *Notifier) SendMonitorNotification(
 
 // sendPushNotification returns the HTTP status reported by the push service,
 // or 0 if the request failed before a response was received.
-func (n *Notifier) sendPushNotification(
+func (n *Service) sendPushNotification(
 	ctx context.Context,
 	subscription *db.PushSubscription,
 	payload []byte,
 ) (int, error) {
-	sub := &webpush.Subscription{
-		Endpoint: subscription.Endpoint,
-		Keys: webpush.Keys{
-			P256dh: subscription.P256dhKey,
-			Auth:   subscription.AuthKey,
-		},
-	}
-
 	resp, err := webpush.SendNotificationWithContext(
 		ctx,
 		payload,
-		sub,
+		&webpush.Subscription{
+			Endpoint: subscription.Endpoint,
+			Keys: webpush.Keys{
+				P256dh: subscription.P256dhKey,
+				Auth:   subscription.AuthKey,
+			},
+		},
 		&webpush.Options{
 			HTTPClient:      n.client,
 			Subscriber:      n.Subscriber,

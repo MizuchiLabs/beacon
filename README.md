@@ -86,20 +86,19 @@ monitors:
 
 ## Environment Variables
 
-| Variable                 | Default            | Description                                        |
-| ------------------------ | ------------------ | -------------------------------------------------- |
-| `BEACON_PORT`            | `3000`             | Server port                                        |
-| `BEACON_CONFIG`          | `config.yaml`      | Path to monitors configuration file                |
-| `BEACON_MONITORS`        | -                  | YAML configuration as string (alternative to file) |
-| `BEACON_TIMEOUT`         | `30s`              | HTTP request timeout                               |
-| `BEACON_INSECURE`        | `false`            | Skip TLS certificate verification                  |
-| `BEACON_RETENTION_DAYS`  | `30`               | Days to keep check history                         |
-| `BEACON_TITLE`           | `Beacon Dashboard` | Dashboard title                                    |
-| `BEACON_DESCRIPTION`     | `Track uptime...`  | Dashboard description                              |
-| `BEACON_TIMEZONE`        | `Europe/Vienna`    | Display timezone                                   |
-| `BEACON_CHART_TYPE`      | `area`             | Chart style, `area` or `bars`                      |
-| `BEACON_PUSH_SUBSCRIBER` | `mailto:beacon@...`| VAPID contact sent with push notifications         |
-| `BEACON_DEBUG`           | `false`            | Enable debug logging                               |
+| Variable                 | Default             | Description                                        |
+| ------------------------ | ------------------- | -------------------------------------------------- |
+| `BEACON_PORT`            | `3000`              | Server port                                        |
+| `BEACON_CONFIG`          | `config.yaml`       | Path to monitors configuration file                |
+| `BEACON_MONITORS`        | -                   | YAML configuration as string (alternative to file) |
+| `BEACON_TIMEOUT`         | `30s`               | HTTP request timeout                               |
+| `BEACON_INSECURE`        | `false`             | Skip TLS certificate verification                  |
+| `BEACON_RETENTION_DAYS`  | `30`                | Days to keep raw checks                            |
+| `BEACON_TITLE`           | `Beacon Dashboard`  | Dashboard title                                    |
+| `BEACON_DESCRIPTION`     | `Track uptime...`   | Dashboard description                              |
+| `BEACON_TIMEZONE`        | `Europe/Vienna`     | Display timezone                                   |
+| `BEACON_PUSH_SUBSCRIBER` | `mailto:beacon@...` | VAPID contact sent with push notifications         |
+| `BEACON_DEBUG`           | `false`             | Enable debug logging                               |
 
 The SQLite database is always written to `data/beacon.db` relative to the
 working directory.
@@ -192,7 +191,3 @@ exist yet.
 ## License
 
 Apache License 2.0 - See [LICENSE](LICENSE)
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.

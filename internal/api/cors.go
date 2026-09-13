@@ -12,29 +12,27 @@ import (
 )
 
 const (
-	// RPS is the general per-IP rate limit.
-	RPS = 30
-	// Burst is the max burst size on top of RPS.
-	Burst = 50
-
-	// MaxBodySize is the request body size limit.
+	RPS         = 30
+	Burst       = 50
 	MaxBodySize = 1 << 20
 )
 
-func (s *Server) WithCORS(h http.Handler) http.Handler {
-	allowedOrigins := []string{
-		"http://127.0.0.1:" + s.cfg.Port,
-		"http://localhost:" + s.cfg.Port,
-		"http://localhost:5173",
-	}
+func WithCORS(port string) Constructor {
+	return func(h http.Handler) http.Handler {
+		allowedOrigins := []string{
+			"http://127.0.0.1:" + port,
+			"http://localhost:" + port,
+			"http://localhost:5173",
+		}
 
-	return cors.New(cors.Options{
-		AllowedOrigins:   allowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Content-Type"},
-		AllowCredentials: false,
-		MaxAge:           int(2 * time.Hour / time.Second),
-	}).Handler(h)
+		return cors.New(cors.Options{
+			AllowedOrigins:   allowedOrigins,
+			AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+			AllowedHeaders:   []string{"Accept", "Content-Type"},
+			AllowCredentials: false,
+			MaxAge:           int(2 * time.Hour / time.Second),
+		}).Handler(h)
+	}
 }
 
 // WithBodyLimit restricts the size of incoming request bodies.

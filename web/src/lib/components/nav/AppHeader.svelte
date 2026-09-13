@@ -1,19 +1,22 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { useConfig } from '$lib/api/queries';
-	import { pushNotifications } from '$lib/stores/push.svelte';
-	import { Bell, Orbit } from '@lucide/svelte';
-	import { onMount } from 'svelte';
-	import Button from '../ui/button/button.svelte';
-	import SubscribeModal from './SubscribeModal.svelte';
 	import Beacon from '$lib/assets/beacon.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { pushNotifications } from '$lib/stores/push.svelte';
+	import { Bell, Moon, Sun } from '@lucide/svelte';
+	import { mode, toggleMode } from 'mode-watcher';
+	import { onMount } from 'svelte';
+	import SubscribeModal from './SubscribeModal.svelte';
 
-	let configQuery = $derived(useConfig());
-	let incidentsEnabled = $derived(configQuery.data?.incidents_enabled === true);
 	let showSubscriptionDialog = $state(false);
 
 	onMount(() => {
 		pushNotifications.checkSupport();
 	});
+
+	const configQuery = $derived(useConfig());
+	const brand = $derived(configQuery.data?.title ?? 'Beacon');
 
 	let hasSubscriptions = $derived(pushNotifications.subscribedMonitorIds.length > 0);
 	let subscribedCount = $derived(pushNotifications.subscribedMonitorIds.length);
@@ -21,66 +24,48 @@
 
 <SubscribeModal bind:open={showSubscriptionDialog} />
 
-<header class="fixed top-4 right-0 left-0 z-50 flex justify-center px-4">
-	<div
-		class="flex min-h-12 items-center justify-between rounded-full border-x border-b px-4 py-2 shadow-lg backdrop-blur-md sm:min-w-xl"
-	>
-		<a href="/" class="flex items-center gap-4">
-			<Beacon class="size-6" />
+<header class="pointer-events-none sticky top-3 z-50 mx-auto mt-3 w-full max-w-4xl px-4 sm:px-6">
+	<div class="flex items-center justify-between gap-3">
+		<a
+			href={resolve('/')}
+			class="pointer-events-auto flex h-10 min-w-0 items-center gap-2 rounded-full border bg-background/80 px-3.5 shadow-sm backdrop-blur-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+		>
+			<Beacon class="size-5 shrink-0" />
+			<span class="truncate text-sm font-semibold tracking-tight">{brand}</span>
 		</a>
 
-		{#if incidentsEnabled}
-			<nav class="ml-8 flex items-center font-mono">
-				<Button variant="ghost" href="/" class="rounded-full" size="sm">Status</Button>
-				<Button variant="ghost" href="/events" class="rounded-full" size="sm">Events</Button>
-			</nav>
-		{:else}
-			<span class="gradient-bar mx-12 w-full rounded-full"></span>
-		{/if}
-
-		<div class="flex items-center gap-2">
+		<div
+			class="pointer-events-auto flex h-10 shrink-0 items-center gap-1 rounded-full border bg-background/80 px-2 shadow-sm backdrop-blur-md"
+		>
 			<Button
-				variant="outline"
-				class="rounded-full"
-				size="sm"
+				variant="ghost"
+				size="icon-sm"
+				class="relative rounded-full"
+				aria-label="Subscribe to notifications"
 				onclick={() => (showSubscriptionDialog = true)}
 			>
 				<Bell class={hasSubscriptions ? 'fill-current' : ''} />
-				Subscribe
 				{#if hasSubscriptions}
-					<span class="ml-1 text-xs">({subscribedCount})</span>
+					<span
+						class="absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] leading-none font-semibold text-primary-foreground"
+					>
+						{subscribedCount}
+					</span>
+				{/if}
+			</Button>
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				class="rounded-full"
+				onclick={toggleMode}
+				aria-label="Toggle theme"
+			>
+				{#if mode.current === 'light'}
+					<Moon />
+				{:else}
+					<Sun />
 				{/if}
 			</Button>
 		</div>
 	</div>
 </header>
-
-<style>
-	.gradient-bar {
-		display: block;
-		height: 8px;
-		background: linear-gradient(
-			90deg,
-			var(--primary),
-			var(--secondary),
-			var(--accent),
-			var(--primary)
-		);
-		background-size: 300% 100%;
-		animation: slide-gradient 8s ease-in-out infinite;
-		opacity: 0.4;
-		border-radius: 9999px;
-	}
-
-	@keyframes slide-gradient {
-		0% {
-			background-position: 0% 50%;
-		}
-		50% {
-			background-position: 100% 50%;
-		}
-		100% {
-			background-position: 0% 50%;
-		}
-	}
-</style>

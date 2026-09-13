@@ -16,12 +16,11 @@ type Querier interface {
 	DeleteMonitor(ctx context.Context, id int64) error
 	DeletePushSubscription(ctx context.Context, arg *DeletePushSubscriptionParams) error
 	DeletePushSubscriptionByEndpoint(ctx context.Context, endpoint string) error
-	GetDataPoints(ctx context.Context, arg *GetDataPointsParams) ([]*GetDataPointsRow, error)
-	GetLatestCheckStates(ctx context.Context) ([]*GetLatestCheckStatesRow, error)
-	GetMonitorStats(ctx context.Context, since int64) ([]*GetMonitorStatsRow, error)
+	GetCheckResponseTimes(ctx context.Context, fromTs int64) ([]*GetCheckResponseTimesRow, error)
+	GetCheckWindow(ctx context.Context, arg *GetCheckWindowParams) ([]*GetCheckWindowRow, error)
+	GetLatestChecks(ctx context.Context) ([]*GetLatestChecksRow, error)
 	GetMonitors(ctx context.Context) ([]*Monitor, error)
 	GetPushSubscriptionsByMonitor(ctx context.Context, monitorID int64) ([]*PushSubscription, error)
-	GetResponseTimes(ctx context.Context, since int64) ([]*GetResponseTimesRow, error)
 	GetVAPIDKeys(ctx context.Context) (*VapidKey, error)
 	UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (*Monitor, error)
 	UpsertCheck(ctx context.Context, arg *UpsertCheckParams) error

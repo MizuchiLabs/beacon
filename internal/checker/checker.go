@@ -27,6 +27,10 @@ type Result struct {
 	IsUp         bool
 }
 
+// SlowAfter is the response time above which an up check counts as degraded.
+// Status reporting and window aggregation both classify with this number.
+const SlowAfter = 500 * time.Millisecond
+
 const (
 	minTimeout     = 5 * time.Second
 	defaultTimeout = 30 * time.Second

@@ -59,6 +59,12 @@ func main() {
 				Sources: cli.EnvVars("BEACON_DEBUG"),
 			},
 			&cli.StringFlag{
+				Name:    "port",
+				Usage:   "Server port",
+				Value:   "3000",
+				Sources: cli.EnvVars("BEACON_PORT"),
+			},
+			&cli.StringFlag{
 				Name:    "config",
 				Aliases: []string{"c"},
 				Usage:   "Path to monitors config file",
@@ -107,11 +113,11 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	}
 	inc.Start(ctx)
 
-	server, err := api.NewServer(ctx, q, inc)
+	server, err := api.New(ctx, q, inc)
 	if err != nil {
 		return err
 	}
-	return server.Start()
+	return server.Start(ctx, cmd.String("port"))
 }
 
 func openapi(_ context.Context, cmd *cli.Command) error {

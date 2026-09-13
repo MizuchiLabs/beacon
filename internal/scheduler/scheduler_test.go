@@ -10,7 +10,7 @@ import (
 func TestRecordStateReportsOnlyTransitions(t *testing.T) {
 	t.Parallel()
 
-	s := &Scheduler{lastUp: make(map[int64]bool)}
+	s := &Service{lastUp: make(map[int64]bool)}
 
 	require.False(t, s.recordState(1, true), "first observation is not a transition")
 	require.False(t, s.recordState(1, true))

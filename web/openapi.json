@@ -3,43 +3,42 @@
 		"schemas": {
 			"ConfigBody": {
 				"additionalProperties": false,
-				"properties": {
-					"chart_type": {
-						"description": "Chart rendering style",
-						"enum": ["area", "bars"],
-						"type": "string"
-					},
-					"description": { "description": "Dashboard description", "type": "string" },
-					"incidents_enabled": {
-						"description": "Whether incident tracking is enabled",
-						"type": "boolean"
-					},
-					"timezone": {
-						"description": "IANA timezone for displaying timestamps",
-						"type": "string"
-					},
-					"title": { "description": "Dashboard title", "type": "string" }
-				},
-				"required": ["title", "description", "timezone", "chart_type", "incidents_enabled"],
+				"properties": { "title": { "description": "Dashboard title", "type": "string" } },
+				"required": ["title"],
 				"type": "object"
 			},
 			"DataPoint": {
 				"additionalProperties": false,
 				"properties": {
-					"degraded_ratio": { "format": "double", "type": "number" },
-					"down_ratio": { "format": "double", "type": "number" },
-					"is_up": { "type": "boolean" },
-					"response_time": { "format": "int64", "type": "integer" },
+					"avg_ms": {
+						"description": "Mean response time of every check in the bucket",
+						"format": "int64",
+						"type": ["integer", "null"]
+					},
+					"degraded": { "format": "int64", "type": "integer" },
+					"down": { "format": "int64", "type": "integer" },
+					"expected": {
+						"description": "Checks this bucket should hold, zero when it is shorter than the check interval. No data with a non zero expectation is a gap in monitoring",
+						"format": "int64",
+						"type": "integer"
+					},
+					"has_data": {
+						"description": "Whether any check landed in this bucket",
+						"type": "boolean"
+					},
 					"timestamp": { "format": "date-time", "type": "string" },
-					"up_ratio": { "format": "double", "type": "number" }
+					"total": { "format": "int64", "type": "integer" },
+					"up": { "format": "int64", "type": "integer" }
 				},
 				"required": [
 					"timestamp",
-					"response_time",
-					"is_up",
-					"up_ratio",
-					"degraded_ratio",
-					"down_ratio"
+					"has_data",
+					"expected",
+					"total",
+					"up",
+					"degraded",
+					"down",
+					"avg_ms"
 				],
 				"type": "object"
 			},
@@ -134,8 +133,18 @@
 						"type": ["array", "null"]
 					},
 					"id": { "format": "int64", "type": "integer" },
+					"last_checked_at": {
+						"description": "Timestamp of the latest check",
+						"format": "date-time",
+						"type": "string"
+					},
 					"name": { "type": "string" },
 					"percentiles": { "$ref": "#/components/schemas/Percentiles" },
+					"status": {
+						"description": "Status of the latest check, unknown when the monitor has gone quiet",
+						"enum": ["operational", "degraded", "down", "unknown"],
+						"type": "string"
+					},
 					"uptime_pct": { "format": "double", "type": ["number", "null"] },
 					"url": { "type": "string" }
 				},
@@ -144,6 +153,7 @@
 					"name",
 					"url",
 					"check_interval",
+					"status",
 					"avg_response_time",
 					"uptime_pct",
 					"data_points"

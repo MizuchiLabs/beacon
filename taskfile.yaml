@@ -3,7 +3,6 @@ version: "3"
 env:
   IMAGE: ghcr.io/mizuchilabs/beacon
   BEACON_CONFIG: ./examples/config.yaml
-  # BEACON_CHART_TYPE: bars
 
 tasks:
   seed:
@@ -37,7 +36,7 @@ tasks:
     cmds:
       - sqlc generate
       - go run ./cmd/beacon openapi
-      - cd web && pnpm openapi-ts
+      - cd web && pnpm openapi-ts && pnpm fmt
 
   lint:
     desc: Run go vet & lint

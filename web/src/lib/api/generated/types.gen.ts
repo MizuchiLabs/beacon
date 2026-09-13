@@ -6,34 +6,29 @@ export type ClientOptions = {
 
 export type ConfigBody = {
     /**
-     * Chart rendering style
-     */
-    chart_type: 'area' | 'bars';
-    /**
-     * Dashboard description
-     */
-    description: string;
-    /**
-     * Whether incident tracking is enabled
-     */
-    incidents_enabled: boolean;
-    /**
-     * IANA timezone for displaying timestamps
-     */
-    timezone: string;
-    /**
      * Dashboard title
      */
     title: string;
 };
 
 export type DataPoint = {
-    degraded_ratio: number;
-    down_ratio: number;
-    is_up: boolean;
-    response_time: number;
+    /**
+     * Mean response time of every check in the bucket
+     */
+    avg_ms: number | null;
+    degraded: number;
+    down: number;
+    /**
+     * Checks this bucket should hold, zero when it is shorter than the check interval. No data with a non zero expectation is a gap in monitoring
+     */
+    expected: number;
+    /**
+     * Whether any check landed in this bucket
+     */
+    has_data: boolean;
     timestamp: string;
-    up_ratio: number;
+    total: number;
+    up: number;
 };
 
 export type ErrorDetail = {
@@ -101,8 +96,16 @@ export type MonitorStats = {
     check_interval: number;
     data_points: Array<DataPoint> | null;
     id: number;
+    /**
+     * Timestamp of the latest check
+     */
+    last_checked_at?: string;
     name: string;
     percentiles?: Percentiles;
+    /**
+     * Status of the latest check, unknown when the monitor has gone quiet
+     */
+    status: 'operational' | 'degraded' | 'down' | 'unknown';
     uptime_pct: number | null;
     url: string;
 };

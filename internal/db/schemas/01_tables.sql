@@ -7,25 +7,23 @@ CREATE TABLE monitors (
 );
 
 CREATE TABLE checks (
-  monitor_id INTEGER NOT NULL,
+  monitor_id INTEGER NOT NULL REFERENCES monitors (id) ON DELETE CASCADE,
   status_code INTEGER NOT NULL,
   response_time INTEGER NOT NULL, -- in ms
   error TEXT,
   is_up BOOLEAN NOT NULL,
   checked_at INTEGER NOT NULL DEFAULT (unixepoch()), -- unix seconds
-  PRIMARY KEY (monitor_id, checked_at),
-  FOREIGN KEY (monitor_id) REFERENCES monitors (id) ON DELETE CASCADE
+  PRIMARY KEY (monitor_id, checked_at)
 );
 
 -- Browser notification subscriptions
 CREATE TABLE push_subscriptions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  monitor_id INTEGER NOT NULL,
+  monitor_id INTEGER NOT NULL REFERENCES monitors (id) ON DELETE CASCADE,
   endpoint TEXT NOT NULL,
   p256dh_key TEXT NOT NULL, -- encryption key
   auth_key TEXT NOT NULL, -- authentication secret
-  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-  FOREIGN KEY (monitor_id) REFERENCES monitors (id) ON DELETE CASCADE
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 -- VAPID keys for push notifications (singleton)

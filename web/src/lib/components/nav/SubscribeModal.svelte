@@ -40,7 +40,7 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Content class="sm:max-w-[500px]">
+	<Dialog.Content class="sm:max-w-125">
 		<Dialog.Header>
 			<Dialog.Title>Subscribe to Notifications</Dialog.Title>
 			<Dialog.Description>Choose which monitors to receive notifications for</Dialog.Description>
@@ -71,7 +71,7 @@
 					</div>
 				{/if}
 
-				<div class="max-h-[400px] space-y-2 overflow-y-auto">
+				<div class="max-h-100 space-y-2 overflow-y-auto">
 					{#each monitors as monitor (monitor.id)}
 						{@const isSubscribed = subscribedMonitorIDs.includes(monitor.id)}
 						<label

@@ -20,12 +20,53 @@ func (q *Queries) CleanupChecks(ctx context.Context, cutoff int64) error {
 	return err
 }
 
-const getDataPoints = `-- name: GetDataPoints :many
+const getCheckResponseTimes = `-- name: GetCheckResponseTimes :many
 SELECT
   monitor_id,
-  checked_at - (checked_at % ?1) AS bucket_ts,
-  COUNT(*) AS total_count,
-  CAST(COALESCE(AVG(response_time), 0.0) AS INTEGER) AS avg_response_time,
+  response_time
+FROM
+  checks
+WHERE
+  checked_at >= ?1
+  AND is_up
+ORDER BY
+  monitor_id,
+  response_time
+`
+
+type GetCheckResponseTimesRow struct {
+	MonitorID    int64 `json:"monitorId"`
+	ResponseTime int64 `json:"responseTime"`
+}
+
+func (q *Queries) GetCheckResponseTimes(ctx context.Context, fromTs int64) ([]*GetCheckResponseTimesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getCheckResponseTimes, fromTs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*GetCheckResponseTimesRow
+	for rows.Next() {
+		var i GetCheckResponseTimesRow
+		if err := rows.Scan(&i.MonitorID, &i.ResponseTime); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCheckWindow = `-- name: GetCheckWindow :many
+SELECT
+  monitor_id,
+  checked_at - (checked_at % ?1) AS ts,
+  COUNT(*) AS total,
   CAST(
     SUM(
       CASE
@@ -34,7 +75,7 @@ SELECT
         ELSE 0
       END
     ) AS INTEGER
-  ) AS up_count,
+  ) AS up,
   CAST(
     SUM(
       CASE
@@ -43,7 +84,7 @@ SELECT
         ELSE 0
       END
     ) AS INTEGER
-  ) AS degraded_count,
+  ) AS degraded,
   CAST(
     SUM(
       CASE
@@ -51,52 +92,53 @@ SELECT
         ELSE 0
       END
     ) AS INTEGER
-  ) AS down_count
+  ) AS down,
+  CAST(SUM(response_time) AS INTEGER) AS sum_ms
 FROM
   checks
 WHERE
   checked_at >= ?3
 GROUP BY
   monitor_id,
-  bucket_ts
+  ts
 ORDER BY
   monitor_id,
-  bucket_ts
+  ts
 `
 
-type GetDataPointsParams struct {
-	BucketSize        int64 `json:"bucketSize"`
+type GetCheckWindowParams struct {
+	Step              int64 `json:"step"`
 	DegradedThreshold int64 `json:"degradedThreshold"`
-	Since             int64 `json:"since"`
+	FromTs            int64 `json:"fromTs"`
 }
 
-type GetDataPointsRow struct {
-	MonitorID       int64 `json:"monitorId"`
-	BucketTs        int64 `json:"bucketTs"`
-	TotalCount      int64 `json:"totalCount"`
-	AvgResponseTime int64 `json:"avgResponseTime"`
-	UpCount         int64 `json:"upCount"`
-	DegradedCount   int64 `json:"degradedCount"`
-	DownCount       int64 `json:"downCount"`
+type GetCheckWindowRow struct {
+	MonitorID int64 `json:"monitorId"`
+	Ts        int64 `json:"ts"`
+	Total     int64 `json:"total"`
+	Up        int64 `json:"up"`
+	Degraded  int64 `json:"degraded"`
+	Down      int64 `json:"down"`
+	SumMs     int64 `json:"sumMs"`
 }
 
-func (q *Queries) GetDataPoints(ctx context.Context, arg *GetDataPointsParams) ([]*GetDataPointsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getDataPoints, arg.BucketSize, arg.DegradedThreshold, arg.Since)
+func (q *Queries) GetCheckWindow(ctx context.Context, arg *GetCheckWindowParams) ([]*GetCheckWindowRow, error) {
+	rows, err := q.db.QueryContext(ctx, getCheckWindow, arg.Step, arg.DegradedThreshold, arg.FromTs)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []*GetDataPointsRow
+	var items []*GetCheckWindowRow
 	for rows.Next() {
-		var i GetDataPointsRow
+		var i GetCheckWindowRow
 		if err := rows.Scan(
 			&i.MonitorID,
-			&i.BucketTs,
-			&i.TotalCount,
-			&i.AvgResponseTime,
-			&i.UpCount,
-			&i.DegradedCount,
-			&i.DownCount,
+			&i.Ts,
+			&i.Total,
+			&i.Up,
+			&i.Degraded,
+			&i.Down,
+			&i.SumMs,
 		); err != nil {
 			return nil, err
 		}
@@ -111,151 +153,51 @@ func (q *Queries) GetDataPoints(ctx context.Context, arg *GetDataPointsParams) (
 	return items, nil
 }
 
-const getLatestCheckStates = `-- name: GetLatestCheckStates :many
+const getLatestChecks = `-- name: GetLatestChecks :many
 SELECT
   c.monitor_id,
-  c.is_up
-FROM
-  checks c
-  JOIN (
-    SELECT
-      monitor_id,
-      MAX(checked_at) AS checked_at
-    FROM
-      checks
-    GROUP BY
-      monitor_id
-  ) latest ON latest.monitor_id = c.monitor_id
-  AND latest.checked_at = c.checked_at
-`
-
-type GetLatestCheckStatesRow struct {
-	MonitorID int64 `json:"monitorId"`
-	IsUp      bool  `json:"isUp"`
-}
-
-func (q *Queries) GetLatestCheckStates(ctx context.Context) ([]*GetLatestCheckStatesRow, error) {
-	rows, err := q.db.QueryContext(ctx, getLatestCheckStates)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []*GetLatestCheckStatesRow
-	for rows.Next() {
-		var i GetLatestCheckStatesRow
-		if err := rows.Scan(&i.MonitorID, &i.IsUp); err != nil {
-			return nil, err
-		}
-		items = append(items, &i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getMonitorStats = `-- name: GetMonitorStats :many
-SELECT
-  m.id,
-  m.name,
-  m.url,
-  m.check_interval,
-  COUNT(c.monitor_id) AS check_count,
-  CAST(
-    ROUND(
-      COALESCE(
-        SUM(
-          CASE
-            WHEN c.is_up THEN 1
-            ELSE 0
-          END
-        ) * 100.0 / COUNT(c.monitor_id),
-        0.0
-      ),
-      2
-    ) AS REAL
-  ) AS uptime_pct,
-  CAST(COALESCE(AVG(c.response_time), 0.0) AS INTEGER) AS avg_response_time
+  c.status_code,
+  c.response_time,
+  c.is_up,
+  c.checked_at
 FROM
   monitors m
-  LEFT JOIN checks c ON c.monitor_id = m.id
-  AND c.checked_at >= ?1
-GROUP BY
-  m.id
-ORDER BY
-  m.id
-`
-
-type GetMonitorStatsRow struct {
-	ID              int64   `json:"id"`
-	Name            string  `json:"name"`
-	Url             string  `json:"url"`
-	CheckInterval   int64   `json:"checkInterval"`
-	CheckCount      int64   `json:"checkCount"`
-	UptimePct       float64 `json:"uptimePct"`
-	AvgResponseTime int64   `json:"avgResponseTime"`
-}
-
-func (q *Queries) GetMonitorStats(ctx context.Context, since int64) ([]*GetMonitorStatsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getMonitorStats, since)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []*GetMonitorStatsRow
-	for rows.Next() {
-		var i GetMonitorStatsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Url,
-			&i.CheckInterval,
-			&i.CheckCount,
-			&i.UptimePct,
-			&i.AvgResponseTime,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, &i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getResponseTimes = `-- name: GetResponseTimes :many
-SELECT
-  monitor_id,
-  response_time
-FROM
-  checks
+  JOIN checks c ON c.monitor_id = m.id
 WHERE
-  checked_at >= ?1
-  AND is_up = 1
+  c.checked_at = (
+    SELECT
+      MAX(c2.checked_at)
+    FROM
+      checks c2
+    WHERE
+      c2.monitor_id = m.id
+  )
 `
 
-type GetResponseTimesRow struct {
+type GetLatestChecksRow struct {
 	MonitorID    int64 `json:"monitorId"`
+	StatusCode   int64 `json:"statusCode"`
 	ResponseTime int64 `json:"responseTime"`
+	IsUp         bool  `json:"isUp"`
+	CheckedAt    int64 `json:"checkedAt"`
 }
 
-func (q *Queries) GetResponseTimes(ctx context.Context, since int64) ([]*GetResponseTimesRow, error) {
-	rows, err := q.db.QueryContext(ctx, getResponseTimes, since)
+func (q *Queries) GetLatestChecks(ctx context.Context) ([]*GetLatestChecksRow, error) {
+	rows, err := q.db.QueryContext(ctx, getLatestChecks)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []*GetResponseTimesRow
+	var items []*GetLatestChecksRow
 	for rows.Next() {
-		var i GetResponseTimesRow
-		if err := rows.Scan(&i.MonitorID, &i.ResponseTime); err != nil {
+		var i GetLatestChecksRow
+		if err := rows.Scan(
+			&i.MonitorID,
+			&i.StatusCode,
+			&i.ResponseTime,
+			&i.IsUp,
+			&i.CheckedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, &i)
