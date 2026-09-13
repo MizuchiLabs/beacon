@@ -31,15 +31,15 @@
 </script>
 
 <Item.Root onclick={open} class="group">
-	<Item.Content class="line-clamp-1 max-w-36">
+	<Item.Content class="min-w-0 md:max-w-36">
 		<Item.Title>{monitor.name}</Item.Title>
 		<Item.Description class="flex items-center gap-1 text-xs">
-			<a href={monitor.url} target="_blank" rel="noreferrer" class="no-underline!">
+			<a href={monitor.url} target="_blank" rel="noreferrer" class="truncate no-underline!">
 				{host}
 			</a>
 		</Item.Description>
 	</Item.Content>
-	<Item.Content class="w-full flex-row items-center gap-6 md:w-auto md:min-w-0 md:flex-1!">
+	<Item.Content class="order-last w-full flex-row items-center gap-6 md:order-none md:w-auto md:min-w-0 md:flex-1!">
 		<StatusChart {monitor} class="h-9 w-full" />
 
 		<HoverCard.Root openDelay={300}>
@@ -87,7 +87,7 @@
 	<Item.Actions>
 		<SubscribeBell
 			monitorId={monitor.id}
-			class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+			class="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
 		/>
 		<ChevronRightIcon class="hidden size-4 text-muted-foreground/50 md:block" />
 	</Item.Actions>
