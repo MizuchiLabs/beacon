@@ -4,6 +4,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Separator from '$lib/components/ui/separator';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import StatusChart from '$lib/components/chart/StatusChart.svelte';
 	import SubscribeBell from '$lib/components/util/SubscribeBell.svelte';
 	import { pushNotifications } from '$lib/stores/push.svelte';
@@ -113,10 +114,16 @@
 						<h3 class="text-xs font-medium text-muted-foreground">Response time percentiles</h3>
 						<div class="relative h-2 rounded-full bg-muted">
 							{#each percentileRows as row (row.label)}
-								<span
-									class="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-muted-foreground/50"
-									style="left: {Math.min(100, (row.ms / percentileMax) * 100)}%"
-								></span>
+								<Tooltip.Root>
+									<Tooltip.Trigger
+										class="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 cursor-default rounded-full border-2 border-background bg-muted-foreground/50 p-0 transition-colors hover:bg-muted-foreground/80"
+										style="left: {Math.min(100, (row.ms / percentileMax) * 100)}%"
+										aria-label="{row.label} response time {formatMs(row.ms)}"
+									></Tooltip.Trigger>
+									<Tooltip.Content class="px-2 py-1">
+										{row.label} · {formatMs(row.ms)}
+									</Tooltip.Content>
+								</Tooltip.Root>
 							{/each}
 						</div>
 					</section>
