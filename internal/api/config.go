@@ -19,7 +19,6 @@ type ConfigBody struct {
 }
 
 type ConfigService struct {
-	Port  string `env:"BEACON_PORT"  envDefault:"3000"`
 	Title string `env:"BEACON_TITLE" envDefault:"Beacon"`
 }
 
