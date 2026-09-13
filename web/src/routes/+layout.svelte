@@ -4,13 +4,12 @@
 	import AppFooter from '$lib/components/nav/AppFooter.svelte';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import GridPattern from '$lib/components/util/GridPattern.svelte';
-	import { cn } from '$lib/utils';
-	import { QueryClientProvider } from '@tanstack/svelte-query';
+	import SignalDust from '$lib/components/util/SignalDust.svelte';
 	import { ModeWatcher } from 'mode-watcher';
 	import { onMount } from 'svelte';
 	import './layout.css';
 	import AppHeader from '$lib/components/nav/AppHeader.svelte';
+	import { QueryClientProvider } from '@tanstack/svelte-query';
 
 	let { children } = $props();
 
@@ -38,14 +37,7 @@
 <QueryClientProvider client={queryClient}>
 	<Tooltip.Provider>
 		<div class="flex min-h-screen flex-col">
-			<GridPattern
-				width={40}
-				height={40}
-				x={-1}
-				y={-1}
-				class={cn('mask-[linear-gradient(to_bottom_left,white,transparent,transparent)]')}
-			/>
-
+			<SignalDust />
 			<AppHeader />
 			<main class="mb-12 flex-1">
 				{@render children?.()}
