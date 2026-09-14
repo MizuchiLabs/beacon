@@ -24,7 +24,7 @@
 
 <SubscribeModal bind:open={showSubscriptionDialog} />
 
-<header class="pointer-events-none sticky top-3 z-50 mx-auto mt-3 w-full max-w-4xl px-4 sm:px-6">
+<header class="pointer-events-none sticky z-50 mx-auto mt-4 mb-6 w-full max-w-4xl px-4 sm:px-6">
 	<div class="flex items-center justify-between gap-3">
 		<a
 			href={resolve('/')}
