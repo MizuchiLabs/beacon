@@ -10,7 +10,7 @@ require (
 	github.com/mizuchilabs/sqlite-schema-diff v0.2.2
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.12.1
-	github.com/urfave/cli/v3 v3.11.0
+	github.com/urfave/cli/v3 v3.12.0
 	github.com/vearutop/statigz v1.5.0
 	golang.org/x/time v0.16.0
 	gopkg.in/yaml.v3 v3.0.1
