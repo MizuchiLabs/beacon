@@ -23,8 +23,8 @@
 	} from '$lib/status.js';
 	import { ArrowRightIcon, CheckIcon, CircleCheckIcon } from '@lucide/svelte';
 
-	const statsQuery = $derived(useMonitorStats());
-	const incidentsQuery = $derived(getIncidents());
+	const statsQuery = useMonitorStats();
+	const incidentsQuery = getIncidents();
 
 	let sheetOpen = $state(false);
 	let selected = $state<MonitorStats | null>(null);
@@ -86,20 +86,20 @@
 </svelte:head>
 
 <div class="mx-auto w-full space-y-4 p-6 sm:max-w-4xl">
-	{#if statsQuery.isPending}
-		<div class="flex flex-col gap-2">
-			<Skeleton class="h-12 w-full rounded-xl" />
-			<Skeleton class="h-24 w-full rounded-xl" />
-			<Skeleton class="h-24 w-full rounded-xl" />
-			<Skeleton class="h-24 w-full rounded-xl" />
-		</div>
-	{:else if statsQuery.isError}
+	{#if statsQuery.isError && !statsQuery.data}
 		<Empty.Root class="border border-dashed">
 			<Empty.Header>
 				<Empty.Title>Could not load monitors</Empty.Title>
 				<Empty.Description>Try refreshing the page.</Empty.Description>
 			</Empty.Header>
 		</Empty.Root>
+	{:else if !statsQuery.data}
+		<div class="flex flex-col gap-2">
+			<Skeleton class="h-12 w-full rounded-xl" />
+			<Skeleton class="h-24 w-full rounded-xl" />
+			<Skeleton class="h-24 w-full rounded-xl" />
+			<Skeleton class="h-24 w-full rounded-xl" />
+		</div>
 	{:else if statsQuery.data?.length === 0}
 		<Empty.Root class="border border-dashed">
 			<Empty.Header>

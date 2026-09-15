@@ -1,4 +1,4 @@
-import { createQuery } from '@tanstack/svelte-query';
+import { createQuery, keepPreviousData } from '@tanstack/svelte-query';
 import {
 	getConfigOptions,
 	getIncidentsOptions,
@@ -8,17 +8,16 @@ import { timeRange } from '$lib/range.svelte';
 
 export type { ConfigBody, Incident, IncidentUpdate, MonitorStats } from './generated/types.gen';
 
-const DEFAULT_WINDOW = 86400;
-
 export function useConfig() {
 	return createQuery(() => getConfigOptions());
 }
 
 export function useMonitorStats() {
-	let seconds = Number(timeRange.current ?? DEFAULT_WINDOW);
 	return createQuery(() => ({
-		...getMonitorsOptions({ query: { seconds } }),
-		refetchInterval: 30_000
+		...getMonitorsOptions({ query: { seconds: Number(timeRange.current) } }),
+		staleTime: 30_000,
+		refetchInterval: 30_000,
+		placeholderData: keepPreviousData
 	}));
 }
 
