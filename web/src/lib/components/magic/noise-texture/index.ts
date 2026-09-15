@@ -1,2 +1,2 @@
-import NoiseTexture from "./noise-texture.svelte";
+import NoiseTexture from './noise-texture.svelte';
 export { NoiseTexture };

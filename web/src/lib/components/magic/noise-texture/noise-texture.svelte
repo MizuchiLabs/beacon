@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { SVGAttributes } from "svelte/elements";
-	import { cn } from "$lib/utils";
+	import type { SVGAttributes } from 'svelte/elements';
+	import { cn } from '$lib/utils';
 
 	interface NoiseTextureProps extends SVGAttributes<SVGSVGElement> {
 		class?: string;
@@ -40,7 +40,7 @@
 
 <svg
 	class={cn(
-		"pointer-events-none absolute inset-0 z-0 size-full opacity-50 select-none dark:opacity-[0.75]",
+		'pointer-events-none absolute inset-0 z-0 size-full opacity-50 select-none dark:opacity-[0.75]',
 		className
 	)}
 	xmlns="http://www.w3.org/2000/svg"
