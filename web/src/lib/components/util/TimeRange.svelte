@@ -14,7 +14,7 @@
 			value={t.value}
 			title={t.title}
 			aria-label={t.title}
-			class="cursor-pointer select-none data-active:bg-primary"
+			class="cursor-pointer select-none"
 			onclick={(event) => {
 				if (timeRange.current === t.value) event.preventDefault();
 			}}

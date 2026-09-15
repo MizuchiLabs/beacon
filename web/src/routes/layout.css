@@ -19,7 +19,7 @@
 	--primary-foreground: oklch(1 0 0);
 	--secondary: oklch(0.9174 0.0435 292.6901);
 	--secondary-foreground: oklch(0.4143 0.1039 288.1742);
-	--muted: oklch(0.958 0.0133 286.1454);
+	--muted: oklch(0.94 0.0133 286.1454);
 	--muted-foreground: oklch(0.5426 0.0465 284.7435);
 	--accent: oklch(0.9221 0.0373 262.141);
 	--accent-foreground: oklch(0.3015 0.0572 282.4176);
@@ -162,8 +162,6 @@
 	--font-sans: 'Manrope Variable', sans-serif;
 	--font-serif: Georgia, serif;
 	--font-mono: 'Victor Mono Variable', monospace;
-
-	--background-pattern: url('/src/lib/assets/pattern.svg');
 
 	--font-heading: 'Manrope Variable', sans-serif;
 
