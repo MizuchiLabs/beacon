@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { MonitorStats } from '$lib/api/generated/types.gen';
-	import StatusChart from '$lib/components/chart/StatusChart.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as HoverCard from '$lib/components/ui/hover-card';
 	import * as Item from '$lib/components/ui/item/index.js';
@@ -9,13 +8,26 @@
 	import { ago, formatMs, latencyTextClass, statusMeta, uptimeTextClass } from '$lib/status.js';
 	import { cn } from '$lib/utils.js';
 	import { ChevronRightIcon } from '@lucide/svelte';
+	import StatusChart from '../chart/StatusChart.svelte';
 
 	interface Props {
 		monitor: MonitorStats;
 		onOpen: (monitor: MonitorStats) => void;
 	}
-	let { monitor, onOpen }: Props = $props();
+	let { monitor: monitorProp, onOpen }: Props = $props();
 
+	// The query wraps results in deep proxies. Reading chart fields through them
+	// is slow, but an unconditional clone would hand the chart a new object on
+	// every fetch notify. Tanstack keeps the prop identical while content is
+	// unchanged, so only clone when the reference actually moves.
+	let lastSource: MonitorStats | undefined;
+	let lastPlain!: MonitorStats;
+	const monitor = $derived.by(() => {
+		if (monitorProp === lastSource) return lastPlain;
+		lastSource = monitorProp;
+		lastPlain = $state.snapshot(monitorProp) as MonitorStats;
+		return lastPlain;
+	});
 	const meta = $derived(statusMeta[monitor.status]);
 	const host = $derived.by(() => {
 		try {
@@ -39,7 +51,9 @@
 			</a>
 		</Item.Description>
 	</Item.Content>
-	<Item.Content class="order-last w-full flex-row items-center gap-6 md:order-none md:w-auto md:min-w-0 md:flex-1!">
+	<Item.Content
+		class="order-last w-full flex-row items-center gap-6 md:order-0 md:w-auto md:min-w-0 md:flex-1!"
+	>
 		<StatusChart {monitor} class="h-9 w-full" />
 
 		<HoverCard.Root openDelay={300}>
