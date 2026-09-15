@@ -27,28 +27,13 @@ type Result struct {
 	IsUp         bool
 }
 
-// SlowAfter is the response time above which an up check counts as degraded.
-// Status reporting and window aggregation both classify with this number.
-const SlowAfter = 500 * time.Millisecond
-
-const (
-	minTimeout     = 5 * time.Second
-	defaultTimeout = 30 * time.Second
-)
-
 func New() (*Checker, error) {
 	c, err := env.ParseAs[Checker]()
 	if err != nil {
 		return nil, err
 	}
 
-	timeout := c.Timeout
-	if timeout < minTimeout {
-		timeout = defaultTimeout
-	}
-
 	c.client = &http.Client{
-		Timeout: timeout,
 		Transport: &http.Transport{
 			TLSClientConfig:   &tls.Config{InsecureSkipVerify: c.Insecure}, // #nosec G402
 			DisableKeepAlives: true,

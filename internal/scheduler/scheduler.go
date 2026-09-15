@@ -15,8 +15,6 @@ import (
 	"github.com/mizuchilabs/beacon/internal/notify"
 )
 
-const defaultRetentionDays = 30
-
 type Service struct {
 	q        *db.Queries
 	checker  *checker.Checker
@@ -36,10 +34,6 @@ func New(
 	s, err := env.ParseAs[Service]()
 	if err != nil {
 		return nil, err
-	}
-
-	if s.RetentionDays <= 1 {
-		s.RetentionDays = defaultRetentionDays
 	}
 
 	s.q = q

@@ -34,11 +34,3 @@ func TestCleanupCutoffUsesConfiguredRetention(t *testing.T) {
 		"cleanup must delete on the configured retention window",
 	)
 }
-
-func TestRetentionFallsBackForNonsense(t *testing.T) {
-	t.Setenv("BEACON_RETENTION_DAYS", "0")
-
-	s, err := New(nil, nil, nil)
-	require.NoError(t, err)
-	require.Equal(t, defaultRetentionDays, s.RetentionDays)
-}

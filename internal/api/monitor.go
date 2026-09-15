@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/mizuchilabs/beacon/internal/checker"
 	"github.com/mizuchilabs/beacon/internal/db"
 )
 
@@ -19,6 +18,8 @@ const (
 	statusUnknown     = "unknown"
 	// maxPoints caps how many buckets a window is split into.
 	maxPoints = 50
+	// slowThresh is the response time above which an up check counts as degraded.
+	slowThresh = 500 * time.Millisecond
 )
 
 // stepLadder are the bucket sizes in seconds a window may be reduced to, from
@@ -114,7 +115,7 @@ func (s *MonitorService) getMonitors(
 	// the window, the step only shapes how they are grouped.
 	rows, err := s.q.GetCheckWindow(ctx, &db.GetCheckWindowParams{
 		Step:              step,
-		DegradedThreshold: checker.SlowAfter.Milliseconds(),
+		DegradedThreshold: slowThresh.Milliseconds(),
 		FromTs:            since,
 	})
 	if err != nil {
@@ -245,7 +246,7 @@ func statusOf(last *db.GetLatestChecksRow, interval int64, now int64) string {
 	if !last.IsUp {
 		return statusDown
 	}
-	if last.ResponseTime > checker.SlowAfter.Milliseconds() {
+	if last.ResponseTime > slowThresh.Milliseconds() {
 		return statusDegraded
 	}
 	return statusOperational
