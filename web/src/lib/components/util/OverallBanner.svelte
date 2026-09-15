@@ -35,7 +35,7 @@
 	const troubled = $derived(status === 'down' || status === 'degraded');
 </script>
 
-<Item.Root variant="muted" class={cn('min-w-0', className)}>
+<Item.Root class={cn('min-w-0 bg-card/75', className)}>
 	<Item.Media class="shrink-0">
 		<look.icon class="size-4 {look.class}" />
 	</Item.Media>

@@ -62,9 +62,9 @@
 </script>
 
 <Sheet.Root {open} {onOpenChange}>
-	<Sheet.Content class="flex flex-col gap-0 p-0 sm:max-w-md">
+	<Sheet.Content class="sm:max-w-xl">
 		{#if monitor && meta}
-			<Sheet.Header class="gap-3 p-5 pb-4">
+			<Sheet.Header>
 				<div class="flex items-start justify-between gap-3">
 					<div class="min-w-0">
 						<Sheet.Title class="truncate">{monitor.name}</Sheet.Title>

@@ -78,14 +78,14 @@
 							<div class="space-y-4">
 								<h3 class="text-sm font-semibold">Timeline</h3>
 								<div
-									class="relative space-y-4 pl-6 before:absolute before:top-2 before:left-[7px] before:h-[calc(100%-1rem)] before:w-px before:bg-border"
+									class="relative space-y-4 pl-6 before:absolute before:top-2 before:left-2 before:h-[calc(100%-1rem)] before:w-px before:bg-border"
 								>
 									{#each incident.updates! as update (update.created_at)}
 										{@const updateStatus = incidentStatus(update.status)}
 
 										<div class="relative">
 											<div
-												class="absolute top-1 -left-[25px] flex h-4 w-4 items-center justify-center rounded-full border-2 border-background bg-background"
+												class="absolute top-1 -left-6 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background bg-background"
 											>
 												<div class="h-2 w-2 rounded-full bg-primary"></div>
 											</div>
@@ -126,15 +126,13 @@
 			<Skeleton class="h-40 w-full rounded-xl" />
 		</div>
 	{:else}
-		<Empty.Root class="border border-dashed">
+		<Empty.Root>
 			<Empty.Header>
 				<Empty.Media variant="icon">
-					<CheckIcon class="text-primary" />
+					<CheckIcon />
 				</Empty.Media>
 				<Empty.Title>No incidents found</Empty.Title>
-				<Empty.Description>
-					Everything is working as expected. All systems operational.
-				</Empty.Description>
+				<Empty.Description>Everything is working as expected.</Empty.Description>
 			</Empty.Header>
 		</Empty.Root>
 	{/if}

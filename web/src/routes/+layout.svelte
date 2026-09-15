@@ -4,12 +4,12 @@
 	import AppFooter from '$lib/components/nav/AppFooter.svelte';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import SignalDust from '$lib/components/util/SignalDust.svelte';
 	import { ModeWatcher } from 'mode-watcher';
 	import { onMount } from 'svelte';
 	import './layout.css';
 	import AppHeader from '$lib/components/nav/AppHeader.svelte';
 	import { QueryClientProvider } from '@tanstack/svelte-query';
+	import NoiseTexture from '$lib/components/magic/noise-texture/noise-texture.svelte';
 
 	let { children } = $props();
 
@@ -33,13 +33,13 @@
 
 <ModeWatcher />
 <Toaster />
+<NoiseTexture noiseOpacity={0.1} />
 
 <QueryClientProvider client={queryClient}>
 	<Tooltip.Provider>
 		<div class="flex min-h-screen flex-col">
-			<SignalDust />
 			<AppHeader />
-			<main class="mb-12 flex-1">
+			<main class="z-10 mb-12 flex-1">
 				{@render children?.()}
 			</main>
 			<AppFooter />

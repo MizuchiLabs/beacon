@@ -21,7 +21,7 @@
 		isActiveIncident,
 		statusMeta
 	} from '$lib/status.js';
-	import { ArrowRightIcon, CircleCheckIcon } from '@lucide/svelte';
+	import { ArrowRightIcon, CheckIcon, CircleCheckIcon } from '@lucide/svelte';
 
 	const statsQuery = $derived(useMonitorStats());
 	const incidentsQuery = $derived(getIncidents());
@@ -164,12 +164,15 @@
 
 				<div class="overflow-hidden rounded-xl border bg-card">
 					{#if pastIncidents.length === 0}
-						<div
-							class="flex items-center justify-center gap-2 px-4 py-6 text-sm text-muted-foreground"
-						>
-							<CircleCheckIcon class="size-4 text-chart-3" />
-							No incidents in the last 30 days
-						</div>
+						<Empty.Root>
+							<Empty.Header>
+								<Empty.Media variant="icon">
+									<CheckIcon />
+								</Empty.Media>
+								<Empty.Title>Smooth Sailing</Empty.Title>
+								<Empty.Description>No incidents in the last 30 days.</Empty.Description>
+							</Empty.Header>
+						</Empty.Root>
 					{:else}
 						{#each pastIncidents as incident, i (incident.id)}
 							{#if i > 0}
