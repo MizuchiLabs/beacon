@@ -13,6 +13,7 @@ A lightweight, self-hosted uptime monitoring solution that keeps track of your w
 ## Features
 
 - HTTP/HTTPS endpoint monitoring
+- TCP port and TLS certificate expiry monitoring
 - Response time tracking
 - Notification system for downtime alerts
 - Incident management with git-based storage
@@ -55,7 +56,30 @@ monitors:
   - name: "API Server"
     url: "https://api.example.com"
     check_interval: 30
+  - name: "Postgres"
+    url: "tcp://db.example.com:5432" # plain TCP port check, port required
+    check_interval: 30
+  - name: "Certificate"
+    url: "ssl://example.com" # TLS certificate check, defaults to port 443
+    check_interval: 3600
+  - name: "Internal Service"
+    url: "https://internal.example.com"
+    ignore_cert_expiry: true # do not warn about the certificate
 ```
+
+The URL scheme picks the check type:
+
+| Scheme        | Check                                                              |
+| ------------- | ------------------------------------------------------------------ |
+| `http`/`https`| HTTP GET, up on any 2xx or 3xx status                              |
+| `tcp`         | Plain TCP connect to `host:port`, port is required                  |
+| `ssl`         | TLS handshake and certificate validity, port defaults to 443        |
+
+`https` monitors track certificate expiry automatically, no second monitor
+needed. Any monitor with certificate data turns degraded 30 days before expiry
+and subscribers get a daily reminder until it is renewed. Set
+`ignore_cert_expiry: true` on a monitor to keep expiry from affecting its
+status and notifications.
 
 Then start Beacon:
 
@@ -67,8 +91,6 @@ beacon --config config.yaml
 export BEACON_CONFIG=config.yaml
 beacon
 ```
-
-### 2. Environment Variable (Docker-friendly)
 
 For containerized deployments, you can inject the entire configuration as a YAML string:
 
@@ -91,7 +113,7 @@ monitors:
 | `BEACON_PORT`            | `3000`              | Server port                                        |
 | `BEACON_CONFIG`          | `config.yaml`       | Path to monitors configuration file                |
 | `BEACON_MONITORS`        | -                   | YAML configuration as string (alternative to file) |
-| `BEACON_TIMEOUT`         | `30s`               | HTTP request timeout                               |
+| `BEACON_TIMEOUT`         | `30s`               | Check timeout (HTTP request, TCP dial, TLS handshake) |
 | `BEACON_INSECURE`        | `false`             | Skip TLS certificate verification                  |
 | `BEACON_RETENTION_DAYS`  | `30`                | Days to keep raw checks                            |
 | `BEACON_TITLE`           | `Beacon Dashboard`  | Dashboard title                                    |

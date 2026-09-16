@@ -16,12 +16,13 @@ import (
 )
 
 type Service struct {
-	q        *db.Queries
-	checker  *checker.Checker
-	notifier *notify.Service
-	wg       sync.WaitGroup
-	mu       sync.Mutex
-	lastUp   map[int64]bool
+	q            *db.Queries
+	checker      *checker.Checker
+	notifier     *notify.Service
+	wg           sync.WaitGroup
+	mu           sync.Mutex
+	lastUp       map[int64]bool
+	lastCertWarn map[int64]int64
 
 	RetentionDays int `env:"BEACON_RETENTION_DAYS" envDefault:"30"`
 }
@@ -40,6 +41,7 @@ func New(
 	s.checker = checker
 	s.notifier = notifier
 	s.lastUp = make(map[int64]bool)
+	s.lastCertWarn = make(map[int64]int64)
 	return &s, nil
 }
 
@@ -97,30 +99,74 @@ func (s *Service) performCheck(ctx context.Context, monitor *db.Monitor) {
 	checkedAt := time.Now().Unix()
 
 	if err := s.q.UpsertCheck(ctx, &db.UpsertCheckParams{
-		MonitorID:    monitor.ID,
-		StatusCode:   result.StatusCode,
-		ResponseTime: result.ResponseTime,
-		Error:        result.Error,
-		IsUp:         result.IsUp,
-		CheckedAt:    checkedAt,
+		MonitorID:     monitor.ID,
+		StatusCode:    result.StatusCode,
+		ResponseTime:  result.ResponseTime,
+		DaysRemaining: result.DaysLeft,
+		Error:         result.Error,
+		IsUp:          result.IsUp,
+		CheckedAt:     checkedAt,
 	}); err != nil {
 		slog.Error("Failed to store check", "monitor_id", monitor.ID, "error", err)
 		return
 	}
 
 	// Only notify on up/down transitions, not on every failed check
-	if !s.recordState(monitor.ID, result.IsUp) {
+	if s.recordState(monitor.ID, result.IsUp) {
+		if err := s.notifier.SendMonitorNotification(ctx, monitor, result.IsUp, checkReason(result)); err != nil {
+			slog.Error("Failed to send monitor notification", "monitor_id", monitor.ID, "error", err)
+		}
+	}
+
+	s.warnCertificateExpiry(ctx, monitor, result)
+}
+
+// checkReason builds the human readable cause sent with a transition
+// notification.
+func checkReason(result checker.Result) string {
+	if result.Error != nil {
+		return *result.Error
+	}
+	switch {
+	case result.DaysLeft != nil:
+		return fmt.Sprintf("certificate valid, %d days remaining", *result.DaysLeft)
+	case result.StatusCode != 0:
+		return fmt.Sprintf("HTTP %d", result.StatusCode)
+	default:
+		return "connection established"
+	}
+}
+
+// warnCertificateExpiry notifies subscribers once per day while a valid
+// certificate is inside the warning window. Expiry is not an up/down
+// transition, so the cadence is tracked separately from recordState.
+func (s *Service) warnCertificateExpiry(ctx context.Context, monitor *db.Monitor, result checker.Result) {
+	if monitor.IgnoreCertExpiry || !result.IsUp || result.DaysLeft == nil ||
+		*result.DaysLeft >= checker.CertWarnDays {
 		return
 	}
 
-	reason := fmt.Sprintf("HTTP %d", result.StatusCode)
-	if result.Error != nil {
-		reason = *result.Error
+	if !s.certWarnDue(monitor.ID) {
+		return
 	}
 
-	if err := s.notifier.SendMonitorNotification(ctx, monitor, result.IsUp, reason); err != nil {
-		slog.Error("Failed to send monitor notification", "monitor_id", monitor.ID, "error", err)
+	if err := s.notifier.SendCertificateExpiryNotification(ctx, monitor, *result.DaysLeft); err != nil {
+		slog.Error("Failed to send certificate expiry notification", "monitor_id", monitor.ID, "error", err)
 	}
+}
+
+// certWarnDue reports whether monitorID has not had a certificate warning
+// today, marking it warned as a side effect.
+func (s *Service) certWarnDue(monitorID int64) bool {
+	today := time.Now().Unix() / 86400
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.lastCertWarn[monitorID] == today {
+		return false
+	}
+	s.lastCertWarn[monitorID] = today
+	return true
 }
 
 // recordState stores the check outcome and reports whether it differs from the

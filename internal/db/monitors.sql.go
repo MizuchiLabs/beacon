@@ -11,25 +11,35 @@ import (
 
 const createMonitor = `-- name: CreateMonitor :one
 INSERT INTO
-  monitors (name, url, check_interval)
+  monitors (name, url, type, ignore_cert_expiry, check_interval)
 VALUES
-  (?, ?, ?) RETURNING id, name, url, check_interval, created_at
+  (?, ?, ?, ?, ?) RETURNING id, name, url, type, check_interval, ignore_cert_expiry, created_at
 `
 
 type CreateMonitorParams struct {
-	Name          string `json:"name"`
-	Url           string `json:"url"`
-	CheckInterval int64  `json:"checkInterval"`
+	Name             string `json:"name"`
+	Url              string `json:"url"`
+	Type             string `json:"type"`
+	IgnoreCertExpiry bool   `json:"ignoreCertExpiry"`
+	CheckInterval    int64  `json:"checkInterval"`
 }
 
 func (q *Queries) CreateMonitor(ctx context.Context, arg *CreateMonitorParams) (*Monitor, error) {
-	row := q.db.QueryRowContext(ctx, createMonitor, arg.Name, arg.Url, arg.CheckInterval)
+	row := q.db.QueryRowContext(ctx, createMonitor,
+		arg.Name,
+		arg.Url,
+		arg.Type,
+		arg.IgnoreCertExpiry,
+		arg.CheckInterval,
+	)
 	var i Monitor
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Url,
+		&i.Type,
 		&i.CheckInterval,
+		&i.IgnoreCertExpiry,
 		&i.CreatedAt,
 	)
 	return &i, err
@@ -48,7 +58,7 @@ func (q *Queries) DeleteMonitor(ctx context.Context, id int64) error {
 
 const getMonitors = `-- name: GetMonitors :many
 SELECT
-  id, name, url, check_interval, created_at
+  id, name, url, type, check_interval, ignore_cert_expiry, created_at
 FROM
   monitors
 `
@@ -66,7 +76,9 @@ func (q *Queries) GetMonitors(ctx context.Context) ([]*Monitor, error) {
 			&i.ID,
 			&i.Name,
 			&i.Url,
+			&i.Type,
 			&i.CheckInterval,
+			&i.IgnoreCertExpiry,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -87,22 +99,28 @@ UPDATE monitors
 SET
   name = COALESCE(?, name),
   url = COALESCE(?, url),
+  type = COALESCE(?, type),
+  ignore_cert_expiry = COALESCE(?, ignore_cert_expiry),
   check_interval = COALESCE(?, check_interval)
 WHERE
-  id = ? RETURNING id, name, url, check_interval, created_at
+  id = ? RETURNING id, name, url, type, check_interval, ignore_cert_expiry, created_at
 `
 
 type UpdateMonitorParams struct {
-	Name          string `json:"name"`
-	Url           string `json:"url"`
-	CheckInterval int64  `json:"checkInterval"`
-	ID            int64  `json:"id"`
+	Name             string `json:"name"`
+	Url              string `json:"url"`
+	Type             string `json:"type"`
+	IgnoreCertExpiry bool   `json:"ignoreCertExpiry"`
+	CheckInterval    int64  `json:"checkInterval"`
+	ID               int64  `json:"id"`
 }
 
 func (q *Queries) UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (*Monitor, error) {
 	row := q.db.QueryRowContext(ctx, updateMonitor,
 		arg.Name,
 		arg.Url,
+		arg.Type,
+		arg.IgnoreCertExpiry,
 		arg.CheckInterval,
 		arg.ID,
 	)
@@ -111,7 +129,9 @@ func (q *Queries) UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (
 		&i.ID,
 		&i.Name,
 		&i.Url,
+		&i.Type,
 		&i.CheckInterval,
+		&i.IgnoreCertExpiry,
 		&i.CreatedAt,
 	)
 	return &i, err

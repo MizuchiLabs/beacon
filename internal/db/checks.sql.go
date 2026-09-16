@@ -158,6 +158,7 @@ SELECT
   c.monitor_id,
   c.status_code,
   c.response_time,
+  c.days_remaining,
   c.is_up,
   c.checked_at
 FROM
@@ -175,11 +176,12 @@ WHERE
 `
 
 type GetLatestChecksRow struct {
-	MonitorID    int64 `json:"monitorId"`
-	StatusCode   int64 `json:"statusCode"`
-	ResponseTime int64 `json:"responseTime"`
-	IsUp         bool  `json:"isUp"`
-	CheckedAt    int64 `json:"checkedAt"`
+	MonitorID     int64  `json:"monitorId"`
+	StatusCode    int64  `json:"statusCode"`
+	ResponseTime  int64  `json:"responseTime"`
+	DaysRemaining *int64 `json:"daysRemaining"`
+	IsUp          bool   `json:"isUp"`
+	CheckedAt     int64  `json:"checkedAt"`
 }
 
 func (q *Queries) GetLatestChecks(ctx context.Context) ([]*GetLatestChecksRow, error) {
@@ -195,6 +197,7 @@ func (q *Queries) GetLatestChecks(ctx context.Context) ([]*GetLatestChecksRow, e
 			&i.MonitorID,
 			&i.StatusCode,
 			&i.ResponseTime,
+			&i.DaysRemaining,
 			&i.IsUp,
 			&i.CheckedAt,
 		); err != nil {
@@ -213,24 +216,26 @@ func (q *Queries) GetLatestChecks(ctx context.Context) ([]*GetLatestChecksRow, e
 
 const upsertCheck = `-- name: UpsertCheck :exec
 INSERT INTO
-  checks (monitor_id, status_code, response_time, error, is_up, checked_at)
+  checks (monitor_id, status_code, response_time, days_remaining, error, is_up, checked_at)
 VALUES
-  (?, ?, ?, ?, ?, ?)
+  (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (monitor_id, checked_at) DO UPDATE
 SET
   status_code = excluded.status_code,
   response_time = excluded.response_time,
+  days_remaining = excluded.days_remaining,
   error = excluded.error,
   is_up = excluded.is_up
 `
 
 type UpsertCheckParams struct {
-	MonitorID    int64   `json:"monitorId"`
-	StatusCode   int64   `json:"statusCode"`
-	ResponseTime int64   `json:"responseTime"`
-	Error        *string `json:"error"`
-	IsUp         bool    `json:"isUp"`
-	CheckedAt    int64   `json:"checkedAt"`
+	MonitorID     int64   `json:"monitorId"`
+	StatusCode    int64   `json:"statusCode"`
+	ResponseTime  int64   `json:"responseTime"`
+	DaysRemaining *int64  `json:"daysRemaining"`
+	Error         *string `json:"error"`
+	IsUp          bool    `json:"isUp"`
+	CheckedAt     int64   `json:"checkedAt"`
 }
 
 func (q *Queries) UpsertCheck(ctx context.Context, arg *UpsertCheckParams) error {
@@ -238,6 +243,7 @@ func (q *Queries) UpsertCheck(ctx context.Context, arg *UpsertCheckParams) error
 		arg.MonitorID,
 		arg.StatusCode,
 		arg.ResponseTime,
+		arg.DaysRemaining,
 		arg.Error,
 		arg.IsUp,
 		arg.CheckedAt,

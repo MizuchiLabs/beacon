@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/mizuchilabs/beacon/internal/checker"
 	"github.com/mizuchilabs/beacon/internal/db"
 )
 
@@ -71,33 +72,60 @@ func TestStatusOf(t *testing.T) {
 
 	const now = 1_000_000
 
+	httpMonitor := &db.Monitor{CheckInterval: 60, Type: checker.TypeHTTP}
+	sslMonitor := &db.Monitor{CheckInterval: 60, Type: checker.TypeSSL}
+	httpMonitorNoCert := &db.Monitor{CheckInterval: 60, Type: checker.TypeHTTP, IgnoreCertExpiry: true}
 	tests := []struct {
-		name     string
-		last     *db.GetLatestChecksRow
-		interval int64
-		want     string
+		name string
+		m    *db.Monitor
+		last *db.GetLatestChecksRow
+		want string
 	}{
-		{"no checks yet", nil, 60, statusUnknown},
+		{"no checks yet", httpMonitor, nil, statusUnknown},
 		{
 			"fresh and up",
+			httpMonitor,
 			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 42, CheckedAt: now - 60},
-			60,
 			statusOperational,
 		},
 		{
 			"fresh and slow",
+			httpMonitor,
 			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 501, CheckedAt: now - 60},
-			60,
 			statusDegraded,
 		},
-		{"down", &db.GetLatestChecksRow{IsUp: false, CheckedAt: now - 60}, 60, statusDown},
-		{"stale", &db.GetLatestChecksRow{IsUp: true, CheckedAt: now - 181}, 60, statusUnknown},
+		{"down", httpMonitor, &db.GetLatestChecksRow{IsUp: false, CheckedAt: now - 60}, statusDown},
+		{"stale", httpMonitor, &db.GetLatestChecksRow{IsUp: true, CheckedAt: now - 181}, statusUnknown},
+		{
+			"ssl expiring soon",
+			sslMonitor,
+			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 42, DaysRemaining: new(int64(10)), CheckedAt: now - 60},
+			statusDegraded,
+		},
+		{
+			"ssl far from expiry",
+			sslMonitor,
+			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 42, DaysRemaining: new(int64(45)), CheckedAt: now - 60},
+			statusOperational,
+		},
+		{
+			"https expiring soon",
+			httpMonitor,
+			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 42, DaysRemaining: new(int64(10)), CheckedAt: now - 60},
+			statusDegraded,
+		},
+		{
+			"https opted out ignores expiry",
+			httpMonitorNoCert,
+			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 42, DaysRemaining: new(int64(10)), CheckedAt: now - 60},
+			statusOperational,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			require.Equal(t, tt.want, statusOf(tt.last, tt.interval, now))
+			require.Equal(t, tt.want, statusOf(tt.m, tt.last, now))
 		})
 	}
 }
@@ -161,6 +189,26 @@ func TestStatsCountDegradedChecksAsUptime(t *testing.T) {
 	require.NotNil(t, got.Percentiles, "degraded checks still feed the percentiles")
 	require.Zero(t, got.Datapoints[0].Up)
 	require.EqualValues(t, 2, got.Datapoints[0].Degraded)
+}
+
+func TestStatsCarriesMonitorIdentity(t *testing.T) {
+	t.Parallel()
+
+	m := &db.Monitor{
+		ID:            7,
+		Name:          "API",
+		Url:           "https://api.test",
+		Type:          checker.TypeHTTP,
+		CheckInterval: 60,
+	}
+
+	got := stats(m, nil, nil, nil, 0, 60, 60)
+
+	require.EqualValues(t, 7, got.ID)
+	require.Equal(t, "API", got.Name)
+	require.Equal(t, "https://api.test", got.URL, "the row must carry the monitor url")
+	require.Equal(t, checker.TypeHTTP, got.Type)
+	require.EqualValues(t, 60, got.CheckInterval)
 }
 
 func TestStatsWithoutChecksReportsNoNumbers(t *testing.T) {

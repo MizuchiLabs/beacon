@@ -5,20 +5,23 @@
 package db
 
 type Check struct {
-	MonitorID    int64   `json:"monitorId"`
-	StatusCode   int64   `json:"statusCode"`
-	ResponseTime int64   `json:"responseTime"`
-	Error        *string `json:"error"`
-	IsUp         bool    `json:"isUp"`
-	CheckedAt    int64   `json:"checkedAt"`
+	MonitorID     int64   `json:"monitorId"`
+	StatusCode    int64   `json:"statusCode"`
+	ResponseTime  int64   `json:"responseTime"`
+	DaysRemaining *int64  `json:"daysRemaining"`
+	Error         *string `json:"error"`
+	IsUp          bool    `json:"isUp"`
+	CheckedAt     int64   `json:"checkedAt"`
 }
 
 type Monitor struct {
-	ID            int64  `json:"id"`
-	Name          string `json:"name"`
-	Url           string `json:"url"`
-	CheckInterval int64  `json:"checkInterval"`
-	CreatedAt     int64  `json:"createdAt"`
+	ID               int64  `json:"id"`
+	Name             string `json:"name"`
+	Url              string `json:"url"`
+	Type             string `json:"type"`
+	CheckInterval    int64  `json:"checkInterval"`
+	IgnoreCertExpiry bool   `json:"ignoreCertExpiry"`
+	CreatedAt        int64  `json:"createdAt"`
 }
 
 type PushSubscription struct {

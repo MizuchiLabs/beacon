@@ -12,14 +12,16 @@ import (
 	"github.com/caarlos0/env/v11"
 	"gopkg.in/yaml.v3"
 
+	"github.com/mizuchilabs/beacon/internal/checker"
 	"github.com/mizuchilabs/beacon/internal/db"
 )
 
 // monitor is one entry from the monitors configuration.
 type monitor struct {
-	Name          string `yaml:"name"`
-	URL           string `yaml:"url"`
-	CheckInterval int64  `yaml:"check_interval"`
+	Name             string `yaml:"name"`
+	URL              string `yaml:"url"`
+	IgnoreCertExpiry bool   `yaml:"ignore_cert_expiry"`
+	CheckInterval    int64  `yaml:"check_interval"`
 }
 
 type monitorsFile struct {
@@ -59,13 +61,18 @@ func Sync(ctx context.Context, q *db.Queries, path string) error {
 	for url, configMonitor := range configMap {
 		if dbMonitor, exists := dbMap[url]; exists {
 			// Only update if something changed
+			typ := monitorType(url)
 			if dbMonitor.Name != configMonitor.Name ||
+				dbMonitor.Type != typ ||
+				dbMonitor.IgnoreCertExpiry != configMonitor.IgnoreCertExpiry ||
 				dbMonitor.CheckInterval != configMonitor.CheckInterval {
 				_, err := q.UpdateMonitor(ctx, &db.UpdateMonitorParams{
-					ID:            dbMonitor.ID,
-					Name:          configMonitor.Name,
-					Url:           configMonitor.URL,
-					CheckInterval: configMonitor.CheckInterval,
+					ID:               dbMonitor.ID,
+					Name:             configMonitor.Name,
+					Url:              configMonitor.URL,
+					Type:             typ,
+					IgnoreCertExpiry: configMonitor.IgnoreCertExpiry,
+					CheckInterval:    configMonitor.CheckInterval,
 				})
 				if err != nil {
 					return err
@@ -75,9 +82,11 @@ func Sync(ctx context.Context, q *db.Queries, path string) error {
 			delete(dbMap, url) // Remove from deletion list
 		} else {
 			_, err := q.CreateMonitor(ctx, &db.CreateMonitorParams{
-				Name:          configMonitor.Name,
-				Url:           configMonitor.URL,
-				CheckInterval: configMonitor.CheckInterval,
+				Name:             configMonitor.Name,
+				Url:              configMonitor.URL,
+				Type:             monitorType(url),
+				IgnoreCertExpiry: configMonitor.IgnoreCertExpiry,
+				CheckInterval:    configMonitor.CheckInterval,
 			})
 			if err != nil {
 				return err
@@ -95,6 +104,22 @@ func Sync(ctx context.Context, q *db.Queries, path string) error {
 	}
 
 	return nil
+}
+
+// monitorType derives the stored monitor type from the URL scheme.
+func monitorType(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return checker.TypeHTTP
+	}
+	switch parsed.Scheme {
+	case "tcp":
+		return checker.TypeTCP
+	case "ssl":
+		return checker.TypeSSL
+	default:
+		return checker.TypeHTTP
+	}
 }
 
 func load(path string) ([]monitor, error) {
@@ -167,9 +192,11 @@ func validate(monitors []monitor) error {
 			return fmt.Errorf("monitor %q: invalid url %q: %w", m.Name, m.URL, err)
 		}
 
-		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		switch parsedURL.Scheme {
+		case "http", "https", "tcp", "ssl":
+		default:
 			return fmt.Errorf(
-				"monitor %q: url must use http or https scheme, got %q",
+				"monitor %q: url scheme must be http, https, tcp or ssl, got %q",
 				m.Name,
 				parsedURL.Scheme,
 			)
@@ -177,6 +204,13 @@ func validate(monitors []monitor) error {
 
 		if parsedURL.Host == "" {
 			return fmt.Errorf("monitor %q: url must have a host", m.Name)
+		}
+
+		if parsedURL.Scheme == "tcp" && parsedURL.Port() == "" {
+			return fmt.Errorf(
+				"monitor %q: tcp url must include a port, e.g. tcp://db.example.com:5432",
+				m.Name,
+			)
 		}
 
 		if prev, exists := seenURLs[m.URL]; exists {

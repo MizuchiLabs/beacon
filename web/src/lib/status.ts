@@ -93,6 +93,14 @@ export function uptimeTextClass(pct: number | null): string {
 	return 'text-chart-5';
 }
 
+// Mirrors checker.CertWarnDays on the backend.
+export const certWarnDays = 30;
+
+export function certTextClass(days: number | null | undefined): string {
+	if (days == null) return 'text-muted-foreground';
+	return days <= certWarnDays ? 'text-chart-4' : 'text-muted-foreground';
+}
+
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
 
 export function ago(date: Date): string {

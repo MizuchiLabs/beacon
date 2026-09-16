@@ -85,16 +85,6 @@ func (n *Service) SendMonitorNotification(
 		return nil
 	}
 
-	subscriptions, err := n.q.GetPushSubscriptionsByMonitor(ctx, monitor.ID)
-	if err != nil {
-		return fmt.Errorf("failed to get subscriptions: %w", err)
-	}
-
-	if len(subscriptions) == 0 {
-		slog.Debug("No subscriptions found for monitor", "monitor_id", monitor.ID)
-		return nil
-	}
-
 	payload := NotificationPayload{
 		URL:       "/",
 		MonitorID: monitor.ID,
@@ -105,6 +95,38 @@ func (n *Service) SendMonitorNotification(
 	} else {
 		payload.Title = fmt.Sprintf("🔴 %s is Down", monitor.Name)
 		payload.Body = fmt.Sprintf("%s is currently unreachable. Reason: %s", monitor.Url, reason)
+	}
+
+	return n.deliver(ctx, monitor, payload)
+}
+
+// SendCertificateExpiryNotification warns subscribers once a monitor's
+// certificate is inside the expiry warning window.
+func (n *Service) SendCertificateExpiryNotification(ctx context.Context, monitor *db.Monitor, days int64) error {
+	if monitor == nil {
+		return nil
+	}
+
+	payload := NotificationPayload{
+		Title:     fmt.Sprintf("⚠️ %s certificate expires soon", monitor.Name),
+		Body:      fmt.Sprintf("The certificate for %s expires in %d days.", monitor.Url, days),
+		URL:       "/",
+		MonitorID: monitor.ID,
+	}
+
+	return n.deliver(ctx, monitor, payload)
+}
+
+// deliver pushes one payload to every subscriber of the monitor, dropping
+// subscriptions the push service reports as gone.
+func (n *Service) deliver(ctx context.Context, monitor *db.Monitor, payload NotificationPayload) error {
+	subscriptions, err := n.q.GetPushSubscriptionsByMonitor(ctx, monitor.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get subscriptions: %w", err)
+	}
+	if len(subscriptions) == 0 {
+		slog.Debug("No subscriptions found for monitor", "monitor_id", monitor.ID)
+		return nil
 	}
 
 	payloadBytes, err := json.Marshal(payload)

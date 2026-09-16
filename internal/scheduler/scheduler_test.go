@@ -20,6 +20,16 @@ func TestRecordStateReportsOnlyTransitions(t *testing.T) {
 	require.False(t, s.recordState(2, true), "state is tracked per monitor")
 }
 
+func TestCertWarnDueFiresOncePerDayPerMonitor(t *testing.T) {
+	t.Parallel()
+
+	s := &Service{lastCertWarn: make(map[int64]int64)}
+
+	require.True(t, s.certWarnDue(1))
+	require.False(t, s.certWarnDue(1), "a second check the same day must not warn again")
+	require.True(t, s.certWarnDue(2), "warnings are tracked per monitor")
+}
+
 func TestCleanupCutoffUsesConfiguredRetention(t *testing.T) {
 	t.Setenv("BEACON_RETENTION_DAYS", "7")
 

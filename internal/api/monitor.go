@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/mizuchilabs/beacon/internal/checker"
 	"github.com/mizuchilabs/beacon/internal/db"
 )
 
@@ -32,9 +33,12 @@ type MonitorStats struct {
 	ID              int64        `json:"id"`
 	Name            string       `json:"name"`
 	URL             string       `json:"url"`
+	Type            string       `json:"type"                      doc:"What kind of check this monitor runs"                                enum:"http,tcp,ssl"`
 	CheckInterval   int64        `json:"check_interval"`
-	Status          string       `json:"status"                    enum:"operational,degraded,down,unknown" doc:"Status of the latest check, unknown when the monitor has gone quiet"`
-	LastCheckedAt   *time.Time   `json:"last_checked_at,omitempty"                                          doc:"Timestamp of the latest check"`
+	Status          string       `json:"status"                    doc:"Status of the latest check, unknown when the monitor has gone quiet" enum:"operational,degraded,down,unknown"`
+	DaysRemaining   *int64       `json:"days_remaining"            doc:"Days until the certificate expires, https and ssl monitors only"`
+	IgnoreCert      bool         `json:"ignore_cert_expiry"        doc:"Whether certificate expiry is ignored for status and warnings"`
+	LastCheckedAt   *time.Time   `json:"last_checked_at,omitempty" doc:"Timestamp of the latest check"`
 	AvgResponseTime *int64       `json:"avg_response_time"`
 	UptimePct       *float64     `json:"uptime_pct"`
 	Percentiles     *Percentiles `json:"percentiles,omitempty"`
@@ -165,11 +169,14 @@ func stats(
 		Name:          m.Name,
 		URL:           m.Url,
 		CheckInterval: m.CheckInterval,
-		Status:        statusOf(last, m.CheckInterval, now),
+		IgnoreCert:    m.IgnoreCertExpiry,
+		Type:          m.Type,
+		Status:        statusOf(m, last, now),
 		Datapoints:    buildPoints(m, rows, since, now, step),
 	}
 	if last != nil {
 		row.LastCheckedAt = new(time.Unix(last.CheckedAt, 0))
+		row.DaysRemaining = last.DaysRemaining
 	}
 
 	var total, up, degraded, sum int64
@@ -239,8 +246,8 @@ func buildPoints(
 // statusOf reports the latest check, not the window average. A monitor that
 // just died has a healthy looking uptime, and one that stopped reporting is
 // unknown rather than up.
-func statusOf(last *db.GetLatestChecksRow, interval int64, now int64) string {
-	if last == nil || now-last.CheckedAt > 3*interval {
+func statusOf(m *db.Monitor, last *db.GetLatestChecksRow, now int64) string {
+	if last == nil || now-last.CheckedAt > 3*m.CheckInterval {
 		return statusUnknown
 	}
 	if !last.IsUp {
@@ -249,12 +256,12 @@ func statusOf(last *db.GetLatestChecksRow, interval int64, now int64) string {
 	if last.ResponseTime > slowThresh.Milliseconds() {
 		return statusDegraded
 	}
+	if !m.IgnoreCertExpiry && last.DaysRemaining != nil && *last.DaysRemaining < checker.CertWarnDays {
+		return statusDegraded
+	}
 	return statusOperational
 }
 
-// stepForWindow picks the finest ladder rung that keeps a window under the
-// point cap. The requested window alone decides the resolution, so every chart
-// style renders from the same request and the same payload.
 func stepForWindow(seconds int64) int64 {
 	for _, step := range stepLadder {
 		if seconds <= step*maxPoints {

@@ -17,7 +17,8 @@
 		incidentStatus,
 		latencyTextClass,
 		statusMeta,
-		uptimeTextClass
+		uptimeTextClass,
+		certTextClass
 	} from '$lib/status.js';
 	import { resolve } from '$app/paths';
 	import { ExternalLinkIcon } from '@lucide/svelte';
@@ -82,6 +83,11 @@
 					</div>
 					<div class="flex shrink-0 items-center gap-1.5 pr-6">
 						<SubscribeBell monitorId={monitor.id} />
+						{#if monitor.type !== 'http'}
+							<Badge variant="outline" class="text-[10px] text-muted-foreground uppercase">
+								{monitor.type}
+							</Badge>
+						{/if}
 						<Badge variant="outline" class={cn('gap-1.5 text-xs', meta.badge)}>
 							{meta.label}
 						</Badge>
@@ -93,6 +99,15 @@
 						{monitor.last_checked_at ? ago(new Date(monitor.last_checked_at)) : 'never'}
 					</span>
 					<span>Every {monitor.check_interval}s</span>
+					{#if monitor.days_remaining != null}
+						<span
+							class="tabular-nums {monitor.ignore_cert_expiry
+								? 'text-muted-foreground'
+								: certTextClass(monitor.days_remaining)}"
+						>
+							Cert expires in {monitor.days_remaining}d
+						</span>
+					{/if}
 				</div>
 			</Sheet.Header>
 

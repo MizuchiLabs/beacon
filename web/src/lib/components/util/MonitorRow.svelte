@@ -5,9 +5,16 @@
 	import * as Item from '$lib/components/ui/item/index.js';
 	import SubscribeBell from '$lib/components/util/SubscribeBell.svelte';
 
-	import { ago, formatMs, latencyTextClass, statusMeta, uptimeTextClass } from '$lib/status.js';
+	import {
+		ago,
+		certWarnDays,
+		formatMs,
+		latencyTextClass,
+		statusMeta,
+		uptimeTextClass
+	} from '$lib/status.js';
 	import { cn } from '$lib/utils.js';
-	import { ChevronRightIcon } from '@lucide/svelte';
+	import { CalendarClockIcon, ChevronRightIcon } from '@lucide/svelte';
 	import StatusChart from '../chart/StatusChart.svelte';
 
 	interface Props {
@@ -44,8 +51,15 @@
 
 <Item.Root onclick={open} class="group">
 	<Item.Content class="min-w-0 md:max-w-36">
-		<Item.Title>{monitor.name}</Item.Title>
-		<Item.Description class="flex items-center gap-1 text-xs">
+		<Item.Title class="flex items-center gap-1">
+			{monitor.name}
+			{#if monitor.type !== 'http'}
+				<Badge variant="outline" class="px-1.5 text-[10px] text-muted-foreground uppercase">
+					{monitor.type}
+				</Badge>
+			{/if}
+		</Item.Title>
+		<Item.Description class="text-xs">
 			<a href={monitor.url} target="_blank" rel="noreferrer" class="truncate no-underline!">
 				{host}
 			</a>
@@ -58,6 +72,15 @@
 
 		<HoverCard.Root openDelay={300}>
 			<HoverCard.Trigger>
+				{#if !monitor.ignore_cert_expiry && monitor.days_remaining != null && monitor.days_remaining <= certWarnDays}
+					<Badge
+						variant="outline"
+						class="hidden gap-1 border-chart-4/20 bg-chart-4/15 text-xs text-chart-4 md:inline-flex"
+					>
+						<CalendarClockIcon class="size-3" />
+						{monitor.days_remaining}d
+					</Badge>
+				{/if}
 				<Badge variant="outline" class={cn('hidden gap-1.5 text-xs md:inline-flex', meta.badge)}>
 					{meta.label}
 				</Badge>

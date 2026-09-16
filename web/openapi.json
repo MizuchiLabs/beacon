@@ -132,7 +132,16 @@
 						"items": { "$ref": "#/components/schemas/DataPoint" },
 						"type": ["array", "null"]
 					},
+					"days_remaining": {
+						"description": "Days until the certificate expires, https and ssl monitors only",
+						"format": "int64",
+						"type": ["integer", "null"]
+					},
 					"id": { "format": "int64", "type": "integer" },
+					"ignore_cert_expiry": {
+						"description": "Whether certificate expiry is ignored for status and warnings",
+						"type": "boolean"
+					},
 					"last_checked_at": {
 						"description": "Timestamp of the latest check",
 						"format": "date-time",
@@ -145,6 +154,11 @@
 						"enum": ["operational", "degraded", "down", "unknown"],
 						"type": "string"
 					},
+					"type": {
+						"description": "What kind of check this monitor runs",
+						"enum": ["http", "tcp", "ssl"],
+						"type": "string"
+					},
 					"uptime_pct": { "format": "double", "type": ["number", "null"] },
 					"url": { "type": "string" }
 				},
@@ -152,8 +166,11 @@
 					"id",
 					"name",
 					"url",
+					"type",
 					"check_interval",
 					"status",
+					"days_remaining",
+					"ignore_cert_expiry",
 					"avg_response_time",
 					"uptime_pct",
 					"data_points"

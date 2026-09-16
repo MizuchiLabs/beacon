@@ -1,12 +1,13 @@
 -- name: UpsertCheck :exec
 INSERT INTO
-  checks (monitor_id, status_code, response_time, error, is_up, checked_at)
+  checks (monitor_id, status_code, response_time, days_remaining, error, is_up, checked_at)
 VALUES
-  (?, ?, ?, ?, ?, ?)
+  (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (monitor_id, checked_at) DO UPDATE
 SET
   status_code = excluded.status_code,
   response_time = excluded.response_time,
+  days_remaining = excluded.days_remaining,
   error = excluded.error,
   is_up = excluded.is_up;
 
@@ -20,6 +21,7 @@ SELECT
   c.monitor_id,
   c.status_code,
   c.response_time,
+  c.days_remaining,
   c.is_up,
   c.checked_at
 FROM

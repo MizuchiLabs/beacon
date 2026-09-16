@@ -95,7 +95,15 @@ export type MonitorStats = {
     avg_response_time: number | null;
     check_interval: number;
     data_points: Array<DataPoint> | null;
+    /**
+     * Days until the certificate expires, https and ssl monitors only
+     */
+    days_remaining: number | null;
     id: number;
+    /**
+     * Whether certificate expiry is ignored for status and warnings
+     */
+    ignore_cert_expiry: boolean;
     /**
      * Timestamp of the latest check
      */
@@ -106,6 +114,10 @@ export type MonitorStats = {
      * Status of the latest check, unknown when the monitor has gone quiet
      */
     status: 'operational' | 'degraded' | 'down' | 'unknown';
+    /**
+     * What kind of check this monitor runs
+     */
+    type: 'http' | 'tcp' | 'ssl';
     uptime_pct: number | null;
     url: string;
 };
