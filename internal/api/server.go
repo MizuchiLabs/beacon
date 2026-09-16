@@ -11,7 +11,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/vearutop/statigz"
 
 	"github.com/mizuchilabs/beacon/internal/db"
 	"github.com/mizuchilabs/beacon/internal/incidents"
@@ -109,7 +108,7 @@ func (s *Server) setupRoutes() {
 	})
 
 	// Static files
-	s.mux.Handle("/", statigz.FileServer(web.StaticFS, statigz.FSPrefix("build")))
+	s.mux.Handle("GET /{path...}", web.Handler())
 
 	if s.debug {
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
