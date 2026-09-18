@@ -12,5 +12,5 @@ monitors:
     url: "ssl://mizuchi.dev"
     check_interval: 3600
   - name: "Postgres"
-    url: "tcp://db.example.com:5432"
+    url: "tcp://localhost:5432"
     check_interval: 30
