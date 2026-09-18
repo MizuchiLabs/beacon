@@ -52,12 +52,14 @@ func New(
 	mux.Use(securityHeaders())
 	mux.Use(rateLimitAPI(100, time.Minute))
 	mux.Use(middleware.CleanPath)
-	return &Server{
+	server := &Server{
 		api:       newAPI(mux),
 		mux:       mux,
 		q:         q,
 		incidents: inc,
-	}, nil
+	}
+	server.setupRoutes()
+	return server, nil
 }
 
 func newAPI(mux *chi.Mux) huma.API {
@@ -68,14 +70,11 @@ func newAPI(mux *chi.Mux) huma.API {
 
 // Spec builds the OpenAPI description of the API without starting a server.
 func Spec() *huma.OpenAPI {
-	mux := chi.NewRouter()
-	server := &Server{api: newAPI(mux), mux: mux}
-	server.setupRoutes()
+	server, _ := New(nil, nil)
 	return server.api.OpenAPI()
 }
 
 func (s *Server) Start(ctx context.Context, port string) error {
-	s.setupRoutes()
 	server := &http.Server{
 		Addr:              ":" + port,
 		Handler:           s.mux,
