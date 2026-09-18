@@ -6,11 +6,16 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/http/pprof"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/danielgtaylor/huma/v2/adapters/humachi"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httplog/v3"
+	"github.com/rs/cors"
+
+	"github.com/mizuchilabs/kata/logx"
 
 	"github.com/mizuchilabs/beacon/internal/db"
 	"github.com/mizuchilabs/beacon/internal/incidents"
@@ -19,36 +24,51 @@ import (
 
 type Server struct {
 	api       huma.API
-	mux       *http.ServeMux
+	mux       *chi.Mux
 	q         *db.Queries
 	incidents *incidents.Service
-	debug     bool
 }
 
 func New(
-	ctx context.Context,
 	q *db.Queries,
 	inc *incidents.Service,
 ) (*Server, error) {
-	mux := http.NewServeMux()
+	mux := chi.NewRouter()
+
+	if logx.IsTerminal() {
+		mux.Use(middleware.Logger)
+		mux.Use(middleware.Recoverer)
+	} else {
+		mux.Use(httplog.RequestLogger(slog.Default(), &httplog.Options{
+			RecoverPanics: true,
+			Schema:        httplog.SchemaOTEL,
+			Skip: func(req *http.Request, respStatus int) bool {
+				return respStatus < http.StatusBadRequest && req.URL.Path == "/healthz"
+			},
+		}))
+	}
+	mux.Use(cors.Default().Handler)
+	mux.Use(middleware.RequestSize(1 << 20))
+	mux.Use(securityHeaders())
+	mux.Use(rateLimitAPI(100, time.Minute))
+	mux.Use(middleware.CleanPath)
 	return &Server{
 		api:       newAPI(mux),
 		mux:       mux,
 		q:         q,
 		incidents: inc,
-		debug:     slog.Default().Enabled(ctx, slog.LevelDebug),
 	}, nil
 }
 
-func newAPI(mux *http.ServeMux) huma.API {
+func newAPI(mux *chi.Mux) huma.API {
 	apiCfg := huma.DefaultConfig("Beacon API", "1.0.0")
 	apiCfg.CreateHooks = nil
-	return humago.New(mux, apiCfg)
+	return humachi.New(mux, apiCfg)
 }
 
 // Spec builds the OpenAPI description of the API without starting a server.
 func Spec() *huma.OpenAPI {
-	mux := http.NewServeMux()
+	mux := chi.NewRouter()
 	server := &Server{api: newAPI(mux), mux: mux}
 	server.setupRoutes()
 	return server.api.OpenAPI()
@@ -56,17 +76,9 @@ func Spec() *huma.OpenAPI {
 
 func (s *Server) Start(ctx context.Context, port string) error {
 	s.setupRoutes()
-
-	chain := NewChain(
-		WithCORS(port),
-		s.WithLogger,
-		WithRateLimit,
-		WithBodyLimit,
-		WithSecurityHeaders,
-	)
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           chain.Then(s.mux),
+		Handler:           s.mux,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -86,7 +98,7 @@ func (s *Server) Start(ctx context.Context, port string) error {
 	select {
 	case <-ctx.Done():
 		slog.Info("Shutting down server...")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		return server.Shutdown(shutdownCtx)
 
@@ -96,25 +108,17 @@ func (s *Server) Start(ctx context.Context, port string) error {
 }
 
 func (s *Server) setupRoutes() {
-	// API routes, each service registers its own operations on the huma API
+	// API routes
 	NewConfigService(s.api)
 	NewMonitorService(s.api, s.q)
 	NewIncidentService(s.api, s.incidents)
 	NewNotifyService(s.api, s.q)
 
-	// Plain mux routes outside the OpenAPI spec
-	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+	// Liveness: Process is alive and not deadlocked
+	s.mux.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
 	})
 
-	// Static files
-	s.mux.Handle("GET /{path...}", web.Handler())
-
-	if s.debug {
-		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
-		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		s.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		s.mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		s.mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	}
+	s.mux.Handle("/*", web.Handler())
 }

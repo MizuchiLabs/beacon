@@ -113,7 +113,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	}
 	inc.Start(ctx)
 
-	server, err := api.New(ctx, q, inc)
+	server, err := api.New(q, inc)
 	if err != nil {
 		return err
 	}

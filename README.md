@@ -121,9 +121,24 @@ monitors:
 | `BEACON_TIMEZONE`        | `Europe/Vienna`     | Display timezone                                   |
 | `BEACON_PUSH_SUBSCRIBER` | `mailto:beacon@...` | VAPID contact sent with push notifications         |
 | `BEACON_DEBUG`           | `false`             | Enable debug logging                               |
+| `BEACON_TRUSTED_PROXIES` | `direct`            | Client IP source for rate limiting, see below      |
 
 The SQLite database is always written to `data/beacon.db` relative to the
 working directory.
+
+`BEACON_TRUSTED_PROXIES` controls how client IPs are resolved for the API rate
+limit. With the default `direct`, the TCP peer address is used, which cannot be
+spoofed. Behind a reverse proxy, set it so each real client gets its own rate
+limit bucket instead of sharing the proxy's:
+
+- `cloudflare`: read `CF-Connecting-IP`
+- `nginx` or `traefik`: read `X-Real-IP`
+- CIDR list, e.g. `10.0.0.0/8,172.16.0.0/12`: resolve via `X-Forwarded-For`
+  from those trusted hops
+
+Only set this when the proxy actually sets the matching header, otherwise
+clients can spoof their IP and dodge the rate limit. Header modes also assume
+the port is not reachable without going through the proxy.
 
 ### Incident Management
 
