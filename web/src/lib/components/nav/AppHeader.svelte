@@ -17,6 +17,7 @@
 
 	const configQuery = $derived(useConfig());
 	const brand = $derived(configQuery.data?.title ?? 'Beacon');
+	const logoURL = $derived(configQuery.data?.logo_url ?? null);
 
 	let hasSubscriptions = $derived(pushNotifications.subscribedMonitorIds.length > 0);
 	let subscribedCount = $derived(pushNotifications.subscribedMonitorIds.length);
@@ -30,7 +31,11 @@
 			href={resolve('/')}
 			class="pointer-events-auto flex h-10 min-w-0 items-center gap-2 rounded-full border bg-background/80 px-3.5 shadow-sm backdrop-blur-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
 		>
-			<Beacon class="size-5 shrink-0" />
+			{#if logoURL}
+				<img src={logoURL} alt="" class="size-5 shrink-0 rounded-sm object-contain" />
+			{:else}
+				<Beacon class="size-5 shrink-0" />
+			{/if}
 			<span class="truncate text-sm font-semibold tracking-tight">{brand}</span>
 		</a>
 

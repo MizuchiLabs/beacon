@@ -6,6 +6,10 @@ export type ClientOptions = {
 
 export type ConfigBody = {
     /**
+     * URL of a custom logo image shown in the header
+     */
+    logo_url?: string;
+    /**
      * Dashboard title
      */
     title: string;

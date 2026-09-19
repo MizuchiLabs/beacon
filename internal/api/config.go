@@ -15,17 +15,19 @@ type ConfigOutput struct {
 
 // ConfigBody is the public dashboard configuration.
 type ConfigBody struct {
-	Title string `json:"title" doc:"Dashboard title"`
+	Title   string `json:"title"              doc:"Dashboard title"`
+	LogoURL string `json:"logo_url,omitempty" doc:"URL of a custom logo image shown in the header"`
 }
 
 type ConfigService struct {
-	Title string `env:"BEACON_TITLE" envDefault:"Beacon"`
+	Title   string `env:"BEACON_TITLE"    envDefault:"Beacon"`
+	LogoURL string `env:"BEACON_LOGO_URL"`
 }
 
-func NewConfigService(api huma.API) *ConfigService {
+func NewConfigService(api huma.API) error {
 	cfg, err := env.ParseAs[ConfigService]()
 	if err != nil {
-		return nil
+		return err
 	}
 	huma.Register(api, huma.Operation{
 		OperationID: "get-config",
@@ -35,11 +37,9 @@ func NewConfigService(api huma.API) *ConfigService {
 		Description: "Public configuration used by the dashboard frontend.",
 		Tags:        []string{"Config"},
 	}, cfg.getConfig)
-	return &cfg
+	return nil
 }
 
 func (s *ConfigService) getConfig(_ context.Context, _ *struct{}) (*ConfigOutput, error) {
-	return &ConfigOutput{Body: ConfigBody{
-		Title: s.Title,
-	}}, nil
+	return &ConfigOutput{Body: ConfigBody{Title: s.Title, LogoURL: s.LogoURL}}, nil
 }
