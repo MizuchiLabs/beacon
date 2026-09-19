@@ -21,6 +21,8 @@ const (
 	maxPoints = 50
 	// slowThresh is the response time above which an up check counts as degraded.
 	slowThresh = 500 * time.Millisecond
+	// stalenessFactor is how many missed intervals make a monitor unknown.
+	stalenessFactor = 3
 )
 
 // stepLadder are the bucket sizes in seconds a window may be reduced to, from
@@ -247,7 +249,7 @@ func buildPoints(
 // just died has a healthy looking uptime, and one that stopped reporting is
 // unknown rather than up.
 func statusOf(m *db.Monitor, last *db.GetLatestChecksRow, now int64) string {
-	if last == nil || now-last.CheckedAt > 3*m.CheckInterval {
+	if last == nil || now-last.CheckedAt > stalenessFactor*m.CheckInterval {
 		return statusUnknown
 	}
 	if !last.IsUp {

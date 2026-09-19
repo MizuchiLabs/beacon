@@ -15,6 +15,9 @@ import (
 	"github.com/mizuchilabs/beacon/internal/notify"
 )
 
+// secondsPerDay is the bucket size for once-per-day notification cadence.
+const secondsPerDay = 86400
+
 type Service struct {
 	q            *db.Queries
 	checker      *checker.Checker
@@ -141,8 +144,10 @@ func checkReason(result checker.Result) string {
 // certificate is inside the warning window. Expiry is not an up/down
 // transition, so the cadence is tracked separately from recordState.
 func (s *Service) warnCertificateExpiry(ctx context.Context, monitor *db.Monitor, result checker.Result) {
-	if monitor.IgnoreCertExpiry || !result.IsUp || result.DaysLeft == nil ||
-		*result.DaysLeft >= checker.CertWarnDays {
+	if monitor.IgnoreCertExpiry || !result.IsUp {
+		return
+	}
+	if result.DaysLeft == nil || *result.DaysLeft >= checker.CertWarnDays {
 		return
 	}
 
@@ -158,7 +163,7 @@ func (s *Service) warnCertificateExpiry(ctx context.Context, monitor *db.Monitor
 // certWarnDue reports whether monitorID has not had a certificate warning
 // today, marking it warned as a side effect.
 func (s *Service) certWarnDue(monitorID int64) bool {
-	today := time.Now().Unix() / 86400
+	today := time.Now().Unix() / secondsPerDay
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

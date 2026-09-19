@@ -1,4 +1,3 @@
-// Package api handles the API requests
 package api
 
 import (
@@ -23,10 +22,9 @@ import (
 )
 
 type Server struct {
-	api       huma.API
-	mux       *chi.Mux
-	q         *db.Queries
-	incidents *incidents.Service
+	api huma.API
+	mux *chi.Mux
+	q   *db.Queries
 }
 
 func New(
@@ -52,20 +50,31 @@ func New(
 	mux.Use(securityHeaders())
 	mux.Use(rateLimitAPI(100, time.Minute))
 	mux.Use(middleware.CleanPath)
+
 	server := &Server{
-		api:       newAPI(mux),
-		mux:       mux,
-		q:         q,
-		incidents: inc,
+		api: humachi.New(mux, humaConfig()),
+		mux: mux,
+		q:   q,
 	}
-	server.setupRoutes()
+	if err := NewConfigService(server.api); err != nil {
+		return nil, err
+	}
+	NewMonitorService(server.api, q)
+	NewIncidentService(server.api, inc)
+	NewNotifyService(server.api, q)
+
+	mux.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	mux.Handle("/*", web.Handler())
 	return server, nil
 }
 
-func newAPI(mux *chi.Mux) huma.API {
-	apiCfg := huma.DefaultConfig("Beacon API", "1.0.0")
-	apiCfg.CreateHooks = nil
-	return humachi.New(mux, apiCfg)
+func humaConfig() huma.Config {
+	cfg := huma.DefaultConfig("Beacon API", "1.0.0")
+	cfg.CreateHooks = nil
+	return cfg
 }
 
 // Spec builds the OpenAPI description of the API without starting a server.
@@ -104,20 +113,4 @@ func (s *Server) Start(ctx context.Context, port string) error {
 	case err := <-serverErr:
 		return fmt.Errorf("server error: %w", err)
 	}
-}
-
-func (s *Server) setupRoutes() {
-	// API routes
-	NewConfigService(s.api)
-	NewMonitorService(s.api, s.q)
-	NewIncidentService(s.api, s.incidents)
-	NewNotifyService(s.api, s.q)
-
-	// Liveness: Process is alive and not deadlocked
-	s.mux.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	})
-
-	s.mux.Handle("/*", web.Handler())
 }
