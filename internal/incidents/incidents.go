@@ -43,40 +43,39 @@ func (i *Service) Start(ctx context.Context) {
 		return
 	}
 
-	// Initial sync if using git
 	if i.RepoURL != "" {
 		if err := i.syncRepo(ctx); err != nil {
 			slog.Warn("Failed initial sync, will retry...", "error", err)
 		}
 	}
 
-	// Initial parse
 	if err := i.loadIncidents(); err != nil {
 		slog.Warn("Failed to load incidents", "error", err)
 	}
 
-	// Periodic sync only if using git
-	if i.RepoURL != "" {
-		ticker := time.NewTicker(i.Interval)
-		defer ticker.Stop()
+	if i.RepoURL == "" {
+		return
+	}
 
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker.C:
-					if err := i.syncRepo(ctx); err != nil {
-						slog.Error("Failed to sync incidents repo", "error", err)
-						continue
-					}
-					if err := i.loadIncidents(); err != nil {
-						slog.Error("Failed to reload incidents", "error", err)
-					}
+	ticker := time.NewTicker(i.Interval)
+	defer ticker.Stop()
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := i.syncRepo(ctx); err != nil {
+					slog.Error("Failed to sync incidents repo", "error", err)
+					continue
+				}
+				if err := i.loadIncidents(); err != nil {
+					slog.Error("Failed to reload incidents", "error", err)
 				}
 			}
-		}()
-	}
+		}
+	}()
 }
 
 func (i *Service) syncRepo(ctx context.Context) error {

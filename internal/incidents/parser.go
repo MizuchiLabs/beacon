@@ -84,17 +84,20 @@ func (i *Incident) Validate() error {
 	if !slices.Contains(ValidSeverities, i.Severity) {
 		return fmt.Errorf("invalid severity '%s': must be one of %v", i.Severity, ValidSeverities)
 	}
-	if !slices.Contains(ValidStatuses, i.Status) {
-		return fmt.Errorf("invalid status '%s': must be one of %v", i.Status, ValidStatuses)
+	if err := validateStatus("incident", i.Status); err != nil {
+		return err
 	}
 	for _, update := range i.Updates {
-		if !slices.Contains(ValidStatuses, update.Status) {
-			return fmt.Errorf(
-				"invalid update status '%s': must be one of %v",
-				update.Status,
-				ValidStatuses,
-			)
+		if err := validateStatus(fmt.Sprintf("update %q", update.Message), update.Status); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func validateStatus(what, status string) error {
+	if !slices.Contains(ValidStatuses, status) {
+		return fmt.Errorf("%s: invalid status '%s': must be one of %v", what, status, ValidStatuses)
 	}
 	return nil
 }
