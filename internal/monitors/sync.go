@@ -108,18 +108,11 @@ func Sync(ctx context.Context, q *db.Queries, path string) error {
 
 // monitorType derives the stored monitor type from the URL scheme.
 func monitorType(rawURL string) string {
-	parsed, err := url.Parse(rawURL)
-	if err != nil {
-		return checker.TypeHTTP
+	scheme := ""
+	if parsed, err := url.Parse(rawURL); err == nil {
+		scheme = parsed.Scheme
 	}
-	switch parsed.Scheme {
-	case "tcp":
-		return checker.TypeTCP
-	case "ssl":
-		return checker.TypeSSL
-	default:
-		return checker.TypeHTTP
-	}
+	return checker.TypeForScheme(scheme)
 }
 
 func load(path string) ([]monitor, error) {
@@ -131,11 +124,7 @@ func load(path string) ([]monitor, error) {
 	// Inline YAML from the environment
 	if src.InlineYAML != "" {
 		slog.Debug("Loading monitors from environment...")
-		monitors, err := parseYAML([]byte(src.InlineYAML))
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse BEACON_MONITORS: %w", err)
-		}
-		return monitors, validate(monitors)
+		return loadYAML([]byte(src.InlineYAML), "BEACON_MONITORS")
 	}
 
 	// File path
@@ -149,9 +138,13 @@ func load(path string) ([]monitor, error) {
 	}
 
 	slog.Debug("Loading monitors from config file", "path", path)
+	return loadYAML(data, "config file")
+}
+
+func loadYAML(data []byte, sourceName string) ([]monitor, error) {
 	monitors, err := parseYAML(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
+		return nil, fmt.Errorf("failed to parse %s: %w", sourceName, err)
 	}
 	return monitors, validate(monitors)
 }
@@ -192,9 +185,7 @@ func validate(monitors []monitor) error {
 			return fmt.Errorf("monitor %q: invalid url %q: %w", m.Name, m.URL, err)
 		}
 
-		switch parsedURL.Scheme {
-		case "http", "https", "tcp", "ssl":
-		default:
+		if !checker.ValidScheme(parsedURL.Scheme) {
 			return fmt.Errorf(
 				"monitor %q: url scheme must be http, https, tcp or ssl, got %q",
 				m.Name,

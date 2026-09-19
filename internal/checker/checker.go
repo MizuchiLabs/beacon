@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/caarlos0/env/v11"
@@ -22,11 +23,31 @@ const (
 	TypeHTTP = "http"
 	TypeTCP  = "tcp"
 	TypeSSL  = "ssl"
+
+	// CertWarnDays is how many days before certificate expiry an ssl monitor
+	// counts as degraded and subscribers get a warning.
+	CertWarnDays = 30
 )
 
-// CertWarnDays is how many days before certificate expiry an ssl monitor
-// counts as degraded and subscribers get a warning.
-const CertWarnDays = 30
+// TypeForScheme maps a URL scheme to its check type, defaulting to http.
+func TypeForScheme(scheme string) string {
+	switch scheme {
+	case "tcp":
+		return TypeTCP
+	case "ssl":
+		return TypeSSL
+	default:
+		return TypeHTTP
+	}
+}
+
+// validSchemes are the URL schemes a monitor may use.
+var validSchemes = []string{"http", "https", "tcp", "ssl"}
+
+// ValidScheme reports whether scheme is one a monitor may use.
+func ValidScheme(scheme string) bool {
+	return slices.Contains(validSchemes, scheme)
+}
 
 type Checker struct {
 	client *http.Client
@@ -36,7 +57,6 @@ type Checker struct {
 	Insecure bool          `env:"BEACON_INSECURE" envDefault:"false"`
 }
 
-// Result is the outcome of one check.
 type Result struct {
 	StatusCode   int64  // HTTP status, zero for tcp and ssl checks
 	ResponseTime int64  // in ms
@@ -53,13 +73,17 @@ func New() (*Checker, error) {
 
 	c.client = &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig:   &tls.Config{InsecureSkipVerify: c.Insecure}, // #nosec G402
+			TLSClientConfig:   c.tlsConfig(),
 			DisableKeepAlives: true,
 		},
 	}
 	c.dialer = &net.Dialer{Timeout: c.Timeout}
 
 	return &c, nil
+}
+
+func (c *Checker) tlsConfig() *tls.Config {
+	return &tls.Config{InsecureSkipVerify: c.Insecure} // #nosec G402
 }
 
 // Check dispatches on the URL scheme: http and https do an HTTP GET, tcp
@@ -140,7 +164,7 @@ func (c *Checker) checkTCP(ctx context.Context, addr string) Result {
 func (c *Checker) checkSSL(ctx context.Context, addr string) Result {
 	dialer := &tls.Dialer{
 		NetDialer: c.dialer,
-		Config:    &tls.Config{InsecureSkipVerify: c.Insecure}, // #nosec G402
+		Config:    c.tlsConfig(),
 	}
 
 	start := time.Now()
