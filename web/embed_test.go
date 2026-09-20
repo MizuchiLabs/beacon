@@ -116,7 +116,7 @@ func TestETagRevalidation(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
 	require.Equal(t, http.StatusOK, w.Code)
-	etag := w.Header().Get("Etag")
+	etag := w.Header().Get("ETag")
 	require.NotEmpty(t, etag)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
