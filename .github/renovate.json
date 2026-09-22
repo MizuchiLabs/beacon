@@ -13,6 +13,10 @@
     {
       "matchPackagePatterns": ["*"],
       "automerge": true
+    },
+    {
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "automerge": true
     }
   ],
   "platformAutomerge": true,
