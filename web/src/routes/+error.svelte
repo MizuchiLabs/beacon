@@ -16,6 +16,7 @@
 <svelte:head>
 	<title>{isNotFound ? '404' : `Error ${page.status}`}</title>
 </svelte:head>
+
 <div
 	class="flex min-h-[calc(100dvh-8rem)] flex-col items-center justify-center gap-6 p-6 text-center"
 >
