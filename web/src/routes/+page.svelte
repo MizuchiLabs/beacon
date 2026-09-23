@@ -87,26 +87,31 @@
 
 <div class="mx-auto w-full space-y-4 p-6 sm:max-w-4xl">
 	{#if statsQuery.isError && !statsQuery.data}
-		<Empty.Root class="border border-dashed">
-			<Empty.Header>
-				<Empty.Title>Could not load monitors</Empty.Title>
-				<Empty.Description>Try refreshing the page.</Empty.Description>
-			</Empty.Header>
-		</Empty.Root>
+		<div class="rounded-3xl border border-dashed">
+			<Empty.Root>
+				<Empty.Header>
+					<Empty.Title>Could not load monitors</Empty.Title>
+					<Empty.Description>Try refreshing the page.</Empty.Description>
+				</Empty.Header>
+			</Empty.Root>
+		</div>
 	{:else if !statsQuery.data}
 		<div class="flex flex-col gap-2">
-			<Skeleton class="h-12 w-full rounded-xl" />
-			<Skeleton class="h-24 w-full rounded-xl" />
-			<Skeleton class="h-24 w-full rounded-xl" />
-			<Skeleton class="h-24 w-full rounded-xl" />
+			<Skeleton class="h-12 w-full" />
+			<Skeleton class="h-24 w-full" />
+			<Skeleton class="h-24 w-full" />
+			<Skeleton class="h-24 w-full" />
 		</div>
 	{:else if statsQuery.data?.length === 0}
-		<Empty.Root class="border border-dashed">
-			<Empty.Header>
-				<Empty.Title>No monitors configured</Empty.Title>
-				<Empty.Description>Add a monitor to your config file to start tracking.</Empty.Description>
-			</Empty.Header>
-		</Empty.Root>
+		<div class="rounded-3xl border border-dashed">
+			<Empty.Root>
+				<Empty.Header>
+					<Empty.Title>No monitors configured</Empty.Title>
+					<Empty.Description>Add a monitor to your config file to start tracking.</Empty.Description
+					>
+				</Empty.Header>
+			</Empty.Root>
+		</div>
 	{:else}
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-center">
 			<OverallBanner monitors={statsQuery.data ?? []} {updatedAgo} />
@@ -120,9 +125,9 @@
 					{@const latest = incident.updates?.at(-1)}
 					<Alert.Root variant={severity.variant === 'destructive' ? 'destructive' : 'default'}>
 						<severity.icon />
-						<Alert.Title class="flex flex-wrap items-center gap-2">
+						<Alert.Title class="flex flex-wrap items-center">
 							{incident.title}
-							<Badge variant={severity.variant} class="gap-1">
+							<Badge variant={severity.variant} class="ml-2">
 								<severity.icon class="size-3" />
 								{severity.label}
 							</Badge>
@@ -151,12 +156,7 @@
 			<section class="space-y-2 pt-2">
 				<div class="flex items-center justify-between">
 					<h2 class="text-sm font-medium text-muted-foreground">Past incidents</h2>
-					<Button
-						variant="ghost"
-						size="sm"
-						class="h-7 gap-1 rounded-md px-2 text-xs text-muted-foreground"
-						href={resolve('/events')}
-					>
+					<Button variant="ghost" size="xs" href={resolve('/events')}>
 						View all
 						<ArrowRightIcon />
 					</Button>
@@ -184,8 +184,8 @@
 									<CircleCheckIcon class="size-4 text-chart-3" />
 								</Item.Media>
 								<Item.Content class="min-w-0">
-									<Item.Title class="truncate text-sm">{incident.title}</Item.Title>
-									<Item.Description class="text-xs">
+									<Item.Title>{incident.title}</Item.Title>
+									<Item.Description>
 										{monthDay.format(new Date(incident.started_at))}
 										· {durationText(incident.started_at, incident.resolved_at)}
 										{#if incident.affected_monitors?.length}
@@ -194,7 +194,7 @@
 									</Item.Description>
 								</Item.Content>
 								<Item.Actions class="shrink-0">
-									<Badge variant={severity.variant} class="gap-1 text-xs">
+									<Badge variant={severity.variant}>
 										<severity.icon class="size-3" />
 										{severity.label}
 									</Badge>

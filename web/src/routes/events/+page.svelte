@@ -32,24 +32,24 @@
 						<div class="flex items-start justify-between gap-4">
 							<div class="flex-1 space-y-2">
 								<div class="flex flex-wrap items-center gap-2">
-									<Badge variant={severity.variant} class="gap-1">
+									<Badge variant={severity.variant}>
 										<severity.icon class="h-3 w-3" />
 										{severity.label}
 									</Badge>
-									<Badge variant={status.variant} class="gap-1">
+									<Badge variant={status.variant}>
 										<status.icon class="h-3 w-3" />
 										{status.label}
 									</Badge>
 									{#if (incident.affected_monitors?.length ?? 0) > 0}
-										<Badge variant="outline" class="gap-1">
+										<Badge variant="outline">
 											<ActivityIcon class="h-3 w-3" />
 											{incident.affected_monitors!.length} services
 										</Badge>
 									{/if}
 								</div>
 
-								<Card.Title class="text-xl">{incident.title}</Card.Title>
-								<Card.Description class="text-base">
+								<Card.Title>{incident.title}</Card.Title>
+								<Card.Description>
 									{incident.description}
 								</Card.Description>
 							</div>
@@ -63,7 +63,7 @@
 						{#if (incident.affected_monitors?.length ?? 0) > 0}
 							<div class="flex flex-wrap gap-2 pt-2">
 								{#each incident.affected_monitors! as monitor (monitor)}
-									<Badge variant="secondary" class="font-mono text-xs">
+									<Badge variant="secondary">
 										{monitor}
 									</Badge>
 								{/each}
@@ -72,7 +72,7 @@
 					</Card.Header>
 
 					{#if (incident.updates?.length ?? 0) > 0}
-						<Card.Content class="pt-0">
+						<Card.Content>
 							<Separator class="mb-4" />
 
 							<div class="space-y-4">
@@ -92,7 +92,7 @@
 
 											<div class="space-y-1">
 												<div class="flex items-center gap-2 text-sm">
-													<Badge variant={updateStatus.variant} class="h-5 gap-1 text-xs">
+													<Badge variant={updateStatus.variant}>
 														<updateStatus.icon class="h-2.5 w-2.5" />
 														{updateStatus.label}
 													</Badge>
@@ -109,7 +109,7 @@
 						</Card.Content>
 					{/if}
 
-					<Card.Footer class="border-t text-xs text-muted-foreground">
+					<Card.Footer>
 						<div class="flex w-full items-center justify-between">
 							<span>Started: {dateTimeFormat.format(new Date(incident.started_at))}</span>
 							{#if incident.resolved_at}
@@ -122,8 +122,8 @@
 		</div>
 	{:else if configQuery.isPending || incidents.isPending}
 		<div class="flex flex-col gap-4">
-			<Skeleton class="h-40 w-full rounded-xl" />
-			<Skeleton class="h-40 w-full rounded-xl" />
+			<Skeleton class="h-40 w-full" />
+			<Skeleton class="h-40 w-full" />
 		</div>
 	{:else}
 		<Empty.Root>

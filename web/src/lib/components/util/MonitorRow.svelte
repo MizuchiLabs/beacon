@@ -51,46 +51,36 @@
 
 <Item.Root onclick={open} class="group">
 	<Item.Content class="min-w-0 md:max-w-36">
-		<Item.Title class="flex items-center gap-1">
+		<Item.Title class="flex items-center">
 			{monitor.name}
 			{#if monitor.type !== 'http'}
-				<Badge variant="outline" class="px-1.5 text-[10px] text-muted-foreground uppercase">
-					{monitor.type}
-				</Badge>
+				<span class="text-xs font-medium text-muted-foreground uppercase">{monitor.type}</span>
 			{/if}
 		</Item.Title>
-		<Item.Description class="text-xs">
+		<Item.Description>
 			<a href={monitor.url} target="_blank" rel="noreferrer" class="truncate no-underline!">
 				{host}
 			</a>
 		</Item.Description>
 	</Item.Content>
 	<Item.Content
-		class="order-last w-full flex-row items-center gap-6 md:order-0 md:w-auto md:min-w-0 md:flex-1!"
+		class="order-last w-full flex-row items-center md:order-0 md:w-auto md:min-w-0 md:flex-1!"
 	>
-		<StatusChart {monitor} class="h-9 w-full" />
+		<StatusChart {monitor} class="mr-6 h-9 w-full" />
 
 		<HoverCard.Root openDelay={300}>
 			<HoverCard.Trigger>
 				{#if !monitor.ignore_cert_expiry && monitor.days_remaining != null && monitor.days_remaining <= certWarnDays}
-					<Badge
-						variant="outline"
-						class="hidden gap-1 border-chart-4/20 bg-chart-4/15 text-xs text-chart-4 md:inline-flex"
-					>
+					<Badge variant="outline" class="hidden md:inline-flex">
 						<CalendarClockIcon class="size-3" />
 						{monitor.days_remaining}d
 					</Badge>
 				{/if}
-				<Badge variant="outline" class={cn('hidden gap-1.5 text-xs md:inline-flex', meta.badge)}>
+				<Badge variant="outline" class={cn('hidden md:inline-flex', meta.badge)}>
 					{meta.label}
 				</Badge>
 			</HoverCard.Trigger>
-			<HoverCard.Content
-				align="center"
-				side="left"
-				sideOffset={16}
-				class="flex w-56 flex-col gap-3"
-			>
+			<HoverCard.Content align="center" side="left" sideOffset={16} class="flex w-56 flex-col">
 				<div class="flex items-center gap-2">
 					<span class="size-2 rounded-full {meta.dot}"></span>
 					<span class="text-sm font-medium">{meta.label}</span>
@@ -100,7 +90,7 @@
 						</span>
 					{/if}
 				</div>
-				<div class="grid grid-cols-2 gap-4">
+				<div class="mt-3 grid grid-cols-2 gap-4">
 					<div class="flex flex-col gap-0.5">
 						<p class="text-xs text-muted-foreground">Uptime</p>
 						<p class="text-sm font-semibold tabular-nums {uptimeTextClass(monitor.uptime_pct)}">

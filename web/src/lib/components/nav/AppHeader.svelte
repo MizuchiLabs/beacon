@@ -45,7 +45,7 @@
 			<Button
 				variant="ghost"
 				size="icon-sm"
-				class="relative rounded-full"
+				class="relative"
 				aria-label="Subscribe to notifications"
 				onclick={() => (showSubscriptionDialog = true)}
 			>
@@ -58,13 +58,7 @@
 					</span>
 				{/if}
 			</Button>
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				class="rounded-full"
-				onclick={toggleMode}
-				aria-label="Toggle theme"
-			>
+			<Button variant="ghost" size="icon-sm" onclick={toggleMode} aria-label="Toggle theme">
 				{#if mode.current === 'light'}
 					<Moon />
 				{:else}

@@ -1,10 +1,21 @@
 {
 	"$schema": "./node_modules/oxlint/configuration_schema.json",
 	"plugins": ["typescript", "unicorn", "oxc"],
+	"jsPlugins": ["@shadcn/lint"],
 	"categories": {
 		"correctness": "error"
 	},
-	"rules": {},
+	"rules": {
+		"shadcn/no-arbitrary-values": "error"
+	},
+	"overrides": [
+		{
+			"files": ["src/lib/components/ui/**"],
+			"rules": {
+				"shadcn/no-arbitrary-values": "off"
+			}
+		}
+	],
 	"env": {
 		"builtin": true
 	}

@@ -17,7 +17,7 @@
 	<title>{isNotFound ? '404' : `Error ${page.status}`}</title>
 </svelte:head>
 <div
-	class="flex min-h-[calc(100dvh_-_8rem)] flex-col items-center justify-center gap-6 p-6 text-center"
+	class="flex min-h-[calc(100dvh-8rem)] flex-col items-center justify-center gap-6 p-6 text-center"
 >
 	<div class="relative flex size-16 items-center justify-center rounded-full border bg-card">
 		<span
@@ -32,5 +32,5 @@
 		<p class="text-sm text-muted-foreground">{description}</p>
 	</div>
 
-	<Button href={resolve('/')} size="sm" class="rounded-full">Back to status</Button>
+	<Button href={resolve('/')} size="sm">Back to status</Button>
 </div>

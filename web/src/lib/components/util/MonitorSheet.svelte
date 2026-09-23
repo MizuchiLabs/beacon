@@ -68,8 +68,8 @@
 			<Sheet.Header>
 				<div class="flex items-start justify-between gap-3">
 					<div class="min-w-0">
-						<Sheet.Title class="truncate">{monitor.name}</Sheet.Title>
-						<Sheet.Description class="mt-1 flex items-center gap-2 text-xs">
+						<Sheet.Title>{monitor.name}</Sheet.Title>
+						<Sheet.Description class="mt-1 flex items-center">
 							<a
 								href={monitor.url}
 								target="_blank"
@@ -84,11 +84,11 @@
 					<div class="flex shrink-0 items-center gap-1.5 pr-6">
 						<SubscribeBell monitorId={monitor.id} />
 						{#if monitor.type !== 'http'}
-							<Badge variant="outline" class="text-[10px] text-muted-foreground uppercase">
+							<span class="text-xs font-medium text-muted-foreground uppercase">
 								{monitor.type}
-							</Badge>
+							</span>
 						{/if}
-						<Badge variant="outline" class={cn('gap-1.5 text-xs', meta.badge)}>
+						<Badge variant="outline" class={meta.badge}>
 							{meta.label}
 						</Badge>
 					</div>
@@ -131,11 +131,15 @@
 							{#each percentileRows as row (row.label)}
 								<Tooltip.Root>
 									<Tooltip.Trigger
-										class="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 cursor-default rounded-full border-2 border-background bg-muted-foreground/50 p-0 transition-colors hover:bg-muted-foreground/80"
+										class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-default"
 										style="left: {Math.min(100, (row.ms / percentileMax) * 100)}%"
 										aria-label="{row.label} response time {formatMs(row.ms)}"
-									></Tooltip.Trigger>
-									<Tooltip.Content class="px-2 py-1">
+									>
+										<div
+											class="size-3 rounded-full border-2 border-background bg-muted-foreground/50 transition-colors hover:bg-muted-foreground/80"
+										></div>
+									</Tooltip.Trigger>
+									<Tooltip.Content>
 										{row.label} · {formatMs(row.ms)}
 									</Tooltip.Content>
 								</Tooltip.Root>
@@ -147,14 +151,7 @@
 				<section class="flex flex-col gap-2">
 					<div class="flex items-center justify-between">
 						<h3 class="text-xs font-medium text-muted-foreground">Incidents</h3>
-						<Button
-							variant="ghost"
-							size="sm"
-							class="h-7 rounded-md px-2 text-xs"
-							href={resolve('/events')}
-						>
-							View all
-						</Button>
+						<Button variant="ghost" size="xs" href={resolve('/events')}>View all</Button>
 					</div>
 					{#if incidents.length === 0}
 						<p
@@ -168,15 +165,12 @@
 								<li class="flex flex-col gap-1 rounded-lg border px-3 py-2">
 									<div class="flex items-center justify-between gap-2">
 										<span class="truncate text-xs font-medium">{incident.title}</span>
-										<Badge
-											variant={incidentSeverity(incident.severity).variant}
-											class="text-[10px]"
-										>
+										<Badge variant={incidentSeverity(incident.severity).variant}>
 											{incidentSeverity(incident.severity).label}
 										</Badge>
 									</div>
 									<div class="flex items-center gap-2 text-[11px] text-muted-foreground">
-										<Badge variant={incidentStatus(incident.status).variant} class="text-[10px]">
+										<Badge variant={incidentStatus(incident.status).variant}>
 											{incidentStatus(incident.status).label}
 										</Badge>
 										<span>
