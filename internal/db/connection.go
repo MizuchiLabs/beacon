@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/mizuchilabs/sqlite-schema-diff/pkg/diff"
 	"github.com/mizuchilabs/sqlite-schema-diff/pkg/parser"
@@ -17,29 +16,45 @@ import (
 //go:embed schemas/*.sql
 var schemaFS embed.FS
 
-const DBPath = "data/beacon.db"
+// pragmas live in the DSN so every connection gets them, not just the first.
+const pragmas = "_txlock=immediate" +
+	"&_pragma=busy_timeout(5000)" +
+	"&_pragma=journal_mode(WAL)" +
+	"&_pragma=journal_size_limit(200000000)" +
+	"&_pragma=synchronous(NORMAL)" +
+	"&_pragma=foreign_keys(ON)" +
+	"&_pragma=temp_store(MEMORY)" +
+	"&_pragma=mmap_size(300000000)" +
+	"&_pragma=cache_size(-16000)"
 
-// Open connects to the SQLite database and applies the schema. The pool is
-// closed when ctx is cancelled.
-func Open(ctx context.Context) (*Queries, error) {
-	if err := os.MkdirAll(filepath.Dir(DBPath), 0o750); err != nil {
-		return nil, fmt.Errorf("creating database directory: %w", err)
+// Open connects to beacon.db inside dataDir and applies the schema. The pool
+// is closed when ctx is cancelled.
+func Open(ctx context.Context, dataDir string) (*Queries, error) {
+	if err := os.MkdirAll(dataDir, 0o750); err != nil {
+		return nil, fmt.Errorf("creating data directory: %w", err)
 	}
 
-	dataSource := fmt.Sprintf("file:%s?_txlock=immediate", filepath.ToSlash(DBPath))
-	sqliteDB, err := sql.Open("sqlite", dataSource)
+	path := filepath.Join(dataDir, "beacon.db")
+	backup := ""
+	if _, err := os.Stat(path); err == nil {
+		backup = path + ".backup"
+	}
+
+	sqliteDB, err := sql.Open("sqlite", "file:"+filepath.ToSlash(path)+"?"+pragmas)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
+	sqliteDB.SetMaxOpenConns(1)
 
-	if err := setupSQLite(sqliteDB); err != nil {
-		_ = sqliteDB.Close()
-		return nil, err
-	}
-
-	if err := migrate(ctx, sqliteDB); err != nil {
+	if err := migrate(ctx, sqliteDB, backup); err != nil {
 		_ = sqliteDB.Close()
 		return nil, fmt.Errorf("applying schema: %w", err)
+	}
+
+	q := New(sqliteDB)
+	if err := q.BackfillRollups(ctx); err != nil {
+		_ = sqliteDB.Close()
+		return nil, fmt.Errorf("backfilling rollups: %w", err)
 	}
 
 	go func() {
@@ -47,35 +62,12 @@ func Open(ctx context.Context) (*Queries, error) {
 		_ = sqliteDB.Close()
 	}()
 
-	return New(sqliteDB), nil
+	return q, nil
 }
 
-// setupSQLite applies performance and safety pragmas.
-func setupSQLite(db *sql.DB) error {
-	pragmas := `
-	PRAGMA busy_timeout = 5000;
-	PRAGMA journal_mode = WAL;
-	PRAGMA journal_size_limit = 200000000;
-	PRAGMA synchronous = NORMAL;
-	PRAGMA foreign_keys = ON;
-	PRAGMA temp_store = MEMORY;
-	PRAGMA mmap_size = 300000000;
-	PRAGMA cache_size = -16000;`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if _, err := db.ExecContext(ctx, pragmas); err != nil {
-		return fmt.Errorf("executing pragmas: %w", err)
-	}
-
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxLifetime(0)
-	return nil
-}
-
-func migrate(ctx context.Context, db *sql.DB) error {
+// migrate applies the embedded schema. A backup is only written when a path is
+// given and the schema actually changes.
+func migrate(ctx context.Context, db *sql.DB, backupPath string) error {
 	parser.SetBaseFS(schemaFS)
-	return diff.Apply(ctx, db, "schemas", diff.ApplyOptions{})
+	return diff.Apply(ctx, db, "schemas", diff.ApplyOptions{BackupPath: backupPath})
 }

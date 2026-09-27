@@ -12,22 +12,21 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/mizuchilabs/beacon/internal/db"
 )
 
 func newTestChecker(insecure bool) *Checker {
-	return &Checker{
-		client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure}, // #nosec G402
-			},
-		},
-		dialer:   &net.Dialer{Timeout: 2 * time.Second},
-		Insecure: insecure,
-	}
+	return newChecker(2*time.Second, insecure)
+}
+
+func monitor(url string) *db.Monitor {
+	return &db.Monitor{Url: url}
 }
 
 // selfSignedCert mints a one-off certificate. IsCA keeps the TLS server happy
@@ -88,7 +87,7 @@ func TestCheckHTTP(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	result := newTestChecker(false).Check(t.Context(), server.URL)
+	result := newTestChecker(false).Check(t.Context(), monitor(server.URL))
 	require.True(t, result.IsUp)
 	require.Nil(t, result.Error)
 	require.EqualValues(t, http.StatusOK, result.StatusCode)
@@ -102,7 +101,7 @@ func TestCheckHTTPCapturesCertificateExpiry(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	result := newTestChecker(true).Check(t.Context(), server.URL)
+	result := newTestChecker(true).Check(t.Context(), monitor(server.URL))
 	require.True(t, result.IsUp)
 	require.NotNil(t, result.DaysLeft, "https checks must carry the certificate lifetime")
 	require.GreaterOrEqual(t, *result.DaysLeft, int64(0))
@@ -115,7 +114,7 @@ func TestCheckTCP(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = listener.Close() })
 
-	result := newTestChecker(false).Check(t.Context(), "tcp://"+listener.Addr().String())
+	result := newTestChecker(false).Check(t.Context(), monitor("tcp://"+listener.Addr().String()))
 	require.True(t, result.IsUp)
 	require.Nil(t, result.Error)
 	require.Zero(t, result.StatusCode)
@@ -124,7 +123,7 @@ func TestCheckTCP(t *testing.T) {
 func TestCheckTCPRefused(t *testing.T) {
 	t.Parallel()
 
-	result := newTestChecker(false).Check(t.Context(), "tcp://127.0.0.1:1")
+	result := newTestChecker(false).Check(t.Context(), monitor("tcp://127.0.0.1:1"))
 	require.False(t, result.IsUp)
 	require.NotNil(t, result.Error)
 }
@@ -132,7 +131,7 @@ func TestCheckTCPRefused(t *testing.T) {
 func TestCheckTCPRequiresPort(t *testing.T) {
 	t.Parallel()
 
-	result := newTestChecker(false).Check(t.Context(), "tcp://localhost")
+	result := newTestChecker(false).Check(t.Context(), monitor("tcp://localhost"))
 	require.False(t, result.IsUp)
 	require.Contains(t, *result.Error, "port")
 }
@@ -140,7 +139,7 @@ func TestCheckTCPRequiresPort(t *testing.T) {
 func TestCheckUnsupportedScheme(t *testing.T) {
 	t.Parallel()
 
-	result := newTestChecker(false).Check(t.Context(), "ftp://example.com")
+	result := newTestChecker(false).Check(t.Context(), monitor("ftp://example.com"))
 	require.False(t, result.IsUp)
 	require.Contains(t, *result.Error, "unsupported scheme")
 }
@@ -150,7 +149,7 @@ func TestCheckSSLValidCertificate(t *testing.T) {
 
 	addr := startTLSServer(t, selfSignedCert(t, time.Now().Add(40*24*time.Hour)))
 
-	result := newTestChecker(true).Check(t.Context(), "ssl://"+addr)
+	result := newTestChecker(true).Check(t.Context(), monitor("ssl://"+addr))
 	require.True(t, result.IsUp)
 	require.Nil(t, result.Error)
 	require.NotNil(t, result.DaysLeft)
@@ -163,7 +162,7 @@ func TestCheckSSLExpiredCertificate(t *testing.T) {
 
 	addr := startTLSServer(t, selfSignedCert(t, time.Now().Add(-24*time.Hour)))
 
-	result := newTestChecker(true).Check(t.Context(), "ssl://"+addr)
+	result := newTestChecker(true).Check(t.Context(), monitor("ssl://"+addr))
 	require.False(t, result.IsUp)
 	require.NotNil(t, result.Error)
 	require.Contains(t, *result.Error, "expired")
@@ -174,8 +173,70 @@ func TestCheckSSLUntrustedCertificate(t *testing.T) {
 
 	addr := startTLSServer(t, selfSignedCert(t, time.Now().Add(40*24*time.Hour)))
 
-	result := newTestChecker(false).Check(t.Context(), "ssl://"+addr)
+	result := newTestChecker(false).Check(t.Context(), monitor("ssl://"+addr))
 	require.False(t, result.IsUp)
 	require.NotNil(t, result.Error)
 	require.Contains(t, *result.Error, "handshake")
+}
+
+func TestCheckHTTPTimesOutOnHangingServer(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		<-release
+	}))
+	t.Cleanup(func() {
+		close(release)
+		server.Close()
+	})
+
+	start := time.Now()
+	result := newChecker(200*time.Millisecond, false).Check(t.Context(), monitor(server.URL))
+	require.False(t, result.IsUp)
+	require.Less(t, time.Since(start), 2*time.Second, "a server that never answers must not block the check")
+}
+
+func TestCheckHTTPStatusAndKeyword(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte("please log in"))
+	}))
+	t.Cleanup(server.Close)
+	c := newTestChecker(false)
+
+	result := c.Check(t.Context(), monitor(server.URL))
+	require.False(t, result.IsUp, "4xx is down by default")
+	require.Equal(t, "HTTP 401", *result.Error)
+
+	result = c.Check(t.Context(), &db.Monitor{Url: server.URL, ExpectedStatus: 401})
+	require.True(t, result.IsUp, "an expected 401 is up")
+
+	result = c.Check(t.Context(), &db.Monitor{Url: server.URL, ExpectedStatus: 401, Keyword: "log in"})
+	require.True(t, result.IsUp)
+
+	result = c.Check(t.Context(), &db.Monitor{Url: server.URL, ExpectedStatus: 401, Keyword: "welcome"})
+	require.False(t, result.IsUp)
+	require.Contains(t, *result.Error, "keyword")
+}
+
+func TestCheckDNS(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, newTestChecker(false).Check(t.Context(), monitor("dns://localhost")).IsUp)
+
+	result := newTestChecker(false).Check(t.Context(), monitor("dns://beacon.invalid?server=127.0.0.1:1"))
+	require.False(t, result.IsUp, "an unreachable resolver is down")
+}
+
+func TestCheckPing(t *testing.T) {
+	t.Parallel()
+
+	result := newTestChecker(false).Check(t.Context(), monitor("ping://127.0.0.1"))
+	if !result.IsUp && strings.Contains(*result.Error, "ping_group_range") {
+		t.Skip("unprivileged ICMP is not allowed on this host")
+	}
+	require.True(t, result.IsUp, "ping failed: %v", result.Error)
 }

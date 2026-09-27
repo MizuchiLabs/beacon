@@ -9,21 +9,27 @@ import (
 )
 
 type Querier interface {
+	// Rolls up raw checks older than the first rollup. Only does work on the
+	// first start after rollups were introduced, the trigger keeps up after that.
+	BackfillRollups(ctx context.Context) error
 	CleanupChecks(ctx context.Context, cutoff int64) error
-	CreateMonitor(ctx context.Context, arg *CreateMonitorParams) (*Monitor, error)
+	CleanupRollups(ctx context.Context, cutoff int64) error
 	CreatePushSubscription(ctx context.Context, arg *CreatePushSubscriptionParams) error
 	CreateVAPIDKeys(ctx context.Context, arg *CreateVAPIDKeysParams) error
 	DeleteMonitor(ctx context.Context, id int64) error
 	DeletePushSubscription(ctx context.Context, arg *DeletePushSubscriptionParams) error
 	DeletePushSubscriptionByEndpoint(ctx context.Context, endpoint string) error
-	GetCheckResponseTimes(ctx context.Context, fromTs int64) ([]*GetCheckResponseTimesRow, error)
 	GetCheckWindow(ctx context.Context, arg *GetCheckWindowParams) ([]*GetCheckWindowRow, error)
 	GetLatestChecks(ctx context.Context) ([]*GetLatestChecksRow, error)
 	GetMonitors(ctx context.Context) ([]*Monitor, error)
 	GetPushSubscriptionsByMonitor(ctx context.Context, monitorID int64) ([]*PushSubscription, error)
+	GetResponseTimes(ctx context.Context, arg *GetResponseTimesParams) ([]int64, error)
+	GetRollupWindow(ctx context.Context, arg *GetRollupWindowParams) ([]*GetRollupWindowRow, error)
+	GetSubscribedMonitorIDs(ctx context.Context, endpoint string) ([]int64, error)
+	GetUptime(ctx context.Context, arg *GetUptimeParams) (*GetUptimeRow, error)
 	GetVAPIDKeys(ctx context.Context) (*VapidKey, error)
-	UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (*Monitor, error)
-	UpsertCheck(ctx context.Context, arg *UpsertCheckParams) error
+	InsertCheck(ctx context.Context, arg *InsertCheckParams) error
+	UpsertMonitor(ctx context.Context, arg *UpsertMonitorParams) (*Monitor, error)
 	VAPIDKeysExist(ctx context.Context) (int64, error)
 }
 

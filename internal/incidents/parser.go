@@ -2,10 +2,11 @@ package incidents
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -53,30 +54,35 @@ func ParseIncidentsDir(dirPath string) ([]Incident, error) {
 			continue
 		}
 
-		data, err := os.ReadFile(filepath.Join(dirPath, entry.Name())) // #nosec G304
+		incident, err := parseIncident(filepath.Join(dirPath, entry.Name()))
 		if err != nil {
+			slog.Warn("Skipping incident file", "file", entry.Name(), "error", err)
 			continue
 		}
-
-		var incident Incident
-		if err := yaml.Unmarshal(data, &incident); err != nil {
-			continue
-		}
-
-		// Validate the incident
-		if err := incident.Validate(); err != nil {
-			continue
-		}
-
 		incidents = append(incidents, incident)
 	}
 
-	// Sort by started_at descending (most recent first)
-	sort.Slice(incidents, func(i, j int) bool {
-		return incidents[i].StartedAt.After(incidents[j].StartedAt)
+	// Most recent first
+	slices.SortFunc(incidents, func(a, b Incident) int {
+		return b.StartedAt.Compare(a.StartedAt)
 	})
 
 	return incidents, nil
+}
+
+func parseIncident(path string) (Incident, error) {
+	var incident Incident
+	data, err := os.ReadFile(path) // #nosec G304
+	if err != nil {
+		return incident, err
+	}
+	if err := yaml.Unmarshal(data, &incident); err != nil {
+		return incident, err
+	}
+	if incident.ID == "" {
+		incident.ID = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	}
+	return incident, incident.Validate()
 }
 
 // Validate checks if the incident has valid enum values.

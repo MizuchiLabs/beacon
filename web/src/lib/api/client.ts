@@ -1,23 +1,22 @@
 import { browser } from '$app/environment';
 import { QueryClient } from '@tanstack/svelte-query';
 import { client } from './generated/client.gen';
-import { getMonitorsQueryKey } from './generated/@tanstack/svelte-query.gen';
 import { toast } from 'svelte-sonner';
 
 // Relative base URL: same-origin in production, routed to the Go backend by
 // the Vite dev proxy in development.
 client.setConfig({ baseUrl: '/' });
 
+// Refetch intervals live next to each query in queries.ts.
 export const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
 			enabled: browser,
 			retry: false,
-			refetchOnMount: true,
-			refetchOnReconnect: true,
+			staleTime: 15_000,
 			refetchOnWindowFocus: true,
-			refetchIntervalInBackground: true,
-			refetchInterval: 300000 // 5min
+			// Keeps the favicon and tab title status light fresh in pinned tabs.
+			refetchIntervalInBackground: true
 		},
 		mutations: {
 			retry: false,
@@ -27,5 +26,3 @@ export const queryClient = new QueryClient({
 		}
 	}
 });
-
-queryClient.setQueryDefaults(getMonitorsQueryKey(), { refetchInterval: 60000 });

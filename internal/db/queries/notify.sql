@@ -56,3 +56,13 @@ FROM
   vapid_keys
 WHERE
   id = 1;
+
+-- name: GetSubscribedMonitorIDs :many
+SELECT
+  monitor_id
+FROM
+  push_subscriptions
+WHERE
+  endpoint = ?
+ORDER BY
+  monitor_id;

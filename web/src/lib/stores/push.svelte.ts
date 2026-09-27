@@ -1,215 +1,115 @@
 import {
 	getVapidPublicKey,
+	listSubscriptions,
 	subscribeToMonitor,
 	unsubscribeFromMonitor
 } from '$lib/api/generated/sdk.gen';
 import { SvelteSet } from 'svelte/reactivity';
 
-interface PushSubscriptionState {
-	supported: boolean;
-	permission: NotificationPermission;
-	subscriptions: SvelteSet<number>;
-	loading: boolean;
-	error: string | null;
-}
-
-class PushNotificationStore {
-	private state = $state<PushSubscriptionState>({
-		supported: false,
-		permission: 'default',
-		subscriptions: new SvelteSet(),
-		loading: false,
-		error: null
-	});
-
-	get supported() {
-		return this.state.supported;
-	}
-
-	get permission() {
-		return this.state.permission;
-	}
-
-	get loading() {
-		return this.state.loading;
-	}
-
-	get error() {
-		return this.state.error;
-	}
+class PushNotifications {
+	supported = $state(false);
+	permission = $state<NotificationPermission>('default');
+	loading = $state(false);
+	error = $state<string | null>(null);
+	subscribed = new SvelteSet<number>();
 
 	get hasPermission() {
-		return this.state.permission === 'granted';
+		return this.permission === 'granted';
 	}
 
-	get subscribedMonitorIds() {
-		return [...this.state.subscriptions];
+	// The server knows which monitors this browser gets alerts for, so a
+	// subscription it dropped does not linger in the UI.
+	async init() {
+		this.supported = 'serviceWorker' in navigator && 'PushManager' in window;
+		if (!this.supported) return;
+		this.permission = Notification.permission;
+
+		const subscription = await this.existing();
+		if (!subscription) return;
+		const { data } = await listSubscriptions({ body: { endpoint: subscription.endpoint } });
+		this.subscribed.clear();
+		for (const id of data?.monitor_ids ?? []) this.subscribed.add(id);
 	}
 
-	checkSupport() {
-		const supported = 'serviceWorker' in navigator && 'PushManager' in window;
-		this.state.supported = supported;
-		if (supported) {
-			this.state.permission = Notification.permission;
-			this.loadSubscriptions();
-		}
-		return supported;
+	async requestPermission() {
+		this.permission = await Notification.requestPermission();
+		return this.permission;
 	}
 
-	async requestPermission(): Promise<NotificationPermission> {
-		if (!('Notification' in window)) {
-			return 'denied';
-		}
-
-		const permission = await Notification.requestPermission();
-		this.state.permission = permission;
-		return permission;
+	toggle(monitorId: number) {
+		return this.subscribed.has(monitorId) ? this.unsubscribe(monitorId) : this.subscribe(monitorId);
 	}
 
-	private async getVAPIDPublicKey(): Promise<string> {
-		const { data, error } = await getVapidPublicKey();
-		if (error || !data) {
-			throw new Error('Failed to fetch VAPID public key');
-		}
-		return data.publicKey;
-	}
-
-	async subscribeToMonitor(monitorID: number): Promise<boolean> {
-		this.state.loading = true;
-		this.state.error = null;
-
-		try {
-			const registration = await navigator.serviceWorker.ready;
-			if (!registration) {
-				throw new Error('Service worker not ready');
-			}
-
-			// Request permission if not granted
-			const permission = await this.requestPermission();
-			if (permission !== 'granted') {
-				throw new Error('Notification permission denied');
-			}
-
-			// One browser subscription serves every monitor
-			let subscription = await registration.pushManager.getSubscription();
-
-			if (!subscription) {
-				const vapidPublicKey = await this.getVAPIDPublicKey();
-
-				subscription = await registration.pushManager.subscribe({
-					userVisibleOnly: true,
-					applicationServerKey: this.urlBase64ToUint8Array(vapidPublicKey)
+	subscribe(...monitorIds: number[]) {
+		return this.run('Could not subscribe', async () => {
+			const subscription = await this.ensure();
+			const { p256dh = '', auth = '' } = subscription.toJSON().keys ?? {};
+			for (const id of monitorIds) {
+				const { error } = await subscribeToMonitor({
+					path: { id },
+					body: { endpoint: subscription.endpoint, keys: { p256dh, auth } }
 				});
+				if (error) throw new Error('the server rejected the subscription');
+				this.subscribed.add(id);
 			}
+		});
+	}
 
-			const { error } = await subscribeToMonitor({
-				path: { id: monitorID },
-				body: {
-					endpoint: subscription.endpoint,
-					keys: {
-						p256dh: this.arrayBufferToBase64(subscription.getKey('p256dh')),
-						auth: this.arrayBufferToBase64(subscription.getKey('auth'))
-					}
+	unsubscribe(...monitorIds: number[]) {
+		return this.run('Could not unsubscribe', async () => {
+			const subscription = await this.existing();
+			for (const id of monitorIds) {
+				if (subscription) {
+					await unsubscribeFromMonitor({
+						path: { id },
+						body: { endpoint: subscription.endpoint }
+					});
 				}
-			});
-
-			if (error) {
-				throw new Error('Failed to save subscription on server');
+				this.subscribed.delete(id);
 			}
-
-			this.state.subscriptions.add(monitorID);
-			this.state.loading = false;
-			this.saveSubscriptions();
-			return true;
-		} catch (error) {
-			this.state.loading = false;
-			this.state.error =
-				error instanceof Error
-					? `Registration failed: ${error.message}`
-					: 'Registration failed - push service error';
-			return false;
-		}
+			// One browser subscription serves every monitor, drop it once unused.
+			if (this.subscribed.size === 0) await subscription?.unsubscribe();
+		});
 	}
 
-	async unsubscribeFromMonitor(monitorID: number): Promise<boolean> {
-		this.state.loading = true;
-		this.state.error = null;
-
+	private async run(failure: string, work: () => Promise<void>) {
+		this.loading = true;
+		this.error = null;
 		try {
-			const registration = await navigator.serviceWorker.ready;
-			const subscription = await registration.pushManager.getSubscription();
-
-			if (subscription) {
-				await unsubscribeFromMonitor({
-					path: { id: monitorID },
-					body: { endpoint: subscription.endpoint }
-				});
-			}
-
-			this.state.subscriptions.delete(monitorID);
-			this.state.loading = false;
-			this.saveSubscriptions();
-
-			// Drop the browser subscription once no monitor uses it
-			if (this.state.subscriptions.size === 0 && subscription) {
-				await subscription.unsubscribe();
-			}
-
-			return true;
-		} catch (error) {
-			console.error('Failed to unsubscribe:', error);
-			this.state.loading = false;
-			this.state.error = 'Failed to unsubscribe';
-			return false;
+			await work();
+		} catch (err) {
+			this.error = `${failure}: ${err instanceof Error ? err.message : 'push service error'}`;
+		} finally {
+			this.loading = false;
 		}
 	}
 
-	private saveSubscriptions() {
-		localStorage.setItem('monitor-subscriptions', JSON.stringify([...this.state.subscriptions]));
+	private async existing() {
+		const registration = await navigator.serviceWorker.ready;
+		return registration.pushManager.getSubscription();
 	}
 
-	private loadSubscriptions() {
-		try {
-			const stored = localStorage.getItem('monitor-subscriptions');
-			if (stored) {
-				const monitorIds: number[] = JSON.parse(stored);
-				monitorIds.forEach((id) => this.state.subscriptions.add(id));
-			}
-		} catch (error) {
-			console.error('Failed to load subscriptions:', error);
+	private async ensure() {
+		if ((await this.requestPermission()) !== 'granted') {
+			throw new Error('notification permission denied');
 		}
-	}
+		const current = await this.existing();
+		if (current) return current;
 
-	private urlBase64ToUint8Array(base64String: string): BufferSource {
-		// Remove any whitespace
-		base64String = base64String.trim();
-
-		// Add padding if needed
-		const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-		const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-
-		try {
-			const rawData = window.atob(base64);
-			const outputArray = new Uint8Array(rawData.length);
-			for (let i = 0; i < rawData.length; i++) {
-				outputArray[i] = rawData.charCodeAt(i);
-			}
-			return outputArray;
-		} catch (error) {
-			console.error('Failed to decode VAPID key:', error, 'Key:', base64String);
-			throw new Error('Invalid VAPID public key format');
-		}
-	}
-
-	private arrayBufferToBase64(buffer: ArrayBuffer | null): string {
-		if (!buffer) return '';
-		const bytes = new Uint8Array(buffer);
-		let binary = '';
-		for (let i = 0; i < bytes.byteLength; i++) {
-			binary += String.fromCharCode(bytes[i]);
-		}
-		return window.btoa(binary);
+		const { data, error } = await getVapidPublicKey();
+		if (error || !data) throw new Error('could not load the server key');
+		const registration = await navigator.serviceWorker.ready;
+		return registration.pushManager.subscribe({
+			userVisibleOnly: true,
+			applicationServerKey: decodeBase64Url(data.publicKey)
+		});
 	}
 }
 
-export const pushNotifications = new PushNotificationStore();
+function decodeBase64Url(value: string): Uint8Array<ArrayBuffer> {
+	const base64 = value.trim().replace(/-/g, '+').replace(/_/g, '/');
+	const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+	return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+}
+
+export const pushNotifications = new PushNotifications();

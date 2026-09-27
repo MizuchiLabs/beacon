@@ -3,8 +3,8 @@
 import { type MutationOptions, queryOptions } from '@tanstack/svelte-query';
 
 import { client } from '../client.gen';
-import { getConfig, getIncident, getIncidents, getMonitors, getVapidPublicKey, type Options, subscribeToMonitor, unsubscribeFromMonitor } from '../sdk.gen';
-import type { GetConfigData, GetConfigError, GetConfigResponse, GetIncidentData, GetIncidentError, GetIncidentResponse, GetIncidentsData, GetIncidentsError, GetIncidentsResponse, GetMonitorsData, GetMonitorsError, GetMonitorsResponse, GetVapidPublicKeyData, GetVapidPublicKeyError, GetVapidPublicKeyResponse, SubscribeToMonitorData, SubscribeToMonitorError, SubscribeToMonitorResponse, UnsubscribeFromMonitorData, UnsubscribeFromMonitorError, UnsubscribeFromMonitorResponse } from '../types.gen';
+import { getBadge, getConfig, getIncident, getIncidents, getMonitorPercentiles, getMonitors, getVapidPublicKey, heartbeatGet, heartbeatPost, listSubscriptions, type Options, subscribeToMonitor, unsubscribeFromMonitor } from '../sdk.gen';
+import type { GetBadgeData, GetBadgeError, GetBadgeResponse, GetConfigData, GetConfigError, GetConfigResponse, GetIncidentData, GetIncidentError, GetIncidentResponse, GetIncidentsData, GetIncidentsError, GetIncidentsResponse, GetMonitorPercentilesData, GetMonitorPercentilesError, GetMonitorPercentilesResponse, GetMonitorsData, GetMonitorsError, GetMonitorsResponse, GetVapidPublicKeyData, GetVapidPublicKeyError, GetVapidPublicKeyResponse, HeartbeatGetData, HeartbeatGetError, HeartbeatGetResponse, HeartbeatPostData, HeartbeatPostError, HeartbeatPostResponse, ListSubscriptionsData, ListSubscriptionsError, ListSubscriptionsResponse, SubscribeToMonitorData, SubscribeToMonitorError, SubscribeToMonitorResponse, UnsubscribeFromMonitorData, UnsubscribeFromMonitorError, UnsubscribeFromMonitorResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -38,6 +38,26 @@ const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions
     }
     return [params];
 };
+
+export const getBadgeQueryKey = (options: Options<GetBadgeData>) => createQueryKey('getBadge', options);
+
+/**
+ * Get a status or uptime badge
+ *
+ * An SVG badge for READMEs and dashboards.
+ */
+export const getBadgeOptions = (options: Options<GetBadgeData>) => queryOptions<GetBadgeResponse, GetBadgeError, GetBadgeResponse, ReturnType<typeof getBadgeQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getBadge({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getBadgeQueryKey(options)
+});
 
 export const getConfigQueryKey = (options?: Options<GetConfigData>) => createQueryKey('getConfig', options);
 
@@ -115,6 +135,26 @@ export const getMonitorsOptions = (options?: Options<GetMonitorsData>) => queryO
     queryKey: getMonitorsQueryKey(options)
 });
 
+export const getMonitorPercentilesQueryKey = (options: Options<GetMonitorPercentilesData>) => createQueryKey('getMonitorPercentiles', options);
+
+/**
+ * Get response time percentiles
+ *
+ * Percentiles of the raw checks in the window, null without checks. Raw checks only go back as far as BEACON_RETENTION_DAYS.
+ */
+export const getMonitorPercentilesOptions = (options: Options<GetMonitorPercentilesData>) => queryOptions<GetMonitorPercentilesResponse, GetMonitorPercentilesError, GetMonitorPercentilesResponse, ReturnType<typeof getMonitorPercentilesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getMonitorPercentiles({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getMonitorPercentilesQueryKey(options)
+});
+
 /**
  * Subscribe to push notifications for a monitor
  */
@@ -139,6 +179,60 @@ export const unsubscribeFromMonitorMutation = (options?: Partial<Options<Unsubsc
     const mutationOptions: MutationOptions<UnsubscribeFromMonitorResponse, UnsubscribeFromMonitorError, Options<UnsubscribeFromMonitorData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await unsubscribeFromMonitor({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const heartbeatGetQueryKey = (options: Options<HeartbeatGetData>) => createQueryKey('heartbeatGet', options);
+
+/**
+ * Send a heartbeat for a push monitor
+ */
+export const heartbeatGetOptions = (options: Options<HeartbeatGetData>) => queryOptions<HeartbeatGetResponse, HeartbeatGetError, HeartbeatGetResponse, ReturnType<typeof heartbeatGetQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await heartbeatGet({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: heartbeatGetQueryKey(options)
+});
+
+/**
+ * Send a heartbeat for a push monitor
+ */
+export const heartbeatPostMutation = (options?: Partial<Options<HeartbeatPostData>>): MutationOptions<HeartbeatPostResponse, HeartbeatPostError, Options<HeartbeatPostData>> => {
+    const mutationOptions: MutationOptions<HeartbeatPostResponse, HeartbeatPostError, Options<HeartbeatPostData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await heartbeatPost({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * List the monitors a browser is subscribed to
+ *
+ * POST so the endpoint stays out of access logs.
+ */
+export const listSubscriptionsMutation = (options?: Partial<Options<ListSubscriptionsData>>): MutationOptions<ListSubscriptionsResponse, ListSubscriptionsError, Options<ListSubscriptionsData>> => {
+    const mutationOptions: MutationOptions<ListSubscriptionsResponse, ListSubscriptionsError, Options<ListSubscriptionsData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await listSubscriptions({
                 ...options,
                 ...fnOptions,
                 throwOnError: true

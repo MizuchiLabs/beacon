@@ -79,11 +79,10 @@ export function aggregatePhrase(monitors: MonitorStats[]): string {
 	}
 }
 
-export function latencyTextClass(ms: number | null | undefined): string {
+// Matches the backend: slower than the monitor's threshold is degraded.
+export function latencyTextClass(ms: number | null | undefined, threshold: number): string {
 	if (ms == null) return 'text-muted-foreground';
-	if (ms < 200) return 'text-chart-3';
-	if (ms < 500) return 'text-chart-4';
-	return 'text-chart-5';
+	return ms <= threshold ? 'text-chart-3' : 'text-chart-4';
 }
 
 export function uptimeTextClass(pct: number | null): string {
@@ -107,7 +106,68 @@ export function ago(date: Date): string {
 	const seconds = Math.round((Date.now() - date.getTime()) / 1000);
 	if (seconds < 120) return relative.format(-Math.max(seconds, 1), 'second');
 	if (seconds < 7200) return relative.format(-Math.round(seconds / 60), 'minute');
-	return relative.format(-Math.round(seconds / 3600), 'hour');
+	if (seconds < 172_800) return relative.format(-Math.round(seconds / 3600), 'hour');
+	return relative.format(-Math.round(seconds / 86_400), 'day');
+}
+
+const typeLabels: Record<MonitorStats['type'], string> = {
+	http: '',
+	tcp: 'TCP',
+	ssl: 'SSL',
+	dns: 'DNS',
+	ping: 'Ping',
+	push: 'Push'
+};
+
+export function typeLabel(type: MonitorStats['type']): string {
+	return typeLabels[type];
+}
+
+// What a row shows under the monitor name. Push monitors have no public url.
+export function targetOf(monitor: MonitorStats): string {
+	if (monitor.type === 'push')
+		return `expects a ping every ${intervalText(monitor.check_interval)}`;
+	try {
+		const url = new URL(monitor.url);
+		return url.host + (monitor.type === 'http' && url.pathname !== '/' ? url.pathname : '');
+	} catch {
+		return monitor.url;
+	}
+}
+
+export function intervalText(seconds: number): string {
+	if (seconds < 120) return `${seconds}s`;
+	if (seconds < 7200) return `${Math.round(seconds / 60)}m`;
+	if (seconds < 172_800) return `${Math.round(seconds / 3600)}h`;
+	return `${Math.round(seconds / 86_400)}d`;
+}
+
+export interface MonitorGroup {
+	name: string;
+	monitors: MonitorStats[];
+}
+
+// Groups keep the order their first monitor has in the config, ungrouped
+// monitors come first.
+export function groupMonitors(monitors: MonitorStats[]): MonitorGroup[] {
+	const groups = new Map<string, MonitorStats[]>([['', []]]);
+	for (const m of monitors) {
+		const group = groups.get(m.group) ?? [];
+		group.push(m);
+		groups.set(m.group, group);
+	}
+	return [...groups]
+		.filter(([, list]) => list.length > 0)
+		.map(([name, list]) => ({ name, monitors: list }));
+}
+
+// Tab title that reads like a status light, e.g. "🔴 2 down · Beacon".
+export function statusTitle(monitors: MonitorStats[], brand: string): string {
+	const down = monitors.filter((m) => m.status === 'down').length;
+	if (down > 0) return `🔴 ${down} down · ${brand}`;
+	const degraded = monitors.filter((m) => m.status === 'degraded').length;
+	if (degraded > 0) return `🟡 ${degraded} degraded · ${brand}`;
+	return brand;
 }
 
 export function formatMs(ms: number | null | undefined): string {

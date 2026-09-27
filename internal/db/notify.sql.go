@@ -126,6 +126,40 @@ func (q *Queries) GetPushSubscriptionsByMonitor(ctx context.Context, monitorID i
 	return items, nil
 }
 
+const getSubscribedMonitorIDs = `-- name: GetSubscribedMonitorIDs :many
+SELECT
+  monitor_id
+FROM
+  push_subscriptions
+WHERE
+  endpoint = ?
+ORDER BY
+  monitor_id
+`
+
+func (q *Queries) GetSubscribedMonitorIDs(ctx context.Context, endpoint string) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, getSubscribedMonitorIDs, endpoint)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var monitor_id int64
+		if err := rows.Scan(&monitor_id); err != nil {
+			return nil, err
+		}
+		items = append(items, monitor_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getVAPIDKeys = `-- name: GetVAPIDKeys :one
 SELECT
   id,

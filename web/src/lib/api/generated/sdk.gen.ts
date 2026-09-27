@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetConfigData, GetConfigErrors, GetConfigResponses, GetIncidentData, GetIncidentErrors, GetIncidentResponses, GetIncidentsData, GetIncidentsErrors, GetIncidentsResponses, GetMonitorsData, GetMonitorsErrors, GetMonitorsResponses, GetVapidPublicKeyData, GetVapidPublicKeyErrors, GetVapidPublicKeyResponses, SubscribeToMonitorData, SubscribeToMonitorErrors, SubscribeToMonitorResponses, UnsubscribeFromMonitorData, UnsubscribeFromMonitorErrors, UnsubscribeFromMonitorResponses } from './types.gen';
+import type { GetBadgeData, GetBadgeErrors, GetBadgeResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetIncidentData, GetIncidentErrors, GetIncidentResponses, GetIncidentsData, GetIncidentsErrors, GetIncidentsResponses, GetMonitorPercentilesData, GetMonitorPercentilesErrors, GetMonitorPercentilesResponses, GetMonitorsData, GetMonitorsErrors, GetMonitorsResponses, GetVapidPublicKeyData, GetVapidPublicKeyErrors, GetVapidPublicKeyResponses, HeartbeatGetData, HeartbeatGetErrors, HeartbeatGetResponses, HeartbeatPostData, HeartbeatPostErrors, HeartbeatPostResponses, ListSubscriptionsData, ListSubscriptionsErrors, ListSubscriptionsResponses, SubscribeToMonitorData, SubscribeToMonitorErrors, SubscribeToMonitorResponses, UnsubscribeFromMonitorData, UnsubscribeFromMonitorErrors, UnsubscribeFromMonitorResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,13 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+/**
+ * Get a status or uptime badge
+ *
+ * An SVG badge for READMEs and dashboards.
+ */
+export const getBadge = <ThrowOnError extends boolean = false>(options: Options<GetBadgeData, ThrowOnError>): RequestResult<GetBadgeResponses, GetBadgeErrors, ThrowOnError> => (options.client ?? client).get<GetBadgeResponses, GetBadgeErrors, ThrowOnError>({ url: '/api/badge/{name}', ...options });
 
 /**
  * Get dashboard config
@@ -43,6 +50,13 @@ export const getIncident = <ThrowOnError extends boolean = false>(options: Optio
 export const getMonitors = <ThrowOnError extends boolean = false>(options?: Options<GetMonitorsData, ThrowOnError>): RequestResult<GetMonitorsResponses, GetMonitorsErrors, ThrowOnError> => (options?.client ?? client).get<GetMonitorsResponses, GetMonitorsErrors, ThrowOnError>({ url: '/api/monitors', ...options });
 
 /**
+ * Get response time percentiles
+ *
+ * Percentiles of the raw checks in the window, null without checks. Raw checks only go back as far as BEACON_RETENTION_DAYS.
+ */
+export const getMonitorPercentiles = <ThrowOnError extends boolean = false>(options: Options<GetMonitorPercentilesData, ThrowOnError>): RequestResult<GetMonitorPercentilesResponses, GetMonitorPercentilesErrors, ThrowOnError> => (options.client ?? client).get<GetMonitorPercentilesResponses, GetMonitorPercentilesErrors, ThrowOnError>({ url: '/api/monitors/{id}/percentiles', ...options });
+
+/**
  * Subscribe to push notifications for a monitor
  */
 export const subscribeToMonitor = <ThrowOnError extends boolean = false>(options: Options<SubscribeToMonitorData, ThrowOnError>): RequestResult<SubscribeToMonitorResponses, SubscribeToMonitorErrors, ThrowOnError> => (options.client ?? client).post<SubscribeToMonitorResponses, SubscribeToMonitorErrors, ThrowOnError>({
@@ -59,6 +73,30 @@ export const subscribeToMonitor = <ThrowOnError extends boolean = false>(options
  */
 export const unsubscribeFromMonitor = <ThrowOnError extends boolean = false>(options: Options<UnsubscribeFromMonitorData, ThrowOnError>): RequestResult<UnsubscribeFromMonitorResponses, UnsubscribeFromMonitorErrors, ThrowOnError> => (options.client ?? client).post<UnsubscribeFromMonitorResponses, UnsubscribeFromMonitorErrors, ThrowOnError>({
     url: '/api/monitors/{id}/unsubscribe',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Send a heartbeat for a push monitor
+ */
+export const heartbeatGet = <ThrowOnError extends boolean = false>(options: Options<HeartbeatGetData, ThrowOnError>): RequestResult<HeartbeatGetResponses, HeartbeatGetErrors, ThrowOnError> => (options.client ?? client).get<HeartbeatGetResponses, HeartbeatGetErrors, ThrowOnError>({ url: '/api/push/{token}', ...options });
+
+/**
+ * Send a heartbeat for a push monitor
+ */
+export const heartbeatPost = <ThrowOnError extends boolean = false>(options: Options<HeartbeatPostData, ThrowOnError>): RequestResult<HeartbeatPostResponses, HeartbeatPostErrors, ThrowOnError> => (options.client ?? client).post<HeartbeatPostResponses, HeartbeatPostErrors, ThrowOnError>({ url: '/api/push/{token}', ...options });
+
+/**
+ * List the monitors a browser is subscribed to
+ *
+ * POST so the endpoint stays out of access logs.
+ */
+export const listSubscriptions = <ThrowOnError extends boolean = false>(options: Options<ListSubscriptionsData, ThrowOnError>): RequestResult<ListSubscriptionsResponses, ListSubscriptionsErrors, ThrowOnError> => (options.client ?? client).post<ListSubscriptionsResponses, ListSubscriptionsErrors, ThrowOnError>({
+    url: '/api/subscriptions',
     ...options,
     headers: {
         'Content-Type': 'application/json',

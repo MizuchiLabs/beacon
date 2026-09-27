@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -16,9 +17,9 @@ import (
 
 	"github.com/mizuchilabs/beacon/internal/api"
 	"github.com/mizuchilabs/beacon/internal/checker"
+	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/mizuchilabs/beacon/internal/db"
 	"github.com/mizuchilabs/beacon/internal/incidents"
-	"github.com/mizuchilabs/beacon/internal/monitors"
 	"github.com/mizuchilabs/beacon/internal/notify"
 	"github.com/mizuchilabs/beacon/internal/scheduler"
 )
@@ -36,6 +37,11 @@ func main() {
 		},
 		Action: run,
 		Commands: []*cli.Command{
+			{
+				Name:   "test-notify",
+				Usage:  "Send a test notification to every webhook in the config",
+				Action: testNotify,
+			},
 			{
 				Name:    "openapi",
 				Aliases: []string{"o"},
@@ -65,6 +71,12 @@ func main() {
 				Sources: cli.EnvVars("BEACON_PORT"),
 			},
 			&cli.StringFlag{
+				Name:    "data-dir",
+				Usage:   "Directory for the database and local incident files",
+				Value:   "data",
+				Sources: cli.EnvVars("BEACON_DATA_DIR"),
+			},
+			&cli.StringFlag{
 				Name:    "config",
 				Aliases: []string{"c"},
 				Usage:   "Path to monitors config file",
@@ -81,13 +93,10 @@ func main() {
 }
 
 func run(ctx context.Context, cmd *cli.Command) error {
-	q, err := db.Open(ctx)
-	if err != nil {
-		return err
-	}
+	dataDir, path := cmd.String("data-dir"), cmd.String("config")
 
-	// Sync monitors to DB before starting background jobs
-	if err := monitors.Sync(ctx, q, cmd.String("config")); err != nil {
+	q, err := db.Open(ctx, dataDir)
+	if err != nil {
 		return err
 	}
 
@@ -105,19 +114,62 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	sched.Start(ctx)
+	if err := sched.Start(ctx); err != nil {
+		return err
+	}
 
-	inc, err := incidents.New()
+	// apply runs on startup and again whenever the config file changes.
+	apply := func(cfg *config.Config) error {
+		if err := notifier.SetWebhooks(cfg.Webhooks); err != nil {
+			return err
+		}
+		monitors, err := config.Sync(ctx, q, cfg.Monitors)
+		if err != nil {
+			return err
+		}
+		sched.Schedule(ctx, monitors)
+		return nil
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		return err
+	}
+	if err := apply(cfg); err != nil {
+		return err
+	}
+	go config.Watch(ctx, path, apply)
+
+	inc, err := incidents.New(dataDir)
 	if err != nil {
 		return err
 	}
 	inc.Start(ctx)
 
-	server, err := api.New(q, inc)
+	server, err := api.New(q, inc, sched)
 	if err != nil {
 		return err
 	}
 	return server.Start(ctx, cmd.String("port"))
+}
+
+func testNotify(ctx context.Context, cmd *cli.Command) error {
+	cfg, err := config.Load(cmd.String("config"))
+	if err != nil {
+		return err
+	}
+	if len(cfg.Webhooks) == 0 {
+		return errors.New("no webhooks in the config")
+	}
+
+	notifier := &notify.Service{}
+	if err := notifier.SetWebhooks(cfg.Webhooks); err != nil {
+		return err
+	}
+	if err := notifier.Test(ctx); err != nil {
+		return err
+	}
+	fmt.Printf("Sent a test notification to %d webhook(s)\n", len(cfg.Webhooks))
+	return nil
 }
 
 func openapi(_ context.Context, cmd *cli.Command) error {

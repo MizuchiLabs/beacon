@@ -170,6 +170,36 @@
 	--radius-3xl: calc(var(--radius) * 2.2);
 
 	--radius-4xl: calc(var(--radius) * 2.6);
+
+	--animate-status-flash: status-flash 1.8s ease-out;
+	--animate-status-pulse: status-pulse 2.4s ease-in-out infinite;
+
+	@keyframes status-flash {
+		from {
+			background-color: color-mix(in oklab, var(--primary) 18%, transparent);
+		}
+		to {
+			background-color: transparent;
+		}
+	}
+
+	/* A soft ring that breathes out of a status dot. */
+	@keyframes status-pulse {
+		0% {
+			box-shadow: 0 0 0 0 color-mix(in oklab, currentColor 45%, transparent);
+		}
+		70%,
+		100% {
+			box-shadow: 0 0 0 8px transparent;
+		}
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.animate-status-flash,
+	.animate-status-pulse {
+		animation: none;
+	}
 }
 
 @layer base {

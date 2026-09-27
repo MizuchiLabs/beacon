@@ -1,123 +1,100 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import { Bell, BellOff, LoaderCircle } from '@lucide/svelte';
-	import { pushNotifications } from '$lib/stores/push.svelte';
 	import { useMonitorStats } from '$lib/api/queries';
+	import * as Alert from '$lib/components/ui/alert';
+	import { Button } from '$lib/components/ui/button';
+	import { Checkbox } from '$lib/components/ui/checkbox';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { pushNotifications } from '$lib/stores/push.svelte';
+	import { targetOf } from '$lib/status.js';
+	import { BellIcon, BellOffIcon, CircleAlertIcon, LoaderCircleIcon } from '@lucide/svelte';
 
 	let { open = $bindable(false) } = $props();
 
 	const monitorsQuery = useMonitorStats();
-
-	let monitors = $derived(monitorsQuery.data || []);
-	let loading = $derived(pushNotifications.loading);
-	let error = $derived(pushNotifications.error);
-	let subscribedMonitorIDs = $derived(pushNotifications.subscribedMonitorIds);
-	let hasPermission = $derived(pushNotifications.hasPermission);
-
-	async function handleToggleSubscription(monitorId: number, subscribe: boolean) {
-		if (subscribe) {
-			await pushNotifications.subscribeToMonitor(monitorId);
-		} else {
-			await pushNotifications.unsubscribeFromMonitor(monitorId);
-		}
-	}
-
-	async function handleSubscribeAll() {
-		for (const monitor of monitors) {
-			if (!subscribedMonitorIDs.includes(monitor.id)) {
-				await pushNotifications.subscribeToMonitor(monitor.id);
-			}
-		}
-	}
-
-	async function handleUnsubscribeAll() {
-		for (const monitorId of subscribedMonitorIDs) {
-			await pushNotifications.unsubscribeFromMonitor(monitorId);
-		}
-	}
+	const monitors = $derived(monitorsQuery.data ?? []);
+	const unsubscribed = $derived(
+		monitors.filter((m) => !pushNotifications.subscribed.has(m.id)).map((m) => m.id)
+	);
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Content class="sm:max-w-125">
+	<Dialog.Content class="sm:max-w-lg">
 		<Dialog.Header>
-			<Dialog.Title>Subscribe to Notifications</Dialog.Title>
-			<Dialog.Description>Choose which monitors to receive notifications for</Dialog.Description>
+			<Dialog.Title>Downtime alerts</Dialog.Title>
+			<Dialog.Description>
+				Pick the monitors this browser should notify you about.
+			</Dialog.Description>
 		</Dialog.Header>
 
-		{#if !hasPermission}
-			<div
-				class="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-200"
-			>
-				<p class="mb-2 font-medium">Notification Permission Required</p>
-				<p>You need to grant notification permission to receive alerts when monitors go down.</p>
-				<Button
-					variant="outline"
-					size="sm"
-					class="mt-3"
-					onclick={() => pushNotifications.requestPermission()}
+		{#if !pushNotifications.supported}
+			<Alert.Root>
+				<CircleAlertIcon />
+				<Alert.Title>Not supported here</Alert.Title>
+				<Alert.Description>
+					This browser can't receive push notifications. On iOS, add the page to your home screen
+					first.
+				</Alert.Description>
+			</Alert.Root>
+		{:else if pushNotifications.permission === 'denied'}
+			<Alert.Root variant="destructive">
+				<CircleAlertIcon />
+				<Alert.Title>Notifications are blocked</Alert.Title>
+				<Alert.Description
+					>Allow notifications for this site in your browser settings.</Alert.Description
 				>
-					Grant Permission
-				</Button>
-			</div>
+			</Alert.Root>
 		{:else}
-			<div class="space-y-4">
-				{#if error}
-					<div
-						class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+			{#if pushNotifications.error}
+				<Alert.Root variant="destructive">
+					<CircleAlertIcon />
+					<Alert.Description>{pushNotifications.error}</Alert.Description>
+				</Alert.Root>
+			{/if}
+
+			<div class="-mx-1 flex max-h-96 flex-col gap-1.5 overflow-y-auto px-1">
+				{#each monitors as monitor (monitor.id)}
+					{@const isSubscribed = pushNotifications.subscribed.has(monitor.id)}
+					<label
+						class="flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-accent has-data-[state=checked]:border-primary/40 has-data-[state=checked]:bg-accent/60"
 					>
-						{error}
-					</div>
-				{/if}
-
-				<div class="max-h-100 space-y-2 overflow-y-auto">
-					{#each monitors as monitor (monitor.id)}
-						{@const isSubscribed = subscribedMonitorIDs.includes(monitor.id)}
-						<label
-							class="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-accent"
-							class:bg-accent={isSubscribed}
-						>
-							<Checkbox
-								checked={isSubscribed}
-								disabled={loading}
-								onCheckedChange={(checked) =>
-									handleToggleSubscription(monitor.id, checked === true)}
-							/>
-							<div class="flex-1">
-								<div class="font-medium">{monitor.name}</div>
-								<div class="text-sm text-muted-foreground">{monitor.url}</div>
-							</div>
-							{#if isSubscribed}
-								<Bell class="size-4 text-primary" />
-							{:else}
-								<BellOff class="size-4 text-muted-foreground" />
-							{/if}
-						</label>
-					{/each}
-				</div>
-
-				{#if loading}
-					<div class="flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
-						<LoaderCircle class="size-4 animate-spin" />
-						Processing...
-					</div>
-				{/if}
+						<Checkbox
+							checked={isSubscribed}
+							disabled={pushNotifications.loading}
+							onCheckedChange={() => pushNotifications.toggle(monitor.id)}
+						/>
+						<div class="min-w-0 flex-1">
+							<div class="truncate text-sm font-medium">{monitor.name}</div>
+							<div class="truncate text-xs text-muted-foreground">{targetOf(monitor)}</div>
+						</div>
+						{#if isSubscribed}
+							<BellIcon class="size-4 text-primary" />
+						{:else}
+							<BellOffIcon class="size-4 text-muted-foreground" />
+						{/if}
+					</label>
+				{/each}
 			</div>
 
-			<div class="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-				<Button variant="outline" size="sm" onclick={handleSubscribeAll} disabled={loading}>
-					Subscribe All
-				</Button>
+			<Dialog.Footer class="sm:justify-between">
 				<Button
 					variant="secondary"
 					size="sm"
-					onclick={handleUnsubscribeAll}
-					disabled={loading || subscribedMonitorIDs.length === 0}
+					onclick={() => pushNotifications.unsubscribe(...pushNotifications.subscribed)}
+					disabled={pushNotifications.loading || pushNotifications.subscribed.size === 0}
 				>
-					Unsubscribe All
+					Unsubscribe all
 				</Button>
-			</div>
+				<Button
+					size="sm"
+					onclick={() => pushNotifications.subscribe(...unsubscribed)}
+					disabled={pushNotifications.loading || unsubscribed.length === 0}
+				>
+					{#if pushNotifications.loading}
+						<LoaderCircleIcon class="animate-spin" />
+					{/if}
+					Subscribe to all
+				</Button>
+			</Dialog.Footer>
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>

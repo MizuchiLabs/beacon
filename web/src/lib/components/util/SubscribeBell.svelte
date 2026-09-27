@@ -10,17 +10,7 @@
 	}
 	let { monitorId, class: className }: Props = $props();
 
-	const subscribed = $derived(pushNotifications.subscribedMonitorIds.includes(monitorId));
-	const loading = $derived(pushNotifications.loading);
-
-	async function toggle(event: MouseEvent) {
-		event.stopPropagation();
-		if (subscribed) {
-			await pushNotifications.unsubscribeFromMonitor(monitorId);
-		} else {
-			await pushNotifications.subscribeToMonitor(monitorId);
-		}
-	}
+	const subscribed = $derived(pushNotifications.subscribed.has(monitorId));
 </script>
 
 {#if pushNotifications.supported}
@@ -31,15 +21,16 @@
 					type="button"
 					{...props}
 					class={cn(
-						'rounded-md p-1 transition-colors hover:bg-muted',
+						'rounded-md p-1 transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
 						subscribed ? 'text-primary' : 'text-muted-foreground',
 						className
 					)}
-					onclick={toggle}
-					disabled={loading}
+					onclick={() => pushNotifications.toggle(monitorId)}
+					disabled={pushNotifications.loading}
 					aria-label={subscribed ? 'Unsubscribe from alerts' : 'Subscribe to alerts'}
+					aria-pressed={subscribed}
 				>
-					{#if loading}
+					{#if pushNotifications.loading}
 						<LoaderCircleIcon class="size-4 animate-spin" />
 					{:else if subscribed}
 						<BellRingIcon class="size-4" />
@@ -47,10 +38,10 @@
 						<BellIcon class="size-4" />
 					{/if}
 				</button>
-			{/snippet}}
+			{/snippet}
 		</Tooltip.Trigger>
 		<Tooltip.Content>
-			{subscribed ? 'You are subscribed to this monitor' : 'Notify me about downtime'}
+			{subscribed ? 'You get alerts for this monitor' : 'Notify me about downtime'}
 		</Tooltip.Content>
 	</Tooltip.Root>
 {/if}

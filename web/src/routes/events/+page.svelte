@@ -1,15 +1,14 @@
 <script lang="ts">
-	import { getIncidents, useConfig } from '$lib/api/queries';
+	import { getIncidents } from '$lib/api/queries';
 	import * as Card from '$lib/components/ui/card';
 	import * as Empty from '$lib/components/ui/empty';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { durationText, incidentSeverity, incidentStatus } from '$lib/status.js';
-	import { ActivityIcon, CheckIcon, ClockIcon } from '@lucide/svelte';
+	import { CheckIcon, ClockIcon } from '@lucide/svelte';
 
-	const configQuery = $derived(useConfig());
-	let incidents = $derived(getIncidents());
+	const incidents = getIncidents();
 	const dateTimeFormat = new Intl.DateTimeFormat(undefined, {
 		month: 'short',
 		day: 'numeric',
@@ -40,12 +39,6 @@
 										<status.icon class="h-3 w-3" />
 										{status.label}
 									</Badge>
-									{#if (incident.affected_monitors?.length ?? 0) > 0}
-										<Badge variant="outline">
-											<ActivityIcon class="h-3 w-3" />
-											{incident.affected_monitors!.length} services
-										</Badge>
-									{/if}
 								</div>
 
 								<Card.Title>{incident.title}</Card.Title>
@@ -120,11 +113,18 @@
 				</Card.Root>
 			{/each}
 		</div>
-	{:else if configQuery.isPending || incidents.isPending}
+	{:else if incidents.isPending}
 		<div class="flex flex-col gap-4">
 			<Skeleton class="h-40 w-full" />
 			<Skeleton class="h-40 w-full" />
 		</div>
+	{:else if incidents.isError}
+		<Empty.Root>
+			<Empty.Header>
+				<Empty.Title>Could not load incidents</Empty.Title>
+				<Empty.Description>Try refreshing the page.</Empty.Description>
+			</Empty.Header>
+		</Empty.Root>
 	{:else}
 		<Empty.Root>
 			<Empty.Header>

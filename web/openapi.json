@@ -17,7 +17,7 @@
 				"additionalProperties": false,
 				"properties": {
 					"avg_ms": {
-						"description": "Mean response time of every check in the bucket",
+						"description": "Mean response time of the up checks in the bucket",
 						"format": "int64",
 						"type": ["integer", "null"]
 					},
@@ -100,6 +100,12 @@
 				},
 				"type": "object"
 			},
+			"HeartbeatOutputBody": {
+				"additionalProperties": false,
+				"properties": { "ok": { "type": "boolean" } },
+				"required": ["ok"],
+				"type": "object"
+			},
 			"Incident": {
 				"additionalProperties": false,
 				"properties": {
@@ -132,7 +138,11 @@
 			"MonitorStats": {
 				"additionalProperties": false,
 				"properties": {
-					"avg_response_time": { "format": "int64", "type": ["integer", "null"] },
+					"avg_response_time": {
+						"description": "Mean response time of the up checks in the window",
+						"format": "int64",
+						"type": ["integer", "null"]
+					},
 					"check_interval": { "format": "int64", "type": "integer" },
 					"data_points": {
 						"items": { "$ref": "#/components/schemas/DataPoint" },
@@ -142,6 +152,15 @@
 						"description": "Days until the certificate expires, https and ssl monitors only",
 						"format": "int64",
 						"type": ["integer", "null"]
+					},
+					"degraded_threshold": {
+						"description": "Response time in ms above which an up check counts as degraded",
+						"format": "int64",
+						"type": "integer"
+					},
+					"group": {
+						"description": "Group the monitor is shown under, empty for none",
+						"type": "string"
 					},
 					"id": { "format": "int64", "type": "integer" },
 					"ignore_cert_expiry": {
@@ -154,7 +173,6 @@
 						"type": "string"
 					},
 					"name": { "type": "string" },
-					"percentiles": { "$ref": "#/components/schemas/Percentiles" },
 					"status": {
 						"description": "Status of the latest check, unknown when the monitor has gone quiet",
 						"enum": ["operational", "degraded", "down", "unknown"],
@@ -162,18 +180,23 @@
 					},
 					"type": {
 						"description": "What kind of check this monitor runs",
-						"enum": ["http", "tcp", "ssl"],
+						"enum": ["http", "tcp", "ssl", "dns", "ping", "push"],
 						"type": "string"
 					},
 					"uptime_pct": { "format": "double", "type": ["number", "null"] },
-					"url": { "type": "string" }
+					"url": {
+						"description": "Monitor url, empty for push monitors so the token stays private",
+						"type": "string"
+					}
 				},
 				"required": [
 					"id",
 					"name",
 					"url",
 					"type",
+					"group",
 					"check_interval",
+					"degraded_threshold",
 					"status",
 					"days_remaining",
 					"ignore_cert_expiry",
@@ -193,6 +216,17 @@
 					"p99": { "format": "int64", "type": "integer" }
 				},
 				"required": ["p50", "p75", "p90", "p95", "p99"],
+				"type": "object"
+			},
+			"PercentilesOutputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"percentiles": {
+						"$ref": "#/components/schemas/Percentiles",
+						"description": "Null when the window holds no up checks"
+					}
+				},
+				"required": ["percentiles"],
 				"type": "object"
 			},
 			"PushSubscriptionKeys": {
@@ -221,6 +255,30 @@
 				"additionalProperties": false,
 				"properties": { "message": { "type": "string" } },
 				"required": ["message"],
+				"type": "object"
+			},
+			"SubscriptionsInputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"endpoint": {
+						"description": "Push service endpoint URL of this browser",
+						"format": "uri",
+						"type": "string"
+					}
+				},
+				"required": ["endpoint"],
+				"type": "object"
+			},
+			"SubscriptionsOutputBody": {
+				"additionalProperties": false,
+				"properties": {
+					"monitor_ids": {
+						"description": "Monitors this endpoint is subscribed to",
+						"items": { "format": "int64", "type": "integer" },
+						"type": ["array", "null"]
+					}
+				},
+				"required": ["monitor_ids"],
 				"type": "object"
 			},
 			"UnsubscribeInputBody": {
@@ -257,6 +315,67 @@
 	"info": { "title": "Beacon API", "version": "1.0.0" },
 	"openapi": "3.1.0",
 	"paths": {
+		"/api/badge/{name}": {
+			"get": {
+				"description": "An SVG badge for READMEs and dashboards.",
+				"operationId": "get-badge",
+				"parameters": [
+					{
+						"description": "Monitor name",
+						"in": "path",
+						"name": "name",
+						"required": true,
+						"schema": { "description": "Monitor name", "type": "string" }
+					},
+					{
+						"description": "Show the current status or the uptime over the window",
+						"explode": false,
+						"in": "query",
+						"name": "kind",
+						"schema": {
+							"default": "status",
+							"description": "Show the current status or the uptime over the window",
+							"enum": ["status", "uptime"],
+							"type": "string"
+						}
+					},
+					{
+						"description": "Uptime window in seconds",
+						"explode": false,
+						"in": "query",
+						"name": "seconds",
+						"schema": {
+							"default": 2592000,
+							"description": "Uptime window in seconds",
+							"format": "int64",
+							"maximum": 31536000,
+							"minimum": 3600,
+							"type": "integer"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"content": { "image/svg+xml": {} },
+						"description": "OK",
+						"headers": {
+							"Cache-Control": { "schema": { "type": "string" } },
+							"Content-Type": { "schema": { "type": "string" } }
+						}
+					},
+					"default": {
+						"content": {
+							"application/problem+json": {
+								"schema": { "$ref": "#/components/schemas/ErrorModel" }
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"summary": "Get a status or uptime badge",
+				"tags": ["Badges"]
+			}
+		},
 		"/api/config": {
 			"get": {
 				"description": "Public configuration used by the dashboard frontend.",
@@ -386,6 +505,55 @@
 				"tags": ["Monitors"]
 			}
 		},
+		"/api/monitors/{id}/percentiles": {
+			"get": {
+				"description": "Percentiles of the raw checks in the window, null without checks. Raw checks only go back as far as BEACON_RETENTION_DAYS.",
+				"operationId": "get-monitor-percentiles",
+				"parameters": [
+					{
+						"description": "How far back to aggregate, in seconds",
+						"explode": false,
+						"in": "query",
+						"name": "seconds",
+						"schema": {
+							"default": 86400,
+							"description": "How far back to aggregate, in seconds",
+							"format": "int64",
+							"maximum": 31536000,
+							"minimum": 60,
+							"type": "integer"
+						}
+					},
+					{
+						"description": "Monitor ID",
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": { "description": "Monitor ID", "format": "int64", "type": "integer" }
+					}
+				],
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/PercentilesOutputBody" }
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/problem+json": {
+								"schema": { "$ref": "#/components/schemas/ErrorModel" }
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"summary": "Get response time percentiles",
+				"tags": ["Monitors"]
+			}
+		},
 		"/api/monitors/{id}/subscribe": {
 			"post": {
 				"operationId": "subscribe-to-monitor",
@@ -467,6 +635,158 @@
 					}
 				},
 				"summary": "Unsubscribe from push notifications for a monitor",
+				"tags": ["Notifications"]
+			}
+		},
+		"/api/push/{token}": {
+			"get": {
+				"operationId": "heartbeat-get",
+				"parameters": [
+					{
+						"description": "Token from the push://\u003ctoken\u003e url of the monitor",
+						"in": "path",
+						"name": "token",
+						"required": true,
+						"schema": {
+							"description": "Token from the push://\u003ctoken\u003e url of the monitor",
+							"type": "string"
+						}
+					},
+					{
+						"description": "Report a failure with down",
+						"explode": false,
+						"in": "query",
+						"name": "status",
+						"schema": {
+							"default": "up",
+							"description": "Report a failure with down",
+							"enum": ["up", "down"],
+							"type": "string"
+						}
+					},
+					{
+						"description": "Why the job failed, sent with the notification",
+						"explode": false,
+						"in": "query",
+						"name": "msg",
+						"schema": {
+							"description": "Why the job failed, sent with the notification",
+							"maxLength": 500,
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/HeartbeatOutputBody" }
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/problem+json": {
+								"schema": { "$ref": "#/components/schemas/ErrorModel" }
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"summary": "Send a heartbeat for a push monitor",
+				"tags": ["Heartbeat"]
+			},
+			"post": {
+				"operationId": "heartbeat-post",
+				"parameters": [
+					{
+						"description": "Token from the push://\u003ctoken\u003e url of the monitor",
+						"in": "path",
+						"name": "token",
+						"required": true,
+						"schema": {
+							"description": "Token from the push://\u003ctoken\u003e url of the monitor",
+							"type": "string"
+						}
+					},
+					{
+						"description": "Report a failure with down",
+						"explode": false,
+						"in": "query",
+						"name": "status",
+						"schema": {
+							"default": "up",
+							"description": "Report a failure with down",
+							"enum": ["up", "down"],
+							"type": "string"
+						}
+					},
+					{
+						"description": "Why the job failed, sent with the notification",
+						"explode": false,
+						"in": "query",
+						"name": "msg",
+						"schema": {
+							"description": "Why the job failed, sent with the notification",
+							"maxLength": 500,
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/HeartbeatOutputBody" }
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/problem+json": {
+								"schema": { "$ref": "#/components/schemas/ErrorModel" }
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"summary": "Send a heartbeat for a push monitor",
+				"tags": ["Heartbeat"]
+			}
+		},
+		"/api/subscriptions": {
+			"post": {
+				"description": "POST so the endpoint stays out of access logs.",
+				"operationId": "list-subscriptions",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": { "$ref": "#/components/schemas/SubscriptionsInputBody" }
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/SubscriptionsOutputBody" }
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/problem+json": {
+								"schema": { "$ref": "#/components/schemas/ErrorModel" }
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"summary": "List the monitors a browser is subscribed to",
 				"tags": ["Notifications"]
 			}
 		},

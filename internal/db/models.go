@@ -14,14 +14,29 @@ type Check struct {
 	CheckedAt     int64   `json:"checkedAt"`
 }
 
+type CheckRollup struct {
+	MonitorID int64 `json:"monitorId"`
+	Hour      int64 `json:"hour"`
+	Total     int64 `json:"total"`
+	Up        int64 `json:"up"`
+	Degraded  int64 `json:"degraded"`
+	Down      int64 `json:"down"`
+	SumMs     int64 `json:"sumMs"`
+}
+
 type Monitor struct {
-	ID               int64  `json:"id"`
-	Name             string `json:"name"`
-	Url              string `json:"url"`
-	Type             string `json:"type"`
-	CheckInterval    int64  `json:"checkInterval"`
-	IgnoreCertExpiry bool   `json:"ignoreCertExpiry"`
-	CreatedAt        int64  `json:"createdAt"`
+	ID                int64  `json:"id"`
+	Name              string `json:"name"`
+	Url               string `json:"url"`
+	Type              string `json:"type"`
+	GroupName         string `json:"groupName"`
+	CheckInterval     int64  `json:"checkInterval"`
+	Retries           int64  `json:"retries"`
+	DegradedThreshold int64  `json:"degradedThreshold"`
+	ExpectedStatus    int64  `json:"expectedStatus"`
+	Keyword           string `json:"keyword"`
+	IgnoreCertExpiry  bool   `json:"ignoreCertExpiry"`
+	CreatedAt         int64  `json:"createdAt"`
 }
 
 type PushSubscription struct {

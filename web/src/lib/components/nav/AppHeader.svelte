@@ -12,15 +12,14 @@
 	let showSubscriptionDialog = $state(false);
 
 	onMount(() => {
-		pushNotifications.checkSupport();
+		pushNotifications.init();
 	});
 
-	const configQuery = $derived(useConfig());
+	const configQuery = useConfig();
 	const brand = $derived(configQuery.data?.title ?? 'Beacon');
 	const logoURL = $derived(configQuery.data?.logo_url ?? null);
 
-	let hasSubscriptions = $derived(pushNotifications.subscribedMonitorIds.length > 0);
-	let subscribedCount = $derived(pushNotifications.subscribedMonitorIds.length);
+	const subscribedCount = $derived(pushNotifications.subscribed.size);
 </script>
 
 <SubscribeModal bind:open={showSubscriptionDialog} />
@@ -46,11 +45,11 @@
 				variant="ghost"
 				size="icon-sm"
 				class="relative"
-				aria-label="Subscribe to notifications"
+				aria-label="Downtime alerts"
 				onclick={() => (showSubscriptionDialog = true)}
 			>
-				<Bell class={hasSubscriptions ? 'fill-current' : ''} />
-				{#if hasSubscriptions}
+				<Bell class={subscribedCount > 0 ? 'fill-current' : ''} />
+				{#if subscribedCount > 0}
 					<span
 						class="absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] leading-none font-semibold text-primary-foreground"
 					>

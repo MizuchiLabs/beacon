@@ -9,10 +9,10 @@
 	bind:value={timeRange.current}
 	aria-label="Time range"
 >
-	{#each timeRanges as t (t.value)}
+	{#each timeRanges as t, i (t.value)}
 		<ToggleGroup.Item
 			value={t.value}
-			title={t.title}
+			title="{t.title} ({i + 1})"
 			aria-label={t.title}
 			class="cursor-pointer select-none"
 			onclick={(event) => {

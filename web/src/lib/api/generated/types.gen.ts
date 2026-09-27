@@ -17,7 +17,7 @@ export type ConfigBody = {
 
 export type DataPoint = {
     /**
-     * Mean response time of every check in the bucket
+     * Mean response time of the up checks in the bucket
      */
     avg_ms: number | null;
     degraded: number;
@@ -77,6 +77,10 @@ export type ErrorModel = {
     type?: string;
 };
 
+export type HeartbeatOutputBody = {
+    ok: boolean;
+};
+
 export type Incident = {
     affected_monitors?: Array<string> | null;
     description?: string;
@@ -96,6 +100,9 @@ export type IncidentUpdate = {
 };
 
 export type MonitorStats = {
+    /**
+     * Mean response time of the up checks in the window
+     */
     avg_response_time: number | null;
     check_interval: number;
     data_points: Array<DataPoint> | null;
@@ -103,6 +110,14 @@ export type MonitorStats = {
      * Days until the certificate expires, https and ssl monitors only
      */
     days_remaining: number | null;
+    /**
+     * Response time in ms above which an up check counts as degraded
+     */
+    degraded_threshold: number;
+    /**
+     * Group the monitor is shown under, empty for none
+     */
+    group: string;
     id: number;
     /**
      * Whether certificate expiry is ignored for status and warnings
@@ -113,7 +128,6 @@ export type MonitorStats = {
      */
     last_checked_at?: string;
     name: string;
-    percentiles?: Percentiles;
     /**
      * Status of the latest check, unknown when the monitor has gone quiet
      */
@@ -121,8 +135,11 @@ export type MonitorStats = {
     /**
      * What kind of check this monitor runs
      */
-    type: 'http' | 'tcp' | 'ssl';
+    type: 'http' | 'tcp' | 'ssl' | 'dns' | 'ping' | 'push';
     uptime_pct: number | null;
+    /**
+     * Monitor url, empty for push monitors so the token stays private
+     */
     url: string;
 };
 
@@ -132,6 +149,13 @@ export type Percentiles = {
     p90: number;
     p95: number;
     p99: number;
+};
+
+export type PercentilesOutputBody = {
+    /**
+     * Null when the window holds no up checks
+     */
+    percentiles: Percentiles;
 };
 
 export type PushSubscriptionKeys = {
@@ -157,6 +181,20 @@ export type SubscribeOutputBody = {
     message: string;
 };
 
+export type SubscriptionsInputBody = {
+    /**
+     * Push service endpoint URL of this browser
+     */
+    endpoint: string;
+};
+
+export type SubscriptionsOutputBody = {
+    /**
+     * Monitors this endpoint is subscribed to
+     */
+    monitor_ids: Array<number> | null;
+};
+
 export type UnsubscribeInputBody = {
     /**
      * Push service endpoint URL to remove
@@ -174,6 +212,45 @@ export type VapidOutputBody = {
      */
     publicKey: string;
 };
+
+export type GetBadgeData = {
+    body?: never;
+    path: {
+        /**
+         * Monitor name
+         */
+        name: string;
+    };
+    query?: {
+        /**
+         * Show the current status or the uptime over the window
+         */
+        kind?: 'status' | 'uptime';
+        /**
+         * Uptime window in seconds
+         */
+        seconds?: number;
+    };
+    url: '/api/badge/{name}';
+};
+
+export type GetBadgeErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetBadgeError = GetBadgeErrors[keyof GetBadgeErrors];
+
+export type GetBadgeResponses = {
+    /**
+     * OK
+     */
+    200: Blob | File;
+};
+
+export type GetBadgeResponse = GetBadgeResponses[keyof GetBadgeResponses];
 
 export type GetConfigData = {
     body?: never;
@@ -285,6 +362,41 @@ export type GetMonitorsResponses = {
 
 export type GetMonitorsResponse = GetMonitorsResponses[keyof GetMonitorsResponses];
 
+export type GetMonitorPercentilesData = {
+    body?: never;
+    path: {
+        /**
+         * Monitor ID
+         */
+        id: number;
+    };
+    query?: {
+        /**
+         * How far back to aggregate, in seconds
+         */
+        seconds?: number;
+    };
+    url: '/api/monitors/{id}/percentiles';
+};
+
+export type GetMonitorPercentilesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetMonitorPercentilesError = GetMonitorPercentilesErrors[keyof GetMonitorPercentilesErrors];
+
+export type GetMonitorPercentilesResponses = {
+    /**
+     * OK
+     */
+    200: PercentilesOutputBody;
+};
+
+export type GetMonitorPercentilesResponse = GetMonitorPercentilesResponses[keyof GetMonitorPercentilesResponses];
+
 export type SubscribeToMonitorData = {
     body: PushSubscriptionRequest;
     path: {
@@ -344,6 +456,109 @@ export type UnsubscribeFromMonitorResponses = {
 };
 
 export type UnsubscribeFromMonitorResponse = UnsubscribeFromMonitorResponses[keyof UnsubscribeFromMonitorResponses];
+
+export type HeartbeatGetData = {
+    body?: never;
+    path: {
+        /**
+         * Token from the push://<token> url of the monitor
+         */
+        token: string;
+    };
+    query?: {
+        /**
+         * Report a failure with down
+         */
+        status?: 'up' | 'down';
+        /**
+         * Why the job failed, sent with the notification
+         */
+        msg?: string;
+    };
+    url: '/api/push/{token}';
+};
+
+export type HeartbeatGetErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type HeartbeatGetError = HeartbeatGetErrors[keyof HeartbeatGetErrors];
+
+export type HeartbeatGetResponses = {
+    /**
+     * OK
+     */
+    200: HeartbeatOutputBody;
+};
+
+export type HeartbeatGetResponse = HeartbeatGetResponses[keyof HeartbeatGetResponses];
+
+export type HeartbeatPostData = {
+    body?: never;
+    path: {
+        /**
+         * Token from the push://<token> url of the monitor
+         */
+        token: string;
+    };
+    query?: {
+        /**
+         * Report a failure with down
+         */
+        status?: 'up' | 'down';
+        /**
+         * Why the job failed, sent with the notification
+         */
+        msg?: string;
+    };
+    url: '/api/push/{token}';
+};
+
+export type HeartbeatPostErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type HeartbeatPostError = HeartbeatPostErrors[keyof HeartbeatPostErrors];
+
+export type HeartbeatPostResponses = {
+    /**
+     * OK
+     */
+    200: HeartbeatOutputBody;
+};
+
+export type HeartbeatPostResponse = HeartbeatPostResponses[keyof HeartbeatPostResponses];
+
+export type ListSubscriptionsData = {
+    body: SubscriptionsInputBody;
+    path?: never;
+    query?: never;
+    url: '/api/subscriptions';
+};
+
+export type ListSubscriptionsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListSubscriptionsError = ListSubscriptionsErrors[keyof ListSubscriptionsErrors];
+
+export type ListSubscriptionsResponses = {
+    /**
+     * OK
+     */
+    200: SubscriptionsOutputBody;
+};
+
+export type ListSubscriptionsResponse = ListSubscriptionsResponses[keyof ListSubscriptionsResponses];
 
 export type GetVapidPublicKeyData = {
     body?: never;

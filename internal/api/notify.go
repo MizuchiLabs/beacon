@@ -3,6 +3,9 @@ package api
 import (
 	"context"
 	"net/http"
+	"net/netip"
+	"net/url"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -45,18 +48,30 @@ type UnsubscribeOutput struct {
 	}
 }
 
+type SubscriptionsInput struct {
+	Body struct {
+		Endpoint string `json:"endpoint" format:"uri" doc:"Push service endpoint URL of this browser"`
+	}
+}
+
+type SubscriptionsOutput struct {
+	Body struct {
+		MonitorIDs []int64 `json:"monitor_ids" doc:"Monitors this endpoint is subscribed to"`
+	}
+}
+
 type VAPIDOutput struct {
 	Body struct {
 		PublicKey string `json:"publicKey" doc:"VAPID public key for push subscriptions"`
 	}
 }
 
-type NotifyService struct {
+type notifyHandlers struct {
 	q *db.Queries
 }
 
-func NewNotifyService(api huma.API, q *db.Queries) *NotifyService {
-	svc := &NotifyService{q: q}
+func registerNotify(api huma.API, q *db.Queries) {
+	svc := &notifyHandlers{q: q}
 	huma.Register(api, huma.Operation{
 		OperationID: "get-vapid-public-key",
 		Method:      http.MethodGet,
@@ -79,10 +94,17 @@ func NewNotifyService(api huma.API, q *db.Queries) *NotifyService {
 		Summary:     "Unsubscribe from push notifications for a monitor",
 		Tags:        []string{"Notifications"},
 	}, svc.unsubscribe)
-	return svc
+	huma.Register(api, huma.Operation{
+		OperationID: "list-subscriptions",
+		Method:      http.MethodPost,
+		Path:        "/api/subscriptions",
+		Summary:     "List the monitors a browser is subscribed to",
+		Description: "POST so the endpoint stays out of access logs.",
+		Tags:        []string{"Notifications"},
+	}, svc.listSubscriptions)
 }
 
-func (s *NotifyService) getVAPIDPublicKey(
+func (s *notifyHandlers) getVAPIDPublicKey(
 	ctx context.Context,
 	_ *struct{},
 ) (*VAPIDOutput, error) {
@@ -96,12 +118,17 @@ func (s *NotifyService) getVAPIDPublicKey(
 	return out, nil
 }
 
-func (s *NotifyService) subscribe(
+func (s *notifyHandlers) subscribe(
 	ctx context.Context,
 	in *SubscribeInput,
 ) (*SubscribeOutput, error) {
 	if in.Body.Endpoint == "" || in.Body.Keys.P256dh == "" || in.Body.Keys.Auth == "" {
 		return nil, huma.Error400BadRequest("missing required fields")
+	}
+	// The server POSTs to this url later, so only allow what a real push
+	// service hands out.
+	if u, err := url.Parse(in.Body.Endpoint); err != nil || u.Scheme != "https" || !publicHost(u.Hostname()) {
+		return nil, huma.Error400BadRequest("endpoint must be a public https url")
 	}
 
 	err := s.q.CreatePushSubscription(ctx, &db.CreatePushSubscriptionParams{
@@ -119,7 +146,7 @@ func (s *NotifyService) subscribe(
 	return out, nil
 }
 
-func (s *NotifyService) unsubscribe(
+func (s *notifyHandlers) unsubscribe(
 	ctx context.Context,
 	in *UnsubscribeInput,
 ) (*UnsubscribeOutput, error) {
@@ -137,4 +164,30 @@ func (s *NotifyService) unsubscribe(
 	out := &UnsubscribeOutput{}
 	out.Body.Message = "Unsubscribed successfully"
 	return out, nil
+}
+
+func (s *notifyHandlers) listSubscriptions(
+	ctx context.Context,
+	in *SubscriptionsInput,
+) (*SubscriptionsOutput, error) {
+	ids, err := s.q.GetSubscribedMonitorIDs(ctx, in.Body.Endpoint)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to load subscriptions")
+	}
+
+	out := &SubscriptionsOutput{}
+	out.Body.MonitorIDs = append([]int64{}, ids...)
+	return out, nil
+}
+
+// publicHost rejects localhost and private or loopback ip literals.
+func publicHost(host string) bool {
+	if host == "" || host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return false
+	}
+	ip, err := netip.ParseAddr(host)
+	if err != nil {
+		return true
+	}
+	return ip.IsGlobalUnicast() && !ip.IsPrivate()
 }

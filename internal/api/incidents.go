@@ -21,12 +21,12 @@ type GetIncidentOutput struct {
 	Body incidents.Incident
 }
 
-type IncidentService struct {
+type incidentHandlers struct {
 	incidents *incidents.Service
 }
 
-func NewIncidentService(api huma.API, inc *incidents.Service) *IncidentService {
-	svc := &IncidentService{incidents: inc}
+func registerIncidents(api huma.API, inc *incidents.Service) {
+	svc := &incidentHandlers{incidents: inc}
 	huma.Register(api, huma.Operation{
 		OperationID: "get-incidents",
 		Method:      http.MethodGet,
@@ -41,10 +41,9 @@ func NewIncidentService(api huma.API, inc *incidents.Service) *IncidentService {
 		Summary:     "Get an incident",
 		Tags:        []string{"Incidents"},
 	}, svc.getIncident)
-	return svc
 }
 
-func (s *IncidentService) getIncidents(
+func (s *incidentHandlers) getIncidents(
 	_ context.Context,
 	_ *struct{},
 ) (*GetIncidentsOutput, error) {
@@ -55,7 +54,7 @@ func (s *IncidentService) getIncidents(
 	return &GetIncidentsOutput{Body: s.incidents.GetIncidents()}, nil
 }
 
-func (s *IncidentService) getIncident(
+func (s *incidentHandlers) getIncident(
 	_ context.Context,
 	in *GetIncidentInput,
 ) (*GetIncidentOutput, error) {

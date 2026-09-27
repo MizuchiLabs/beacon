@@ -1,121 +1,93 @@
 <script lang="ts">
-	import type { MonitorStats } from '$lib/api/generated/types.gen';
+	import type { MonitorStats } from '$lib/api/queries';
+	import UptimeBar from '$lib/components/chart/UptimeBar.svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import * as HoverCard from '$lib/components/ui/hover-card';
-	import * as Item from '$lib/components/ui/item/index.js';
 	import SubscribeBell from '$lib/components/util/SubscribeBell.svelte';
-
-	import {
-		ago,
-		certWarnDays,
-		formatMs,
-		latencyTextClass,
-		statusMeta,
-		uptimeTextClass
-	} from '$lib/status.js';
+	import { certWarnDays, statusMeta, targetOf, typeLabel, uptimeTextClass } from '$lib/status.js';
 	import { cn } from '$lib/utils.js';
 	import { CalendarClockIcon, ChevronRightIcon } from '@lucide/svelte';
-	import StatusChart from '../chart/StatusChart.svelte';
 
 	interface Props {
 		monitor: MonitorStats;
-		onOpen: (monitor: MonitorStats) => void;
+		flash?: boolean;
+		onOpen: (id: number) => void;
 	}
-	let { monitor: monitorProp, onOpen }: Props = $props();
+	let { monitor, flash = false, onOpen }: Props = $props();
 
-	// The query wraps results in deep proxies. Reading chart fields through them
-	// is slow, but an unconditional clone would hand the chart a new object on
-	// every fetch notify. Tanstack keeps the prop identical while content is
-	// unchanged, so only clone when the reference actually moves.
-	let lastSource: MonitorStats | undefined;
-	let lastPlain!: MonitorStats;
-	const monitor = $derived.by(() => {
-		if (monitorProp === lastSource) return lastPlain;
-		lastSource = monitorProp;
-		lastPlain = $state.snapshot(monitorProp) as MonitorStats;
-		return lastPlain;
-	});
 	const meta = $derived(statusMeta[monitor.status]);
-	const host = $derived.by(() => {
-		try {
-			return new URL(monitor.url).host;
-		} catch {
-			return monitor.url;
-		}
-	});
-
-	function open() {
-		onOpen(monitor);
-	}
+	const certSoon = $derived(
+		!monitor.ignore_cert_expiry &&
+			monitor.days_remaining != null &&
+			monitor.days_remaining <= certWarnDays
+	);
 </script>
 
-<Item.Root onclick={open} class="group">
-	<Item.Content class="min-w-0 md:max-w-36">
-		<Item.Title class="flex items-center">
-			{monitor.name}
-			{#if monitor.type !== 'http'}
-				<span class="text-xs font-medium text-muted-foreground uppercase">{monitor.type}</span>
+<!-- The name button stretches over the whole row, so the row is one tab stop
+while the bar and the bell stay usable on top of it. -->
+<div
+	class={cn(
+		'group relative flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3.5 transition-colors hover:bg-muted/40 md:flex-nowrap',
+		flash && 'animate-status-flash'
+	)}
+>
+	<div class="flex min-w-0 flex-1 flex-col gap-0.5 md:w-44 md:flex-none">
+		<div class="flex min-w-0 items-center gap-2 text-sm font-medium">
+			<span
+				class={cn(
+					'size-2 shrink-0 rounded-full',
+					meta.dot,
+					meta.text,
+					monitor.status === 'down' && 'animate-status-pulse'
+				)}
+			></span>
+			<button
+				type="button"
+				class="truncate text-left outline-none after:absolute after:inset-0 focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50 focus-visible:after:ring-inset"
+				onclick={() => onOpen(monitor.id)}
+				aria-label="{monitor.name}, {meta.label}. Show details"
+			>
+				{monitor.name}
+			</button>
+			{#if typeLabel(monitor.type)}
+				<span
+					class="shrink-0 text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
+				>
+					{typeLabel(monitor.type)}
+				</span>
 			{/if}
-		</Item.Title>
-		<Item.Description>
-			<a href={monitor.url} target="_blank" rel="noreferrer" class="truncate no-underline!">
-				{host}
-			</a>
-		</Item.Description>
-	</Item.Content>
-	<Item.Content
-		class="order-last w-full flex-row items-center md:order-0 md:w-auto md:min-w-0 md:flex-1!"
-	>
-		<StatusChart {monitor} class="mr-6 h-9 w-full" />
+		</div>
+		<span class="truncate pl-4 text-xs text-muted-foreground">{targetOf(monitor)}</span>
+	</div>
 
-		<HoverCard.Root openDelay={300}>
-			<HoverCard.Trigger>
-				{#if !monitor.ignore_cert_expiry && monitor.days_remaining != null && monitor.days_remaining <= certWarnDays}
-					<Badge variant="outline" class="hidden md:inline-flex">
-						<CalendarClockIcon class="size-3" />
-						{monitor.days_remaining}d
-					</Badge>
-				{/if}
-				<Badge variant="outline" class={cn('hidden md:inline-flex', meta.badge)}>
-					{meta.label}
-				</Badge>
-			</HoverCard.Trigger>
-			<HoverCard.Content align="center" side="left" sideOffset={16} class="flex w-56 flex-col">
-				<div class="flex items-center gap-2">
-					<span class="size-2 rounded-full {meta.dot}"></span>
-					<span class="text-sm font-medium">{meta.label}</span>
-					{#if monitor.last_checked_at}
-						<span class="ml-auto text-xs text-muted-foreground">
-							{ago(new Date(monitor.last_checked_at))}
-						</span>
-					{/if}
-				</div>
-				<div class="mt-3 grid grid-cols-2 gap-4">
-					<div class="flex flex-col gap-0.5">
-						<p class="text-xs text-muted-foreground">Uptime</p>
-						<p class="text-sm font-semibold tabular-nums {uptimeTextClass(monitor.uptime_pct)}">
-							{monitor.uptime_pct === null ? '-' : `${monitor.uptime_pct.toFixed(2)}%`}
-						</p>
-					</div>
-					<div class="flex flex-col gap-0.5">
-						<p class="text-xs text-muted-foreground">Avg response</p>
-						<p
-							class="text-sm font-semibold tabular-nums {latencyTextClass(
-								monitor.avg_response_time
-							)}"
-						>
-							{formatMs(monitor.avg_response_time)}
-						</p>
-					</div>
-				</div>
-			</HoverCard.Content>
-		</HoverCard.Root>
-	</Item.Content>
-	<Item.Actions>
+	<div class="order-last w-full md:order-0 md:w-auto md:min-w-0 md:flex-1">
+		<UptimeBar
+			points={monitor.data_points ?? []}
+			class="relative"
+			onclick={() => onOpen(monitor.id)}
+		/>
+	</div>
+
+	<div class="flex shrink-0 items-center gap-2">
+		{#if certSoon}
+			<Badge variant="outline" class="hidden md:inline-flex" title="Certificate expires soon">
+				<CalendarClockIcon class="size-3" />
+				{monitor.days_remaining}d
+			</Badge>
+		{/if}
+		<span
+			class={cn(
+				'w-16 text-right text-sm font-medium tabular-nums',
+				uptimeTextClass(monitor.uptime_pct)
+			)}
+		>
+			{monitor.uptime_pct == null ? '-' : `${monitor.uptime_pct.toFixed(2)}%`}
+		</span>
 		<SubscribeBell
 			monitorId={monitor.id}
-			class="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+			class="relative opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
 		/>
-		<ChevronRightIcon class="hidden size-4 text-muted-foreground/50 md:block" />
-	</Item.Actions>
-</Item.Root>
+		<ChevronRightIcon
+			class="hidden size-4 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 md:block"
+		/>
+	</div>
+</div>

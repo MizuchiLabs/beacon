@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -60,4 +61,14 @@ func TestRateLimitUsesProxyHeader(t *testing.T) {
 
 	// Different client behind the same proxy address gets its own bucket.
 	require.Equal(t, http.StatusOK, get("203.0.113.8").Code)
+}
+
+func TestPublicHost(t *testing.T) {
+	t.Parallel()
+
+	assert.True(t, publicHost("fcm.googleapis.com"))
+	assert.True(t, publicHost("8.8.8.8"))
+	for _, host := range []string{"", "localhost", "api.localhost", "127.0.0.1", "10.0.0.5", "192.168.1.2", "::1", "fe80::1"} {
+		assert.False(t, publicHost(host), host)
+	}
 }

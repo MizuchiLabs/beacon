@@ -46,7 +46,8 @@ func TestStepForWindow(t *testing.T) {
 		{"one week", 604800, 14400},
 		{"two weeks", 1209600, 43200},
 		{"one month", 2592000, 86400},
-		{"larger than the ladder", 31536000, 86400},
+		{"ninety days", 7776000, 172800},
+		{"one year", 31536000, 604800},
 	}
 
 	for _, tt := range tests {
@@ -60,10 +61,12 @@ func TestStepForWindow(t *testing.T) {
 func TestStepForWindowStaysUnderPointCap(t *testing.T) {
 	t.Parallel()
 
-	for _, seconds := range []int64{60, 3600, 86400, 604800, 1209600, 2592000} {
+	for _, seconds := range []int64{60, 3600, 86400, 604800, 1209600, 2592000, 7776000} {
 		step := stepForWindow(seconds)
 		require.LessOrEqual(t, seconds/step, int64(maxPoints), "window %ds", seconds)
-		require.Zero(t, 86400%step, "step %ds does not divide a day", step)
+		if step >= rollupStep {
+			require.Zero(t, step%rollupStep, "step %ds must be whole rollup hours", step)
+		}
 	}
 }
 
@@ -72,9 +75,15 @@ func TestStatusOf(t *testing.T) {
 
 	const now = 1_000_000
 
-	httpMonitor := &db.Monitor{CheckInterval: 60, Type: checker.TypeHTTP}
-	sslMonitor := &db.Monitor{CheckInterval: 60, Type: checker.TypeSSL}
-	httpMonitorNoCert := &db.Monitor{CheckInterval: 60, Type: checker.TypeHTTP, IgnoreCertExpiry: true}
+	httpMonitor := &db.Monitor{CheckInterval: 60, Type: checker.TypeHTTP, DegradedThreshold: 500}
+	sslMonitor := &db.Monitor{CheckInterval: 60, Type: checker.TypeSSL, DegradedThreshold: 500}
+	httpMonitorNoCert := &db.Monitor{
+		CheckInterval:     60,
+		Type:              checker.TypeHTTP,
+		DegradedThreshold: 500,
+		IgnoreCertExpiry:  true,
+	}
+	slowOK := &db.Monitor{CheckInterval: 60, Type: checker.TypeHTTP, DegradedThreshold: 2000}
 	tests := []struct {
 		name string
 		m    *db.Monitor
@@ -93,6 +102,12 @@ func TestStatusOf(t *testing.T) {
 			httpMonitor,
 			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 501, CheckedAt: now - 60},
 			statusDegraded,
+		},
+		{
+			"slow but under its own threshold",
+			slowOK,
+			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 1500, CheckedAt: now - 60},
+			statusOperational,
 		},
 		{"down", httpMonitor, &db.GetLatestChecksRow{IsUp: false, CheckedAt: now - 60}, statusDown},
 		{"stale", httpMonitor, &db.GetLatestChecksRow{IsUp: true, CheckedAt: now - 181}, statusUnknown},
@@ -135,7 +150,7 @@ func TestBuildPointsFillsGaps(t *testing.T) {
 
 	m := &db.Monitor{ID: 1, CheckInterval: 50, CreatedAt: 0}
 	rows := []*db.GetCheckWindowRow{
-		{MonitorID: 1, Ts: 100, Total: 4, Up: 3, Down: 1, SumMs: 400},
+		{MonitorID: 1, Ts: 100, Total: 4, Up: 3, Down: 1, SumMs: 300},
 	}
 
 	points := buildPoints(m, rows, 0, 300, 100)
@@ -150,7 +165,7 @@ func TestBuildPointsFillsGaps(t *testing.T) {
 	require.True(t, points[1].HasData)
 	require.EqualValues(t, 3, points[1].Up)
 	require.EqualValues(t, 1, points[1].Down)
-	require.EqualValues(t, 100, *points[1].AvgMs)
+	require.EqualValues(t, 100, *points[1].AvgMs, "the average only covers up checks")
 
 	require.False(t, points[3].HasData)
 }
@@ -173,6 +188,13 @@ func TestBuildPointsExpectations(t *testing.T) {
 		points := buildPoints(m, nil, 0, 100, 100)
 		require.Zero(t, points[0].Expected)
 	})
+
+	t.Run("push monitors expect nothing", func(t *testing.T) {
+		t.Parallel()
+		m := &db.Monitor{ID: 1, CheckInterval: 60, Type: checker.TypePush}
+		points := buildPoints(m, nil, 0, 300, 100)
+		require.Zero(t, points[0].Expected, "heartbeats only report when pinged")
+	})
 }
 
 func TestStatsCountDegradedChecksAsUptime(t *testing.T) {
@@ -183,10 +205,9 @@ func TestStatsCountDegradedChecksAsUptime(t *testing.T) {
 		{MonitorID: 1, Ts: 60, Total: 2, Degraded: 2, SumMs: 2000},
 	}
 
-	got := stats(m, rows, nil, []int64{1000, 1000}, 60, 60, 60)
+	got := stats(m, rows, nil, 60, 60, 60)
 	require.InDelta(t, 100, *got.UptimePct, 0.001)
 	require.EqualValues(t, 1000, *got.AvgResponseTime)
-	require.NotNil(t, got.Percentiles, "degraded checks still feed the percentiles")
 	require.Zero(t, got.Datapoints[0].Up)
 	require.EqualValues(t, 2, got.Datapoints[0].Degraded)
 }
@@ -202,7 +223,7 @@ func TestStatsCarriesMonitorIdentity(t *testing.T) {
 		CheckInterval: 60,
 	}
 
-	got := stats(m, nil, nil, nil, 0, 60, 60)
+	got := stats(m, nil, nil, 0, 60, 60)
 
 	require.EqualValues(t, 7, got.ID)
 	require.Equal(t, "API", got.Name)
@@ -215,11 +236,30 @@ func TestStatsWithoutChecksReportsNoNumbers(t *testing.T) {
 	t.Parallel()
 
 	m := &db.Monitor{ID: 1, CheckInterval: 60, CreatedAt: 0}
-	got := stats(m, nil, nil, nil, 0, 60, 60)
+	got := stats(m, nil, nil, 0, 60, 60)
 
 	require.Equal(t, statusUnknown, got.Status)
 	require.Nil(t, got.UptimePct)
 	require.Nil(t, got.AvgResponseTime)
-	require.Nil(t, got.Percentiles)
 	require.False(t, got.Datapoints[0].HasData)
+}
+
+func TestStatsKeepsDownChecksOutOfTheAverage(t *testing.T) {
+	t.Parallel()
+
+	m := &db.Monitor{ID: 1, CheckInterval: 60}
+	rows := []*db.GetCheckWindowRow{
+		{MonitorID: 1, Ts: 0, Total: 4, Up: 3, Down: 1, SumMs: 150},
+	}
+
+	got := stats(m, rows, nil, 0, 60, 60)
+	require.InDelta(t, 75, *got.UptimePct, 0.001)
+	require.EqualValues(t, 50, *got.AvgResponseTime, "a 30s timeout must not drag the average up")
+}
+
+func TestStatsHidesPushToken(t *testing.T) {
+	t.Parallel()
+
+	m := &db.Monitor{ID: 1, CheckInterval: 60, Type: checker.TypePush, Url: "push://s3cret"}
+	require.Empty(t, stats(m, nil, nil, 0, 60, 60).URL)
 }

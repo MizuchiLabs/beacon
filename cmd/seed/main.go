@@ -12,8 +12,8 @@ import (
 	"github.com/mizuchilabs/kata/sigx"
 	"github.com/urfave/cli/v3"
 
+	"github.com/mizuchilabs/beacon/internal/config"
 	"github.com/mizuchilabs/beacon/internal/db"
-	"github.com/mizuchilabs/beacon/internal/monitors"
 )
 
 func main() {
@@ -26,6 +26,12 @@ func main() {
 				Aliases: []string{"d"},
 				Usage:   "Enable debug logging",
 				Sources: cli.EnvVars("BEACON_DEBUG"),
+			},
+			&cli.StringFlag{
+				Name:    "data-dir",
+				Usage:   "Directory for the database",
+				Value:   "data",
+				Sources: cli.EnvVars("BEACON_DATA_DIR"),
 			},
 			&cli.StringFlag{
 				Name:    "config",
@@ -54,18 +60,18 @@ func main() {
 }
 
 func run(ctx context.Context, cmd *cli.Command) error {
-	q, err := db.Open(ctx)
+	q, err := db.Open(ctx, cmd.String("data-dir"))
 	if err != nil {
 		return err
 	}
 
-	if err := monitors.Sync(ctx, q, cmd.String("config")); err != nil {
-		return fmt.Errorf("failed to sync monitors: %w", err)
-	}
-
-	monitors, err := q.GetMonitors(ctx)
+	cfg, err := config.Load(cmd.String("config"))
 	if err != nil {
-		return fmt.Errorf("failed to load monitors: %w", err)
+		return err
+	}
+	monitors, err := config.Sync(ctx, q, cfg.Monitors)
+	if err != nil {
+		return fmt.Errorf("failed to sync monitors: %w", err)
 	}
 	if len(monitors) == 0 {
 		return fmt.Errorf("no monitors found, add some to %s", cmd.String("config"))
@@ -80,14 +86,14 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		count := 0
 
 		for t := start; t.Before(now); t = t.Add(time.Duration(interval) * time.Second) {
-			// Align to the interval grid so re-running overwrites instead of duplicating
-			params := &db.UpsertCheckParams{
+			// Align to the interval grid so re-running skips existing checks
+			params := &db.InsertCheckParams{
 				MonitorID: m.ID,
 				CheckedAt: t.Unix() - t.Unix()%interval,
 			}
 			params.IsUp, params.StatusCode, params.ResponseTime, params.Error = generateCheck(i)
 
-			if err := q.UpsertCheck(ctx, params); err != nil {
+			if err := q.InsertCheck(ctx, params); err != nil {
 				return fmt.Errorf("failed to insert check for %q: %w", m.Url, err)
 			}
 			count++

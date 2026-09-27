@@ -2,11 +2,18 @@ import { createQuery, keepPreviousData } from '@tanstack/svelte-query';
 import {
 	getConfigOptions,
 	getIncidentsOptions,
+	getMonitorPercentilesOptions,
 	getMonitorsOptions
 } from './generated/@tanstack/svelte-query.gen';
 import { timeRange } from '$lib/range.svelte';
 
-export type { ConfigBody, Incident, IncidentUpdate, MonitorStats } from './generated/types.gen';
+export type {
+	ConfigBody,
+	Incident,
+	IncidentUpdate,
+	MonitorStats,
+	Percentiles
+} from './generated/types.gen';
 
 export function useConfig() {
 	return createQuery(() => getConfigOptions());
@@ -15,8 +22,19 @@ export function useConfig() {
 export function useMonitorStats() {
 	return createQuery(() => ({
 		...getMonitorsOptions({ query: { seconds: Number(timeRange.current) } }),
-		staleTime: 30_000,
 		refetchInterval: 30_000,
+		placeholderData: keepPreviousData
+	}));
+}
+
+export function useMonitorPercentiles(id: () => number | undefined) {
+	return createQuery(() => ({
+		...getMonitorPercentilesOptions({
+			path: { id: id() ?? 0 },
+			query: { seconds: Number(timeRange.current) }
+		}),
+		enabled: id() !== undefined,
+		refetchInterval: 60_000,
 		placeholderData: keepPreviousData
 	}));
 }

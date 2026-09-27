@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -18,19 +19,16 @@ import (
 
 	"github.com/mizuchilabs/beacon/internal/db"
 	"github.com/mizuchilabs/beacon/internal/incidents"
+	"github.com/mizuchilabs/beacon/internal/scheduler"
 	"github.com/mizuchilabs/beacon/web"
 )
 
 type Server struct {
 	api huma.API
 	mux *chi.Mux
-	q   *db.Queries
 }
 
-func New(
-	q *db.Queries,
-	inc *incidents.Service,
-) (*Server, error) {
+func New(q *db.Queries, inc *incidents.Service, sched *scheduler.Service) (*Server, error) {
 	mux := chi.NewRouter()
 
 	if logx.IsTerminal() {
@@ -51,24 +49,22 @@ func New(
 	mux.Use(rateLimitAPI(100, time.Minute))
 	mux.Use(middleware.CleanPath)
 
-	server := &Server{
-		api: humachi.New(mux, humaConfig()),
-		mux: mux,
-		q:   q,
-	}
-	if err := NewConfigService(server.api); err != nil {
+	api := humachi.New(mux, humaConfig())
+	if err := registerConfig(api); err != nil {
 		return nil, err
 	}
-	NewMonitorService(server.api, q)
-	NewIncidentService(server.api, inc)
-	NewNotifyService(server.api, q)
+	registerMonitors(api, q)
+	registerIncidents(api, inc)
+	registerNotify(api, q)
+	registerHeartbeat(api, sched)
+	registerBadges(api, q)
 
 	mux.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.Handle("/*", web.Handler())
-	return server, nil
+	return &Server{api: api, mux: mux}, nil
 }
 
 func humaConfig() huma.Config {
@@ -79,7 +75,7 @@ func humaConfig() huma.Config {
 
 // Spec builds the OpenAPI description of the API without starting a server.
 func Spec() *huma.OpenAPI {
-	server, _ := New(nil, nil)
+	server, _ := New(nil, nil, nil)
 	return server.api.OpenAPI()
 }
 
@@ -97,7 +93,7 @@ func (s *Server) Start(ctx context.Context, port string) error {
 	serverErr := make(chan error, 1)
 	go func() {
 		slog.Info("Server listening on", "port", port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErr <- err
 		}
 	}()
@@ -106,7 +102,7 @@ func (s *Server) Start(ctx context.Context, port string) error {
 	select {
 	case <-ctx.Done():
 		slog.Info("Shutting down server...")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
 		return server.Shutdown(shutdownCtx)
 

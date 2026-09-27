@@ -19,13 +19,13 @@ type ConfigBody struct {
 	LogoURL string `json:"logo_url,omitempty" doc:"URL of a custom logo image shown in the header"`
 }
 
-type ConfigService struct {
+type configEnv struct {
 	Title   string `env:"BEACON_TITLE"    envDefault:"Beacon"`
 	LogoURL string `env:"BEACON_LOGO_URL"`
 }
 
-func NewConfigService(api huma.API) error {
-	cfg, err := env.ParseAs[ConfigService]()
+func registerConfig(api huma.API) error {
+	cfg, err := env.ParseAs[configEnv]()
 	if err != nil {
 		return err
 	}
@@ -40,6 +40,6 @@ func NewConfigService(api huma.API) error {
 	return nil
 }
 
-func (s *ConfigService) getConfig(_ context.Context, _ *struct{}) (*ConfigOutput, error) {
+func (s *configEnv) getConfig(_ context.Context, _ *struct{}) (*ConfigOutput, error) {
 	return &ConfigOutput{Body: ConfigBody{Title: s.Title, LogoURL: s.LogoURL}}, nil
 }

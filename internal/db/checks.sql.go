@@ -9,6 +9,43 @@ import (
 	"context"
 )
 
+const backfillRollups = `-- name: BackfillRollups :exec
+INSERT INTO
+  check_rollups (monitor_id, hour, total, up, degraded, down, sum_ms)
+SELECT
+  c.monitor_id,
+  c.checked_at - c.checked_at % 3600 AS hour,
+  COUNT(*),
+  SUM(c.is_up AND c.response_time <= m.degraded_threshold),
+  SUM(c.is_up AND c.response_time > m.degraded_threshold),
+  SUM(NOT c.is_up),
+  SUM(IIF(c.is_up, c.response_time, 0))
+FROM
+  checks c
+  JOIN monitors m ON m.id = c.monitor_id
+WHERE
+  c.checked_at < COALESCE(
+    (
+      SELECT
+        MIN(hour)
+      FROM
+        check_rollups
+    ),
+    9223372036854775807
+  )
+GROUP BY
+  c.monitor_id,
+  hour
+ON CONFLICT (monitor_id, hour) DO NOTHING
+`
+
+// Rolls up raw checks older than the first rollup. Only does work on the
+// first start after rollups were introduced, the trigger keeps up after that.
+func (q *Queries) BackfillRollups(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, backfillRollups)
+	return err
+}
+
 const cleanupChecks = `-- name: CleanupChecks :exec
 DELETE FROM checks
 WHERE
@@ -20,96 +57,42 @@ func (q *Queries) CleanupChecks(ctx context.Context, cutoff int64) error {
 	return err
 }
 
-const getCheckResponseTimes = `-- name: GetCheckResponseTimes :many
-SELECT
-  monitor_id,
-  response_time
-FROM
-  checks
+const cleanupRollups = `-- name: CleanupRollups :exec
+DELETE FROM check_rollups
 WHERE
-  checked_at >= ?1
-  AND is_up
-ORDER BY
-  monitor_id,
-  response_time
+  hour < ?1
 `
 
-type GetCheckResponseTimesRow struct {
-	MonitorID    int64 `json:"monitorId"`
-	ResponseTime int64 `json:"responseTime"`
-}
-
-func (q *Queries) GetCheckResponseTimes(ctx context.Context, fromTs int64) ([]*GetCheckResponseTimesRow, error) {
-	rows, err := q.db.QueryContext(ctx, getCheckResponseTimes, fromTs)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []*GetCheckResponseTimesRow
-	for rows.Next() {
-		var i GetCheckResponseTimesRow
-		if err := rows.Scan(&i.MonitorID, &i.ResponseTime); err != nil {
-			return nil, err
-		}
-		items = append(items, &i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) CleanupRollups(ctx context.Context, cutoff int64) error {
+	_, err := q.db.ExecContext(ctx, cleanupRollups, cutoff)
+	return err
 }
 
 const getCheckWindow = `-- name: GetCheckWindow :many
 SELECT
-  monitor_id,
-  checked_at - (checked_at % ?1) AS ts,
+  c.monitor_id,
+  c.checked_at - (c.checked_at % ?1) AS ts,
   COUNT(*) AS total,
-  CAST(
-    SUM(
-      CASE
-        WHEN is_up
-        AND response_time <= ?2 THEN 1
-        ELSE 0
-      END
-    ) AS INTEGER
-  ) AS up,
-  CAST(
-    SUM(
-      CASE
-        WHEN is_up
-        AND response_time > ?2 THEN 1
-        ELSE 0
-      END
-    ) AS INTEGER
-  ) AS degraded,
-  CAST(
-    SUM(
-      CASE
-        WHEN NOT is_up THEN 1
-        ELSE 0
-      END
-    ) AS INTEGER
-  ) AS down,
-  CAST(SUM(response_time) AS INTEGER) AS sum_ms
+  CAST(SUM(c.is_up AND c.response_time <= m.degraded_threshold) AS INTEGER) AS up,
+  CAST(SUM(c.is_up AND c.response_time > m.degraded_threshold) AS INTEGER) AS degraded,
+  CAST(SUM(NOT c.is_up) AS INTEGER) AS down,
+  CAST(SUM(IIF(c.is_up, c.response_time, 0)) AS INTEGER) AS sum_ms
 FROM
-  checks
+  checks c
+  JOIN monitors m ON m.id = c.monitor_id
 WHERE
-  checked_at >= ?3
+  c.checked_at >= ?2
 GROUP BY
-  monitor_id,
+  c.monitor_id,
   ts
 ORDER BY
-  monitor_id,
+  c.monitor_id,
   ts
 `
 
 type GetCheckWindowParams struct {
-	Step              int64 `json:"step"`
-	DegradedThreshold int64 `json:"degradedThreshold"`
-	FromTs            int64 `json:"fromTs"`
+	Step   int64 `json:"step"`
+	FromTs int64 `json:"fromTs"`
 }
 
 type GetCheckWindowRow struct {
@@ -123,7 +106,7 @@ type GetCheckWindowRow struct {
 }
 
 func (q *Queries) GetCheckWindow(ctx context.Context, arg *GetCheckWindowParams) ([]*GetCheckWindowRow, error) {
-	rows, err := q.db.QueryContext(ctx, getCheckWindow, arg.Step, arg.DegradedThreshold, arg.FromTs)
+	rows, err := q.db.QueryContext(ctx, getCheckWindow, arg.Step, arg.FromTs)
 	if err != nil {
 		return nil, err
 	}
@@ -214,21 +197,151 @@ func (q *Queries) GetLatestChecks(ctx context.Context) ([]*GetLatestChecksRow, e
 	return items, nil
 }
 
-const upsertCheck = `-- name: UpsertCheck :exec
+const getResponseTimes = `-- name: GetResponseTimes :many
+SELECT
+  response_time
+FROM
+  checks
+WHERE
+  monitor_id = ?1
+  AND checked_at >= ?2
+  AND is_up
+ORDER BY
+  response_time
+`
+
+type GetResponseTimesParams struct {
+	MonitorID int64 `json:"monitorId"`
+	FromTs    int64 `json:"fromTs"`
+}
+
+func (q *Queries) GetResponseTimes(ctx context.Context, arg *GetResponseTimesParams) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, getResponseTimes, arg.MonitorID, arg.FromTs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var response_time int64
+		if err := rows.Scan(&response_time); err != nil {
+			return nil, err
+		}
+		items = append(items, response_time)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRollupWindow = `-- name: GetRollupWindow :many
+SELECT
+  monitor_id,
+  hour - (hour % ?1) AS ts,
+  CAST(SUM(total) AS INTEGER) AS total,
+  CAST(SUM(up) AS INTEGER) AS up,
+  CAST(SUM(degraded) AS INTEGER) AS degraded,
+  CAST(SUM(down) AS INTEGER) AS down,
+  CAST(SUM(sum_ms) AS INTEGER) AS sum_ms
+FROM
+  check_rollups
+WHERE
+  hour >= ?2
+GROUP BY
+  monitor_id,
+  ts
+ORDER BY
+  monitor_id,
+  ts
+`
+
+type GetRollupWindowParams struct {
+	Step   int64 `json:"step"`
+	FromTs int64 `json:"fromTs"`
+}
+
+type GetRollupWindowRow struct {
+	MonitorID int64 `json:"monitorId"`
+	Ts        int64 `json:"ts"`
+	Total     int64 `json:"total"`
+	Up        int64 `json:"up"`
+	Degraded  int64 `json:"degraded"`
+	Down      int64 `json:"down"`
+	SumMs     int64 `json:"sumMs"`
+}
+
+func (q *Queries) GetRollupWindow(ctx context.Context, arg *GetRollupWindowParams) ([]*GetRollupWindowRow, error) {
+	rows, err := q.db.QueryContext(ctx, getRollupWindow, arg.Step, arg.FromTs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*GetRollupWindowRow
+	for rows.Next() {
+		var i GetRollupWindowRow
+		if err := rows.Scan(
+			&i.MonitorID,
+			&i.Ts,
+			&i.Total,
+			&i.Up,
+			&i.Degraded,
+			&i.Down,
+			&i.SumMs,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUptime = `-- name: GetUptime :one
+SELECT
+  CAST(COALESCE(SUM(total), 0) AS INTEGER) AS total,
+  CAST(COALESCE(SUM(up + degraded), 0) AS INTEGER) AS alive
+FROM
+  check_rollups
+WHERE
+  monitor_id = ?1
+  AND hour >= ?2
+`
+
+type GetUptimeParams struct {
+	MonitorID int64 `json:"monitorId"`
+	FromTs    int64 `json:"fromTs"`
+}
+
+type GetUptimeRow struct {
+	Total int64 `json:"total"`
+	Alive int64 `json:"alive"`
+}
+
+func (q *Queries) GetUptime(ctx context.Context, arg *GetUptimeParams) (*GetUptimeRow, error) {
+	row := q.db.QueryRowContext(ctx, getUptime, arg.MonitorID, arg.FromTs)
+	var i GetUptimeRow
+	err := row.Scan(&i.Total, &i.Alive)
+	return &i, err
+}
+
+const insertCheck = `-- name: InsertCheck :exec
 INSERT INTO
   checks (monitor_id, status_code, response_time, days_remaining, error, is_up, checked_at)
 VALUES
   (?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (monitor_id, checked_at) DO UPDATE
-SET
-  status_code = excluded.status_code,
-  response_time = excluded.response_time,
-  days_remaining = excluded.days_remaining,
-  error = excluded.error,
-  is_up = excluded.is_up
+ON CONFLICT (monitor_id, checked_at) DO NOTHING
 `
 
-type UpsertCheckParams struct {
+type InsertCheckParams struct {
 	MonitorID     int64   `json:"monitorId"`
 	StatusCode    int64   `json:"statusCode"`
 	ResponseTime  int64   `json:"responseTime"`
@@ -238,8 +351,8 @@ type UpsertCheckParams struct {
 	CheckedAt     int64   `json:"checkedAt"`
 }
 
-func (q *Queries) UpsertCheck(ctx context.Context, arg *UpsertCheckParams) error {
-	_, err := q.db.ExecContext(ctx, upsertCheck,
+func (q *Queries) InsertCheck(ctx context.Context, arg *InsertCheckParams) error {
+	_, err := q.db.ExecContext(ctx, insertCheck,
 		arg.MonitorID,
 		arg.StatusCode,
 		arg.ResponseTime,

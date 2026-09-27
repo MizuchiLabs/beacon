@@ -1,16 +1,41 @@
 monitors:
   - name: "Mizuchi Labs"
     url: "https://mizuchi.dev"
-    check_interval: 60
+    group: "Websites"
   - name: "Google"
     url: "https://google.com"
-    check_interval: 60
+    group: "Websites"
   - name: "GitHub"
     url: "https://github.com"
-    check_interval: 60
+    group: "Websites"
+    keyword: "GitHub"
   - name: "Certificate"
     url: "ssl://mizuchi.dev"
+    group: "Infrastructure"
     check_interval: 3600
+  - name: "Cloudflare DNS"
+    url: "dns://mizuchi.dev?server=1.1.1.1"
+    group: "Infrastructure"
+  - name: "Router"
+    url: "ping://1.1.1.1"
+    group: "Infrastructure"
+    check_interval: 30
   - name: "Postgres"
     url: "tcp://localhost:5432"
+    group: "Infrastructure"
     check_interval: 30
+    retries: 2
+  - name: "Nightly backup"
+    url: "push://change-me-to-something-random"
+    group: "Jobs"
+    check_interval: 86400
+
+# Every notification is POSTed to each webhook. Without a body the event is
+# sent as JSON, a body template shapes it for a specific service.
+# webhooks:
+#   - url: "https://discord.com/api/webhooks/..."
+#     body: '{"content": {{json .Message}}}'
+#   - url: "https://ntfy.sh/my-beacon-alerts"
+#     headers:
+#       Title: "Beacon"
+#     body: "{{.Message}}"

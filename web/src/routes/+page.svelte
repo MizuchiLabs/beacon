@@ -1,37 +1,103 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import type { MonitorStats } from '$lib/api/generated/types.gen';
-	import { getIncidents, useMonitorStats } from '$lib/api/queries';
+	import { getIncidents, useConfig, useMonitorStats } from '$lib/api/queries';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Empty from '$lib/components/ui/empty';
+	import * as InputGroup from '$lib/components/ui/input-group';
 	import * as Item from '$lib/components/ui/item';
+	import { Kbd } from '$lib/components/ui/kbd';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import MonitorRow from '$lib/components/util/MonitorRow.svelte';
 	import MonitorSheet from '$lib/components/util/MonitorSheet.svelte';
 	import OverallBanner from '$lib/components/util/OverallBanner.svelte';
 	import TimeRange from '$lib/components/util/TimeRange.svelte';
+	import { timeRange, timeRanges } from '$lib/range.svelte';
 	import {
 		aggregateStatus,
 		ago,
 		durationText,
+		groupMonitors,
 		incidentSeverity,
 		isActiveIncident,
-		statusMeta
+		statusMeta,
+		statusTitle,
+		targetOf
 	} from '$lib/status.js';
-	import { ArrowRightIcon, CheckIcon, CircleCheckIcon } from '@lucide/svelte';
+	import { ArrowRightIcon, CheckIcon, CircleCheckIcon, SearchIcon } from '@lucide/svelte';
+	import { useInterval, watch } from 'runed';
+	import { toast } from 'svelte-sonner';
+	import { SvelteSet } from 'svelte/reactivity';
+
+	// A filter only earns its space once the list gets long.
+	const filterThreshold = 7;
 
 	const statsQuery = useMonitorStats();
 	const incidentsQuery = getIncidents();
+	const configQuery = useConfig();
+
+	const monitors = $derived(statsQuery.data ?? []);
+	const brand = $derived(configQuery.data?.title ?? 'Beacon');
 
 	let sheetOpen = $state(false);
-	let selected = $state<MonitorStats | null>(null);
+	let selectedId = $state<number | null>(null);
+	// Derived from the live query, so the open sheet updates on every refetch.
+	const selected = $derived(monitors.find((m) => m.id === selectedId) ?? null);
 
-	function openMonitor(monitor: MonitorStats) {
-		selected = monitor;
+	function openMonitor(id: number) {
+		selectedId = id;
 		sheetOpen = true;
+	}
+
+	let filter = $state('');
+	let filterInput = $state<HTMLInputElement | null>(null);
+	const showFilter = $derived(monitors.length >= filterThreshold || filter !== '');
+	const groups = $derived.by(() => {
+		const needle = filter.trim().toLowerCase();
+		const matches = needle
+			? monitors.filter((m) =>
+					[m.name, m.group, targetOf(m)].some((field) => field.toLowerCase().includes(needle))
+				)
+			: monitors;
+		return groupMonitors(matches);
+	});
+
+	// Status changes between two polls get a toast and a short row flash.
+	const flashing = new SvelteSet<number>();
+	watch(
+		() => statsQuery.data,
+		(current, previous) => {
+			if (!current || !previous) return;
+			const before = new Map(previous.map((m) => [m.id, m.status]));
+			for (const m of current) {
+				const was = before.get(m.id);
+				if (!was || was === m.status || was === 'unknown' || m.status === 'unknown') continue;
+
+				flashing.add(m.id);
+				setTimeout(() => flashing.delete(m.id), 1800);
+				if (m.status === 'down') toast.error(`${m.name} is down`);
+				else if (was === 'down') toast.success(`${m.name} is back up`);
+				else if (m.status === 'degraded') toast.warning(`${m.name} is degraded`);
+				else toast.success(`${m.name} is operational again`);
+			}
+		}
+	);
+
+	function onkeydown(event: KeyboardEvent) {
+		if (event.metaKey || event.ctrlKey || event.altKey || event.defaultPrevented) return;
+		const target = event.target as HTMLElement;
+		if (target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]'))
+			return;
+
+		if (event.key === '/' && filterInput) {
+			event.preventDefault();
+			filterInput.focus();
+			return;
+		}
+		const range = timeRanges[Number(event.key) - 1];
+		if (range) timeRange.current = range.value;
 	}
 
 	const activeIncidents = $derived((incidentsQuery.data ?? []).filter(isActiveIncident));
@@ -45,31 +111,24 @@
 			.slice(0, 5);
 	});
 
-	let now = $state(Date.now());
-	$effect(() => {
-		const timer = setInterval(() => (now = Date.now()), 10_000);
-		return () => clearInterval(timer);
-	});
-
+	const clock = useInterval(10_000);
 	const updatedAgo = $derived.by(() => {
-		void now;
+		void clock.counter;
 		return statsQuery.dataUpdatedAt ? ago(new Date(statsQuery.dataUpdatedAt)) : null;
 	});
 
 	// The favicon doubles as a passive status light for pinned tabs.
 	let faviconHref = $state('');
 	$effect(() => {
-		const monitors = statsQuery.data ?? [];
 		if (monitors.length === 0) return;
 		const style = getComputedStyle(document.documentElement);
 		const token = statusMeta[aggregateStatus(monitors)].token;
-		const color = style.getPropertyValue(token).trim();
 		const canvas = document.createElement('canvas');
 		canvas.width = 64;
 		canvas.height = 64;
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
-		ctx.fillStyle = color;
+		ctx.fillStyle = style.getPropertyValue(token).trim();
 		ctx.beginPath();
 		ctx.arc(32, 32, 26, 0, Math.PI * 2);
 		ctx.fill();
@@ -79,7 +138,10 @@
 	const monthDay = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 </script>
 
+<svelte:window {onkeydown} />
+
 <svelte:head>
+	<title>{statusTitle(monitors, brand)}</title>
 	{#if faviconHref}
 		<link rel="icon" type="image/png" href={faviconHref} />
 	{/if}
@@ -114,7 +176,7 @@
 		</div>
 	{:else}
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-			<OverallBanner monitors={statsQuery.data ?? []} {updatedAgo} />
+			<OverallBanner {monitors} {updatedAgo} />
 			<TimeRange />
 		</div>
 
@@ -146,11 +208,47 @@
 			</div>
 		{/if}
 
-		<div class="flex flex-col divide-y rounded-xl border bg-card">
-			{#each statsQuery.data as monitor (monitor.id)}
-				<MonitorRow {monitor} onOpen={openMonitor} />
-			{/each}
-		</div>
+		{#if showFilter}
+			<InputGroup.Root>
+				<InputGroup.Input
+					bind:ref={filterInput}
+					bind:value={filter}
+					type="search"
+					placeholder="Filter monitors"
+					aria-label="Filter monitors"
+					onkeydown={(event) => {
+						if (event.key === 'Escape') {
+							filter = '';
+							filterInput?.blur();
+						}
+					}}
+				/>
+				<InputGroup.Addon>
+					<SearchIcon />
+				</InputGroup.Addon>
+				<InputGroup.Addon align="inline-end">
+					<Kbd>/</Kbd>
+				</InputGroup.Addon>
+			</InputGroup.Root>
+		{/if}
+
+		{#each groups as group (group.name)}
+			<section class="space-y-2">
+				{#if group.name}
+					<h2 class="flex items-center gap-2 px-1 text-sm font-medium text-muted-foreground">
+						{group.name}
+						<span class="text-xs tabular-nums opacity-60">{group.monitors.length}</span>
+					</h2>
+				{/if}
+				<div class="flex flex-col divide-y overflow-hidden rounded-2xl border bg-card">
+					{#each group.monitors as monitor (monitor.id)}
+						<MonitorRow {monitor} flash={flashing.has(monitor.id)} onOpen={openMonitor} />
+					{/each}
+				</div>
+			</section>
+		{:else}
+			<p class="py-8 text-center text-sm text-muted-foreground">No monitor matches "{filter}"</p>
+		{/each}
 
 		{#if incidentsQuery.isSuccess}
 			<section class="space-y-2 pt-2">

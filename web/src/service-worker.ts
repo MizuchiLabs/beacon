@@ -84,22 +84,16 @@ self.addEventListener('fetch', (event) => {
 	event.respondWith(respond());
 });
 
-// Push notification handlers
 self.addEventListener('push', (event) => {
-	console.log('Push event received:', event);
-
-	if (!event.data) {
-		console.log('Push event has no data');
-		return;
-	}
+	if (!event.data) return;
 
 	try {
 		const data = event.data?.json() || {};
 		const title = data.title || 'Monitor Alert';
 		const options: NotificationOptions = {
 			body: data.body || 'A monitored service is down',
-			icon: '/favicon.png',
-			badge: '/favicon.png',
+			icon: '/web-app-manifest-192x192.png',
+			badge: '/favicon-96x96.png',
 			data: {
 				url: data.url || '/',
 				monitorId: data.monitorId
@@ -124,10 +118,16 @@ self.addEventListener('push', (event) => {
 	}
 });
 
+// Focus an open dashboard tab instead of stacking up new ones.
 self.addEventListener('notificationclick', (event) => {
 	event.notification.close();
+	if (event.action === 'close') return;
 
-	if (event.action === 'view' || !event.action) {
-		event.waitUntil(self.clients.openWindow(event.notification.data.url || '/'));
+	async function focusOrOpen() {
+		const tabs = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+		const tab = tabs.find((client) => new URL(client.url).origin === self.location.origin);
+		if (tab) return tab.focus();
+		return self.clients.openWindow(event.notification.data?.url || '/');
 	}
+	event.waitUntil(focusOrOpen());
 });

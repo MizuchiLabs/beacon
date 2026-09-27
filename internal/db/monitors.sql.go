@@ -9,42 +9,6 @@ import (
 	"context"
 )
 
-const createMonitor = `-- name: CreateMonitor :one
-INSERT INTO
-  monitors (name, url, type, ignore_cert_expiry, check_interval)
-VALUES
-  (?, ?, ?, ?, ?) RETURNING id, name, url, type, check_interval, ignore_cert_expiry, created_at
-`
-
-type CreateMonitorParams struct {
-	Name             string `json:"name"`
-	Url              string `json:"url"`
-	Type             string `json:"type"`
-	IgnoreCertExpiry bool   `json:"ignoreCertExpiry"`
-	CheckInterval    int64  `json:"checkInterval"`
-}
-
-func (q *Queries) CreateMonitor(ctx context.Context, arg *CreateMonitorParams) (*Monitor, error) {
-	row := q.db.QueryRowContext(ctx, createMonitor,
-		arg.Name,
-		arg.Url,
-		arg.Type,
-		arg.IgnoreCertExpiry,
-		arg.CheckInterval,
-	)
-	var i Monitor
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Url,
-		&i.Type,
-		&i.CheckInterval,
-		&i.IgnoreCertExpiry,
-		&i.CreatedAt,
-	)
-	return &i, err
-}
-
 const deleteMonitor = `-- name: DeleteMonitor :exec
 DELETE FROM monitors
 WHERE
@@ -58,9 +22,11 @@ func (q *Queries) DeleteMonitor(ctx context.Context, id int64) error {
 
 const getMonitors = `-- name: GetMonitors :many
 SELECT
-  id, name, url, type, check_interval, ignore_cert_expiry, created_at
+  id, name, url, type, group_name, check_interval, retries, degraded_threshold, expected_status, keyword, ignore_cert_expiry, created_at
 FROM
   monitors
+ORDER BY
+  id
 `
 
 func (q *Queries) GetMonitors(ctx context.Context) ([]*Monitor, error) {
@@ -77,7 +43,12 @@ func (q *Queries) GetMonitors(ctx context.Context) ([]*Monitor, error) {
 			&i.Name,
 			&i.Url,
 			&i.Type,
+			&i.GroupName,
 			&i.CheckInterval,
+			&i.Retries,
+			&i.DegradedThreshold,
+			&i.ExpectedStatus,
+			&i.Keyword,
 			&i.IgnoreCertExpiry,
 			&i.CreatedAt,
 		); err != nil {
@@ -94,35 +65,60 @@ func (q *Queries) GetMonitors(ctx context.Context) ([]*Monitor, error) {
 	return items, nil
 }
 
-const updateMonitor = `-- name: UpdateMonitor :one
-UPDATE monitors
+const upsertMonitor = `-- name: UpsertMonitor :one
+INSERT INTO
+  monitors (
+    name,
+    url,
+    type,
+    group_name,
+    check_interval,
+    retries,
+    degraded_threshold,
+    expected_status,
+    keyword,
+    ignore_cert_expiry
+  )
+VALUES
+  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (name) DO UPDATE
 SET
-  name = COALESCE(?, name),
-  url = COALESCE(?, url),
-  type = COALESCE(?, type),
-  ignore_cert_expiry = COALESCE(?, ignore_cert_expiry),
-  check_interval = COALESCE(?, check_interval)
-WHERE
-  id = ? RETURNING id, name, url, type, check_interval, ignore_cert_expiry, created_at
+  url = excluded.url,
+  type = excluded.type,
+  group_name = excluded.group_name,
+  check_interval = excluded.check_interval,
+  retries = excluded.retries,
+  degraded_threshold = excluded.degraded_threshold,
+  expected_status = excluded.expected_status,
+  keyword = excluded.keyword,
+  ignore_cert_expiry = excluded.ignore_cert_expiry RETURNING id, name, url, type, group_name, check_interval, retries, degraded_threshold, expected_status, keyword, ignore_cert_expiry, created_at
 `
 
-type UpdateMonitorParams struct {
-	Name             string `json:"name"`
-	Url              string `json:"url"`
-	Type             string `json:"type"`
-	IgnoreCertExpiry bool   `json:"ignoreCertExpiry"`
-	CheckInterval    int64  `json:"checkInterval"`
-	ID               int64  `json:"id"`
+type UpsertMonitorParams struct {
+	Name              string `json:"name"`
+	Url               string `json:"url"`
+	Type              string `json:"type"`
+	GroupName         string `json:"groupName"`
+	CheckInterval     int64  `json:"checkInterval"`
+	Retries           int64  `json:"retries"`
+	DegradedThreshold int64  `json:"degradedThreshold"`
+	ExpectedStatus    int64  `json:"expectedStatus"`
+	Keyword           string `json:"keyword"`
+	IgnoreCertExpiry  bool   `json:"ignoreCertExpiry"`
 }
 
-func (q *Queries) UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (*Monitor, error) {
-	row := q.db.QueryRowContext(ctx, updateMonitor,
+func (q *Queries) UpsertMonitor(ctx context.Context, arg *UpsertMonitorParams) (*Monitor, error) {
+	row := q.db.QueryRowContext(ctx, upsertMonitor,
 		arg.Name,
 		arg.Url,
 		arg.Type,
-		arg.IgnoreCertExpiry,
+		arg.GroupName,
 		arg.CheckInterval,
-		arg.ID,
+		arg.Retries,
+		arg.DegradedThreshold,
+		arg.ExpectedStatus,
+		arg.Keyword,
+		arg.IgnoreCertExpiry,
 	)
 	var i Monitor
 	err := row.Scan(
@@ -130,7 +126,12 @@ func (q *Queries) UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (
 		&i.Name,
 		&i.Url,
 		&i.Type,
+		&i.GroupName,
 		&i.CheckInterval,
+		&i.Retries,
+		&i.DegradedThreshold,
+		&i.ExpectedStatus,
+		&i.Keyword,
 		&i.IgnoreCertExpiry,
 		&i.CreatedAt,
 	)

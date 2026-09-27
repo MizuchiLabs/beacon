@@ -1,4 +1,5 @@
-// Package notify provides functionality for sending notifications
+// Package notify sends monitor events to browser push subscribers and to the
+// webhooks from the config.
 package notify
 
 import (
@@ -8,11 +9,13 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/caarlos0/env/v11"
 
+	"github.com/mizuchilabs/beacon/internal/checker"
 	"github.com/mizuchilabs/beacon/internal/db"
 )
 
@@ -20,18 +23,42 @@ const (
 	// pushTTL keeps an undelivered alert at the push service long enough for
 	// a sleeping device to still receive it.
 	pushTTL     = 12 * 60 * 60
-	pushTimeout = 10 * time.Second
+	sendTimeout = 10 * time.Second
 )
+
+var httpClient = &http.Client{Timeout: sendTimeout}
+
+// Event kinds.
+const (
+	EventDown       = "down"
+	EventUp         = "up"
+	EventCertExpiry = "cert_expiry"
+	EventTest       = "test"
+)
+
+// Event is what a webhook body template renders, and the JSON body when the
+// webhook has no template.
+type Event struct {
+	Event   string    `json:"event"`
+	Monitor string    `json:"monitor"`
+	URL     string    `json:"url,omitempty"`
+	Title   string    `json:"title"`
+	Message string    `json:"message"`
+	Time    time.Time `json:"time"`
+}
 
 type Service struct {
 	q         *db.Queries
 	vapidKeys *db.VapidKey
-	client    *http.Client
+
+	mu       sync.RWMutex
+	webhooks []webhook
 
 	Subscriber string `env:"BEACON_PUSH_SUBSCRIBER" envDefault:"mailto:beacon@mizuchi.dev"`
 }
 
-type NotificationPayload struct {
+// pushPayload is what the service worker reads to show a notification.
+type pushPayload struct {
 	Title     string `json:"title"`
 	Body      string `json:"body"`
 	URL       string `json:"url"`
@@ -45,137 +72,140 @@ func New(ctx context.Context, q *db.Queries) (*Service, error) {
 	}
 	n.q = q
 
-	result, err := q.VAPIDKeysExist(ctx)
+	count, err := q.VAPIDKeysExist(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check VAPID keys: %w", err)
+		return nil, fmt.Errorf("checking VAPID keys: %w", err)
 	}
-
-	// Generate VAPID keys if missing
-	if result == 0 {
+	if count == 0 {
 		privateKey, publicKey, err := webpush.GenerateVAPIDKeys()
 		if err != nil {
-			return nil, fmt.Errorf("failed to generate VAPID keys: %w", err)
+			return nil, fmt.Errorf("generating VAPID keys: %w", err)
 		}
 		if err := q.CreateVAPIDKeys(ctx, &db.CreateVAPIDKeysParams{
 			PublicKey:  publicKey,
 			PrivateKey: privateKey,
 		}); err != nil {
-			return nil, fmt.Errorf("failed to store VAPID keys: %w", err)
+			return nil, fmt.Errorf("storing VAPID keys: %w", err)
 		}
 	}
 
 	n.vapidKeys, err = q.GetVAPIDKeys(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get VAPID keys: %w", err)
+		return nil, fmt.Errorf("loading VAPID keys: %w", err)
 	}
-	n.client = &http.Client{Timeout: pushTimeout}
-
 	return &n, nil
 }
 
-// SendMonitorNotification sends push notifications to all subscribers of a
-// monitor after an up/down state transition.
-func (n *Service) SendMonitorNotification(
-	ctx context.Context,
-	monitor *db.Monitor,
-	up bool,
-	reason string,
-) error {
-	if monitor == nil {
-		return nil
-	}
-
-	payload := NotificationPayload{
-		URL:       "/",
-		MonitorID: monitor.ID,
-	}
-	if up {
-		payload.Title = fmt.Sprintf("✅ %s is Back Up", monitor.Name)
-		payload.Body = fmt.Sprintf("%s is now responding normally.", monitor.Url)
-	} else {
-		payload.Title = fmt.Sprintf("🔴 %s is Down", monitor.Name)
-		payload.Body = fmt.Sprintf("%s is currently unreachable. Reason: %s", monitor.Url, reason)
-	}
-
-	return n.deliver(ctx, monitor, payload)
+// MonitorDown tells everyone a monitor went down.
+func (n *Service) MonitorDown(ctx context.Context, m *db.Monitor, reason string) {
+	n.send(ctx, m, Event{
+		Event:   EventDown,
+		Title:   fmt.Sprintf("🔴 %s is down", m.Name),
+		Message: fmt.Sprintf("%s is down: %s", m.Name, reason),
+	})
 }
 
-// SendCertificateExpiryNotification warns subscribers once a monitor's
-// certificate is inside the expiry warning window.
-func (n *Service) SendCertificateExpiryNotification(ctx context.Context, monitor *db.Monitor, days int64) error {
-	if monitor == nil {
-		return nil
-	}
-
-	payload := NotificationPayload{
-		Title:     fmt.Sprintf("⚠️ %s certificate expires soon", monitor.Name),
-		Body:      fmt.Sprintf("The certificate for %s expires in %d days.", monitor.Url, days),
-		URL:       "/",
-		MonitorID: monitor.ID,
-	}
-
-	return n.deliver(ctx, monitor, payload)
+// MonitorUp tells everyone a monitor recovered.
+func (n *Service) MonitorUp(ctx context.Context, m *db.Monitor) {
+	n.send(ctx, m, Event{
+		Event:   EventUp,
+		Title:   fmt.Sprintf("✅ %s is back up", m.Name),
+		Message: fmt.Sprintf("%s is responding normally again.", m.Name),
+	})
 }
 
-// deliver pushes one payload to every subscriber of the monitor, dropping
-// subscriptions the push service reports as gone.
-func (n *Service) deliver(ctx context.Context, monitor *db.Monitor, payload NotificationPayload) error {
-	subscriptions, err := n.q.GetPushSubscriptionsByMonitor(ctx, monitor.ID)
-	if err != nil {
-		return fmt.Errorf("failed to get subscriptions: %w", err)
+// CertExpiring warns that a monitor's certificate expires soon.
+func (n *Service) CertExpiring(ctx context.Context, m *db.Monitor, days int64) {
+	n.send(ctx, m, Event{
+		Event:   EventCertExpiry,
+		Title:   fmt.Sprintf("⚠️ %s certificate expires soon", m.Name),
+		Message: fmt.Sprintf("The certificate for %s expires in %d days.", m.Name, days),
+	})
+}
+
+// Test sends a sample event to every webhook and returns the first failure.
+func (n *Service) Test(ctx context.Context) error {
+	event := Event{
+		Event:   EventTest,
+		Monitor: "Beacon",
+		Title:   "🔔 Beacon test notification",
+		Message: "If you can read this, your webhook works.",
+		Time:    time.Now(),
 	}
-	if len(subscriptions) == 0 {
-		slog.Debug("No subscriptions found for monitor", "monitor_id", monitor.ID)
-		return nil
+	for _, w := range n.hooks() {
+		if err := n.sendWebhook(ctx, w, event); err != nil {
+			return fmt.Errorf("webhook %s: %w", w.url, err)
+		}
+	}
+	return nil
+}
+
+func (n *Service) send(ctx context.Context, m *db.Monitor, event Event) {
+	event.Monitor = m.Name
+	event.URL = PublicURL(m)
+	event.Time = time.Now()
+
+	for _, w := range n.hooks() {
+		if err := n.sendWebhook(ctx, w, event); err != nil {
+			slog.Error("Failed to send webhook", "url", w.url, "monitor", m.Name, "error", err)
+		}
+	}
+	n.sendPush(ctx, m.ID, event)
+}
+
+// PublicURL is the monitor url that is safe to show. A push url holds the
+// heartbeat token, so it stays private.
+func PublicURL(m *db.Monitor) string {
+	if m.Type == checker.TypePush {
+		return ""
+	}
+	return m.Url
+}
+
+func (n *Service) sendPush(ctx context.Context, monitorID int64, event Event) {
+	subs, err := n.q.GetPushSubscriptionsByMonitor(ctx, monitorID)
+	if err != nil {
+		slog.Error("Failed to load push subscriptions", "monitor_id", monitorID, "error", err)
+		return
+	}
+	if len(subs) == 0 {
+		return
 	}
 
-	payloadBytes, err := json.Marshal(payload)
+	payload, err := json.Marshal(pushPayload{Title: event.Title, Body: event.Message, URL: "/", MonitorID: monitorID})
 	if err != nil {
-		return fmt.Errorf("failed to marshal payload: %w", err)
+		slog.Error("Failed to marshal push payload", "error", err)
+		return
 	}
 
-	for _, sub := range subscriptions {
-		status, err := n.sendPushNotification(ctx, sub, payloadBytes)
+	for _, sub := range subs {
+		status, err := n.pushTo(ctx, sub, payload)
 		if err == nil {
 			continue
 		}
-
-		slog.Error("Failed to send push notification",
-			"monitor_id", monitor.ID,
-			"subscription_id", sub.ID,
-			"error", err,
-		)
+		slog.Error("Failed to send push notification", "monitor_id", monitorID, "subscription_id", sub.ID, "error", err)
 
 		// 404/410 mean the endpoint is gone and will never succeed again
 		if status == http.StatusNotFound || status == http.StatusGone {
-			if err = n.q.DeletePushSubscriptionByEndpoint(ctx, sub.Endpoint); err != nil {
+			if err := n.q.DeletePushSubscriptionByEndpoint(ctx, sub.Endpoint); err != nil {
 				slog.Error("Failed to delete invalid subscription", "error", err)
 			}
 		}
 	}
-
-	return nil
 }
 
-// sendPushNotification returns the HTTP status reported by the push service,
-// or 0 if the request failed before a response was received.
-func (n *Service) sendPushNotification(
-	ctx context.Context,
-	subscription *db.PushSubscription,
-	payload []byte,
-) (int, error) {
+// pushTo returns the HTTP status reported by the push service, or 0 if the
+// request failed before a response was received.
+func (n *Service) pushTo(ctx context.Context, sub *db.PushSubscription, payload []byte) (int, error) {
 	resp, err := webpush.SendNotificationWithContext(
 		ctx,
 		payload,
 		&webpush.Subscription{
-			Endpoint: subscription.Endpoint,
-			Keys: webpush.Keys{
-				P256dh: subscription.P256dhKey,
-				Auth:   subscription.AuthKey,
-			},
+			Endpoint: sub.Endpoint,
+			Keys:     webpush.Keys{P256dh: sub.P256dhKey, Auth: sub.AuthKey},
 		},
 		&webpush.Options{
-			HTTPClient:      n.client,
+			HTTPClient:      httpClient,
 			Subscriber:      n.Subscriber,
 			VAPIDPublicKey:  n.vapidKeys.PublicKey,
 			VAPIDPrivateKey: n.vapidKeys.PrivateKey,
@@ -183,7 +213,7 @@ func (n *Service) sendPushNotification(
 		},
 	)
 	if err != nil {
-		return 0, fmt.Errorf("failed to send push: %w", err)
+		return 0, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, resp.Body)
@@ -191,6 +221,5 @@ func (n *Service) sendPushNotification(
 	if resp.StatusCode != http.StatusCreated {
 		return resp.StatusCode, fmt.Errorf("push service returned status %d", resp.StatusCode)
 	}
-
 	return resp.StatusCode, nil
 }
