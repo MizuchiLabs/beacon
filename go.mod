@@ -22,7 +22,7 @@ require (
 )
 
 require (
-	github.com/andybalholm/brotli v1.2.4 // indirect
+	github.com/andybalholm/brotli v1.2.5 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.3 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
