@@ -16,9 +16,6 @@ export default defineConfig([
 		}
 	},
 	{
-		files: ['src/lib/components/ui/**/*.svelte'],
-		rules: {
-			'shadcn/no-restyle': 'off'
-		}
+		ignores: ['src/lib/components/ui/**']
 	}
 ]);
