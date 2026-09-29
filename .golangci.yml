@@ -12,7 +12,7 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/mizuchilabs/beacon
+        - github.com/mizuchilabs
     golines:
       max-len: 120
 
@@ -36,10 +36,8 @@ linters:
     - exptostd
     - fatcontext
     - funcorder
-    # - funlen
     - gocheckcompilerdirectives
     - gochecksumtype
-    # - gocognit
     - gocritic
     - godoclint
     - godot
@@ -58,7 +56,6 @@ linters:
     - musttag
     - nakedret
     - nilnesserr
-    - noctx
     - noctx
     - nolintlint
     - nosprintfhostport
@@ -120,16 +117,10 @@ linters:
       check:
         - switch
         - map
+      default-signifies-exhaustive: true
 
     funcorder:
       struct-method: false
-
-    funlen:
-      lines: 100
-      statements: 50
-
-    gocognit:
-      min-complexity: 35
 
     gocritic:
       settings:
@@ -156,7 +147,7 @@ linters:
       max-func-lines: 0
 
     nolintlint:
-      allow-no-explanation: [funlen, gocognit, golines]
+      allow-no-explanation: [golines]
       require-explanation: true
       require-specific: true
 
@@ -201,13 +192,8 @@ linters:
           - bodyclose
           - dupl
           - errcheck
-          - funlen
-          - gocognit
           - goconst
           - gosec
           - noctx
       - path: 'main\.go'
-        linters:
-          - cyclop
-          - gocognit
-          - funlen
+        linters: [cyclop]
