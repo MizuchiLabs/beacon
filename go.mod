@@ -18,7 +18,7 @@ require (
 	github.com/vearutop/statigz v1.5.0
 	golang.org/x/net v0.59.0
 	gopkg.in/yaml.v3 v3.0.1
-	modernc.org/sqlite v1.59.0
+	modernc.org/sqlite v1.60.0
 )
 
 require (
