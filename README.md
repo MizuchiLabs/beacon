@@ -244,11 +244,11 @@ parse are skipped with a warning in the log.
 To keep incidents in git instead, point Beacon at the repository. It is cloned
 into the incident directory and synced every few minutes:
 
-| Variable               | Default                | Description                        |
-| ---------------------- | ---------------------- | ---------------------------------- |
-| `BEACON_INCIDENT_REPO` | -                      | Git repository URL for incidents   |
-| `BEACON_INCIDENT_PATH` | `<data dir>/incidents` | Local directory for incident files |
-| `BEACON_INCIDENT_SYNC` | `5m`                   | How often to sync and reload       |
+| Variable               | Default                | Description                                                                        |
+| ---------------------- | ---------------------- | ---------------------------------------------------------------------------------- |
+| `BEACON_INCIDENT_REPO` | -                      | Git repository URL for incidents, private repos use `https://user:token@host/repo` |
+| `BEACON_INCIDENT_PATH` | `<data dir>/incidents` | Local directory for incident files                                                 |
+| `BEACON_INCIDENT_SYNC` | `5m`                   | How often to sync and reload                                                       |
 
 ## Keyboard shortcuts
 

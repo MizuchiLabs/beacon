@@ -3,18 +3,25 @@ package incidents
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
 )
+
+// syncRef is owned by beacon. origin/HEAD is a symbolic ref in git CLI clones,
+// which go-git refuses to overwrite during a fetch.
+const syncRef plumbing.ReferenceName = "refs/beacon/incidents"
 
 type Service struct {
 	mu        sync.RWMutex
@@ -80,26 +87,56 @@ func (i *Service) sync(ctx context.Context) {
 }
 
 // syncRepo mirrors the remote. Fetch and hard reset instead of pull, so a
-// force push to the incidents repo can't wedge the sync.
+// force push to the incidents repo can't wedge the sync. Credentials go in the
+// URL (https://user:token@host/repo), the image has no git or ssh binary.
 func (i *Service) syncRepo(ctx context.Context) error {
-	if _, err := os.Stat(i.RepoPath); os.IsNotExist(err) {
-		slog.Info("Cloning incidents repository", "url", i.RepoURL)
-		return run(ctx, "git", "clone", "--depth", "1", i.RepoURL, i.RepoPath)
+	repo, err := git.PlainOpen(i.RepoPath)
+	if errors.Is(err, git.ErrRepositoryNotExists) {
+		slog.Info("Cloning incidents repository", "url", redactURL(i.RepoURL))
+		_, err = git.PlainCloneContext(ctx, i.RepoPath, false, &git.CloneOptions{
+			URL:          i.RepoURL,
+			Depth:        1,
+			SingleBranch: true,
+		})
+		if err != nil {
+			return fmt.Errorf("cloning incidents repo: %w", err)
+		}
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("opening incidents repo: %w", err)
 	}
 
 	slog.Debug("Pulling latest incidents from repository")
-	if err := run(ctx, "git", "-C", i.RepoPath, "fetch", "--depth", "1", "origin"); err != nil {
-		return err
+	err = repo.FetchContext(ctx, &git.FetchOptions{
+		RefSpecs: []config.RefSpec{config.RefSpec("+HEAD:" + syncRef)},
+		Depth:    1,
+		Force:    true,
+	})
+	if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+		return fmt.Errorf("fetching incidents repo: %w", err)
 	}
-	return run(ctx, "git", "-C", i.RepoPath, "reset", "--hard", "FETCH_HEAD")
-}
 
-func run(ctx context.Context, name string, args ...string) error {
-	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput() // #nosec G204
+	remote, err := repo.Reference(syncRef, true)
 	if err != nil {
-		return fmt.Errorf("%s %s: %w: %s", name, args[len(args)-1], err, strings.TrimSpace(string(out)))
+		return fmt.Errorf("resolving %s: %w", syncRef, err)
+	}
+	wt, err := repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("opening incidents worktree: %w", err)
+	}
+	if err := wt.Reset(&git.ResetOptions{Commit: remote.Hash(), Mode: git.HardReset}); err != nil {
+		return fmt.Errorf("resetting incidents repo: %w", err)
 	}
 	return nil
+}
+
+func redactURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "<unparsable url>"
+	}
+	return u.Redacted()
 }
 
 func (i *Service) loadIncidents() error {
