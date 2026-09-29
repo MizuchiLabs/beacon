@@ -9,43 +9,44 @@
 		<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 		<meta name="apple-mobile-web-app-title" content="Beacon" />
 		<link rel="manifest" href="/site.webmanifest" />
-		<link href="/_app/immutable/entry/start.bIaMAxyb.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/CxKAq-XM.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/DKJcFlgw.js" rel="modulepreload">
-		<link href="/_app/immutable/entry/app.O0qPBDry.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/uBIymjUX.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/xihTtKlq.js" rel="modulepreload">
-		<link href="/_app/immutable/nodes/0.BJjn0sD9.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/BtjiDQ2K.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/V8mDi953.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/rkJ-M-fY.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/Cqiy_A2Z.js" rel="modulepreload">
-		
-		<link href="/_app/immutable/assets/0.DpeSjHR0.css" rel="stylesheet">
+		<link href="/_app/immutable/entry/start.bIaMAxyb.js" rel="modulepreload" />
+		<link href="/_app/immutable/chunks/CxKAq-XM.js" rel="modulepreload" />
+		<link href="/_app/immutable/chunks/DKJcFlgw.js" rel="modulepreload" />
+		<link href="/_app/immutable/entry/app.O0qPBDry.js" rel="modulepreload" />
+		<link href="/_app/immutable/chunks/uBIymjUX.js" rel="modulepreload" />
+		<link href="/_app/immutable/chunks/xihTtKlq.js" rel="modulepreload" />
+		<link href="/_app/immutable/nodes/0.BJjn0sD9.js" rel="modulepreload" />
+		<link href="/_app/immutable/chunks/BtjiDQ2K.js" rel="modulepreload" />
+		<link href="/_app/immutable/chunks/V8mDi953.js" rel="modulepreload" />
+		<link href="/_app/immutable/chunks/rkJ-M-fY.js" rel="modulepreload" />
+		<link href="/_app/immutable/chunks/Cqiy_A2Z.js" rel="modulepreload" />
+
+		<link href="/_app/immutable/assets/0.DpeSjHR0.css" rel="stylesheet" />
 	</head>
 	<body data-sveltekit-preload-data="hover">
 		<div style="display: contents">
 			<script>
 				{
 					__sveltekit_1kj6mk2 = {
-						base: ""
+						base: ''
 					};
 
 					const element = document.currentScript.parentElement;
 
 					Promise.all([
-						import("/_app/immutable/entry/start.bIaMAxyb.js"),
-						import("/_app/immutable/entry/app.O0qPBDry.js")
+						import('/_app/immutable/entry/start.bIaMAxyb.js'),
+						import('/_app/immutable/entry/app.O0qPBDry.js')
 					]).then(([kit, app]) => {
 						kit.start(app, element);
 					});
 
 					if ('serviceWorker' in navigator) {
 						const script_url = '/service-worker.js';
-						const policy = globalThis?.window?.trustedTypes?.createPolicy(
-							'sveltekit-trusted-url',
-							{ createScriptURL(url) { return url; } }
-						);
+						const policy = globalThis?.window?.trustedTypes?.createPolicy('sveltekit-trusted-url', {
+							createScriptURL(url) {
+								return url;
+							}
+						});
 						const sanitised = policy?.createScriptURL(script_url) ?? script_url;
 						addEventListener('load', function () {
 							navigator.serviceWorker.register(sanitised);

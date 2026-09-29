@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
+	import * as Empty from '$lib/components/ui/empty';
 	import { Radio } from '@lucide/svelte';
 
 	const isNotFound = $derived(page.status === 404);
@@ -17,21 +18,15 @@
 	<title>{isNotFound ? '404' : `Error ${page.status}`}</title>
 </svelte:head>
 
-<div
-	class="flex min-h-[calc(100dvh-8rem)] flex-col items-center justify-center gap-6 p-6 text-center"
->
-	<div class="relative flex size-16 items-center justify-center rounded-full border bg-card">
-		<span
-			class="absolute inset-0 animate-ping rounded-full bg-muted-foreground/15 animation-duration-[3s] motion-reduce:hidden"
-		>
-		</span>
-		<Radio class="size-7 opacity-60" />
-	</div>
-
-	<div class="space-y-1.5">
-		<h1 class="text-2xl font-semibold tracking-tight">{title}</h1>
-		<p class="text-sm text-muted-foreground">{description}</p>
-	</div>
-
-	<Button href={resolve('/')} size="sm">Back to status</Button>
-</div>
+<Empty.Root class="min-h-[calc(100dvh-8rem)]">
+	<Empty.Header>
+		<Empty.Media variant="icon">
+			<Radio />
+		</Empty.Media>
+		<Empty.Title>{title}</Empty.Title>
+		<Empty.Description>{description}</Empty.Description>
+	</Empty.Header>
+	<Empty.Content>
+		<Button href={resolve('/')} size="sm">Back to status</Button>
+	</Empty.Content>
+</Empty.Root>

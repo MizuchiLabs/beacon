@@ -28,7 +28,7 @@
 
 	let {
 		class: className,
-		frequency = 0.4,
+		frequency = 0.7,
 		octaves = 6,
 		slope = 0.15,
 		noiseOpacity = 0.6,

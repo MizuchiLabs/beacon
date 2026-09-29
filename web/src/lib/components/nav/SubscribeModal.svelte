@@ -4,9 +4,12 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Field from '$lib/components/ui/field';
+	import { ScrollArea } from '$lib/components/ui/scroll-area';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { pushNotifications } from '$lib/stores/push.svelte';
 	import { targetOf } from '$lib/status.js';
-	import { BellIcon, BellOffIcon, CircleAlertIcon, LoaderCircleIcon } from '@lucide/svelte';
+	import { CircleAlertIcon } from '@lucide/svelte';
 
 	let { open = $bindable(false) } = $props();
 
@@ -39,9 +42,9 @@
 			<Alert.Root variant="destructive">
 				<CircleAlertIcon />
 				<Alert.Title>Notifications are blocked</Alert.Title>
-				<Alert.Description
-					>Allow notifications for this site in your browser settings.</Alert.Description
-				>
+				<Alert.Description>
+					Allow notifications for this site in your browser settings.
+				</Alert.Description>
 			</Alert.Root>
 		{:else}
 			{#if pushNotifications.error}
@@ -51,29 +54,35 @@
 				</Alert.Root>
 			{/if}
 
-			<div class="-mx-1 flex max-h-96 flex-col gap-1.5 overflow-y-auto px-1">
-				{#each monitors as monitor (monitor.id)}
-					{@const isSubscribed = pushNotifications.subscribed.has(monitor.id)}
-					<label
-						class="flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-accent has-data-[state=checked]:border-primary/40 has-data-[state=checked]:bg-accent/60"
-					>
-						<Checkbox
-							checked={isSubscribed}
-							disabled={pushNotifications.loading}
-							onCheckedChange={() => pushNotifications.toggle(monitor.id)}
-						/>
-						<div class="min-w-0 flex-1">
-							<div class="truncate text-sm font-medium">{monitor.name}</div>
-							<div class="truncate text-xs text-muted-foreground">{targetOf(monitor)}</div>
-						</div>
-						{#if isSubscribed}
-							<BellIcon class="size-4 text-primary" />
-						{:else}
-							<BellOffIcon class="size-4 text-muted-foreground" />
-						{/if}
-					</label>
-				{/each}
-			</div>
+			<ScrollArea class="-mx-1 *:data-[slot=scroll-area-viewport]:max-h-96">
+				<div class="px-1">
+					<Field.Set>
+						<Field.Legend class="sr-only">Monitors</Field.Legend>
+						<Field.Group data-slot="checkbox-group">
+							{#each monitors as monitor (monitor.id)}
+								<Field.Label for="subscribe-{monitor.id}">
+									<Field.Field orientation="horizontal">
+										<Checkbox
+											id="subscribe-{monitor.id}"
+											checked={pushNotifications.subscribed.has(monitor.id)}
+											disabled={pushNotifications.loading}
+											onCheckedChange={() => pushNotifications.toggle(monitor.id)}
+										/>
+										<Field.Content class="min-w-0">
+											<Field.Title class="w-full min-w-0"
+												><span class="truncate">{monitor.name}</span></Field.Title
+											>
+											<Field.Description
+												><span class="block truncate">{targetOf(monitor)}</span></Field.Description
+											>
+										</Field.Content>
+									</Field.Field>
+								</Field.Label>
+							{/each}
+						</Field.Group>
+					</Field.Set>
+				</div>
+			</ScrollArea>
 
 			<Dialog.Footer class="sm:justify-between">
 				<Button
@@ -90,7 +99,7 @@
 					disabled={pushNotifications.loading || unsubscribed.length === 0}
 				>
 					{#if pushNotifications.loading}
-						<LoaderCircleIcon class="animate-spin" />
+						<Spinner data-icon="inline-start" />
 					{/if}
 					Subscribe to all
 				</Button>

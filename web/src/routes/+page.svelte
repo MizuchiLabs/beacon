@@ -26,7 +26,13 @@
 		statusTitle,
 		targetOf
 	} from '$lib/status.js';
-	import { ArrowRightIcon, CheckIcon, CircleCheckIcon, SearchIcon } from '@lucide/svelte';
+	import {
+		ArrowRightIcon,
+		CheckIcon,
+		CircleCheckIcon,
+		SearchIcon,
+		SearchXIcon
+	} from '@lucide/svelte';
 	import { useInterval, watch } from 'runed';
 	import { toast } from 'svelte-sonner';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -147,16 +153,14 @@
 	{/if}
 </svelte:head>
 
-<div class="mx-auto w-full space-y-4 p-6 sm:max-w-4xl">
+<div class="mx-auto flex w-full flex-col gap-4 p-6 sm:max-w-4xl">
 	{#if statsQuery.isError && !statsQuery.data}
-		<div class="rounded-3xl border border-dashed">
-			<Empty.Root>
-				<Empty.Header>
-					<Empty.Title>Could not load monitors</Empty.Title>
-					<Empty.Description>Try refreshing the page.</Empty.Description>
-				</Empty.Header>
-			</Empty.Root>
-		</div>
+		<Empty.Root>
+			<Empty.Header>
+				<Empty.Title>Could not load monitors</Empty.Title>
+				<Empty.Description>Try refreshing the page.</Empty.Description>
+			</Empty.Header>
+		</Empty.Root>
 	{:else if !statsQuery.data}
 		<div class="flex flex-col gap-2">
 			<Skeleton class="h-12 w-full" />
@@ -165,15 +169,12 @@
 			<Skeleton class="h-24 w-full" />
 		</div>
 	{:else if statsQuery.data?.length === 0}
-		<div class="rounded-3xl border border-dashed">
-			<Empty.Root>
-				<Empty.Header>
-					<Empty.Title>No monitors configured</Empty.Title>
-					<Empty.Description>Add a monitor to your config file to start tracking.</Empty.Description
-					>
-				</Empty.Header>
-			</Empty.Root>
-		</div>
+		<Empty.Root>
+			<Empty.Header>
+				<Empty.Title>No monitors configured</Empty.Title>
+				<Empty.Description>Add a monitor to your config file to start tracking.</Empty.Description>
+			</Empty.Header>
+		</Empty.Root>
 	{:else}
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-center">
 			<OverallBanner {monitors} {updatedAgo} />
@@ -190,7 +191,7 @@
 						<Alert.Title class="flex flex-wrap items-center">
 							{incident.title}
 							<Badge variant={severity.variant} class="ml-2">
-								<severity.icon class="size-3" />
+								<severity.icon data-icon="inline-start" />
 								{severity.label}
 							</Badge>
 						</Alert.Title>
@@ -233,34 +234,45 @@
 		{/if}
 
 		{#each groups as group (group.name)}
-			<section class="space-y-2">
+			<section class="flex flex-col gap-2">
 				{#if group.name}
 					<h2 class="flex items-center gap-2 px-1 text-sm font-medium text-muted-foreground">
 						{group.name}
-						<span class="text-xs tabular-nums opacity-60">{group.monitors.length}</span>
+						<Badge variant="secondary">{group.monitors.length}</Badge>
 					</h2>
 				{/if}
-				<div class="flex flex-col divide-y overflow-hidden rounded-2xl border bg-card">
-					{#each group.monitors as monitor (monitor.id)}
+				<div role="list" class="flex flex-col overflow-hidden rounded-2xl border bg-card">
+					{#each group.monitors as monitor, i (monitor.id)}
+						{#if i > 0}
+							<Separator />
+						{/if}
 						<MonitorRow {monitor} flash={flashing.has(monitor.id)} onOpen={openMonitor} />
 					{/each}
 				</div>
 			</section>
 		{:else}
-			<p class="py-8 text-center text-sm text-muted-foreground">No monitor matches "{filter}"</p>
+			<Empty.Root>
+				<Empty.Header>
+					<Empty.Media variant="icon">
+						<SearchXIcon />
+					</Empty.Media>
+					<Empty.Title>No matches</Empty.Title>
+					<Empty.Description>No monitor matches "{filter}".</Empty.Description>
+				</Empty.Header>
+			</Empty.Root>
 		{/each}
 
 		{#if incidentsQuery.isSuccess}
-			<section class="space-y-2 pt-2">
+			<section class="flex flex-col gap-2 pt-2">
 				<div class="flex items-center justify-between">
 					<h2 class="text-sm font-medium text-muted-foreground">Past incidents</h2>
 					<Button variant="ghost" size="xs" href={resolve('/events')}>
 						View all
-						<ArrowRightIcon />
+						<ArrowRightIcon data-icon="inline-end" />
 					</Button>
 				</div>
 
-				<div class="overflow-hidden rounded-xl border bg-card">
+				<div class="flex flex-col overflow-hidden rounded-2xl border bg-card">
 					{#if pastIncidents.length === 0}
 						<Empty.Root>
 							<Empty.Header>
@@ -278,8 +290,8 @@
 							{/if}
 							{@const severity = incidentSeverity(incident.severity)}
 							<Item.Root size="sm">
-								<Item.Media class="shrink-0">
-									<CircleCheckIcon class="size-4 text-chart-3" />
+								<Item.Media variant="icon">
+									<CircleCheckIcon class="text-chart-3" />
 								</Item.Media>
 								<Item.Content class="min-w-0">
 									<Item.Title>{incident.title}</Item.Title>
@@ -293,7 +305,7 @@
 								</Item.Content>
 								<Item.Actions class="shrink-0">
 									<Badge variant={severity.variant}>
-										<severity.icon class="size-3" />
+										<severity.icon data-icon="inline-start" />
 										{severity.label}
 									</Badge>
 								</Item.Actions>

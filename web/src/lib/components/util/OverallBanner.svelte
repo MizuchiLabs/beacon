@@ -1,8 +1,9 @@
 <script lang="ts">
 	import type { MonitorStats } from '$lib/api/queries';
+	import * as Item from '$lib/components/ui/item';
+	import { Separator } from '$lib/components/ui/separator';
 	import { aggregatePhrase, aggregateStatus, statusMeta } from '$lib/status.js';
 	import { cn } from '$lib/utils.js';
-	import { DotIcon } from '@lucide/svelte';
 
 	interface Props {
 		monitors: MonitorStats[];
@@ -30,44 +31,43 @@
 
 <div
 	class={cn(
-		'flex min-w-0 flex-1 items-center gap-3 rounded-2xl border px-4 py-3 transition-colors duration-500',
+		'min-w-0 flex-1 rounded-2xl border transition-colors duration-500',
 		tints[status],
 		className
 	)}
 	role="status"
 >
-	<!-- The dot breathes while everything is fine and pulses faster when not. -->
-	<span
-		class={cn(
-			'size-2.5 shrink-0 animate-status-pulse rounded-full',
-			meta.dot,
-			meta.text,
-			status !== 'operational' && 'animation-duration-[1.2s]'
-		)}
-	></span>
-
-	<span
-		class={cn(
-			'min-w-0 flex-1 truncate text-sm font-semibold',
-			status !== 'operational' && meta.text
-		)}
-	>
-		{aggregatePhrase(monitors)}
-	</span>
-
-	<div class="flex shrink-0 items-center gap-1 text-xs whitespace-nowrap text-muted-foreground">
-		<span>{operational}/{monitors.length} up</span>
-		{#if avgUptime !== null}
-			<span class="hidden items-center sm:inline-flex">
-				<DotIcon size={12} class="shrink-0" />
-				{avgUptime.toFixed(2)}%
-			</span>
-		{/if}
-		{#if updatedAgo}
-			<span class="hidden items-center md:inline-flex" title="Last updated">
-				<DotIcon size={12} class="shrink-0" />
-				{updatedAgo}
-			</span>
-		{/if}
-	</div>
+	<Item.Root size="sm" class="flex-nowrap">
+		<Item.Media>
+			<!-- The dot breathes while everything is fine and pulses faster when not. -->
+			<span
+				class={cn(
+					'size-2.5 animate-status-pulse rounded-full',
+					meta.dot,
+					meta.text,
+					status !== 'operational' && 'animation-duration-[1.2s]'
+				)}
+			></span>
+		</Item.Media>
+		<Item.Content class="min-w-0">
+			<Item.Title>
+				<span class={cn('font-semibold', status !== 'operational' && meta.text)}>
+					{aggregatePhrase(monitors)}
+				</span>
+			</Item.Title>
+		</Item.Content>
+		<Item.Actions>
+			<div class="flex items-center gap-2 text-xs whitespace-nowrap text-muted-foreground">
+				<span>{operational}/{monitors.length} up</span>
+				{#if avgUptime !== null}
+					<Separator orientation="vertical" class="hidden h-3 sm:block" />
+					<span class="hidden tabular-nums sm:inline">{avgUptime.toFixed(2)}%</span>
+				{/if}
+				{#if updatedAgo}
+					<Separator orientation="vertical" class="hidden h-3 md:block" />
+					<span class="hidden md:inline" title="Last updated">{updatedAgo}</span>
+				{/if}
+			</div>
+		</Item.Actions>
+	</Item.Root>
 </div>

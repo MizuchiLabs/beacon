@@ -2,8 +2,10 @@
 	import { resolve } from '$app/paths';
 	import { useConfig } from '$lib/api/queries';
 	import Beacon from '$lib/assets/beacon.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { pushNotifications } from '$lib/stores/push.svelte';
+	import { cn } from '$lib/utils.js';
 	import { Bell, Moon, Sun } from '@lucide/svelte';
 	import { mode, toggleMode } from 'mode-watcher';
 	import { onMount } from 'svelte';
@@ -26,20 +28,21 @@
 
 <header class="pointer-events-none sticky z-50 mx-auto mt-4 mb-6 w-full max-w-4xl px-4 sm:px-6">
 	<div class="flex items-center justify-between gap-3">
-		<a
-			href={resolve('/')}
-			class="pointer-events-auto flex h-10 min-w-0 items-center gap-2 rounded-full border bg-background/80 px-3.5 shadow-sm backdrop-blur-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+		<div
+			class="pointer-events-auto flex h-10 min-w-0 items-center rounded-full border bg-background/80 px-1.5 shadow-sm backdrop-blur-md"
 		>
-			{#if logoURL}
-				<img src={logoURL} alt="" class="size-5 shrink-0 rounded-sm object-contain" />
-			{:else}
-				<Beacon class="size-5 shrink-0" />
-			{/if}
-			<span class="truncate text-sm font-semibold tracking-tight">{brand}</span>
-		</a>
+			<Button href={resolve('/')} variant="ghost" class="min-w-0">
+				{#if logoURL}
+					<img src={logoURL} alt="" class="size-5 shrink-0 rounded-sm object-contain" />
+				{:else}
+					<Beacon class="size-5" />
+				{/if}
+				<span class="truncate font-semibold tracking-tight">{brand}</span>
+			</Button>
+		</div>
 
 		<div
-			class="pointer-events-auto flex h-10 shrink-0 items-center gap-1 rounded-full border bg-background/80 px-2 shadow-sm backdrop-blur-md"
+			class="pointer-events-auto flex h-10 shrink-0 items-center gap-1 rounded-full border bg-background/80 px-1.5 shadow-sm backdrop-blur-md"
 		>
 			<Button
 				variant="ghost"
@@ -48,13 +51,11 @@
 				aria-label="Downtime alerts"
 				onclick={() => (showSubscriptionDialog = true)}
 			>
-				<Bell class={subscribedCount > 0 ? 'fill-current' : ''} />
+				<Bell class={cn(subscribedCount > 0 && 'fill-current')} />
 				{#if subscribedCount > 0}
-					<span
-						class="absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] leading-none font-semibold text-primary-foreground"
-					>
+					<Badge class="absolute -top-1.5 -right-1.5">
 						{subscribedCount}
-					</span>
+					</Badge>
 				{/if}
 			</Button>
 			<Button variant="ghost" size="icon-sm" onclick={toggleMode} aria-label="Toggle theme">

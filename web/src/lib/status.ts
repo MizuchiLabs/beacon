@@ -14,9 +14,7 @@ export type MonitorStatus = MonitorStats['status'];
 
 export interface StatusMeta {
 	label: string;
-	badge: string;
 	dot: string;
-	stripe: string;
 	text: string;
 	token: string;
 }
@@ -24,33 +22,25 @@ export interface StatusMeta {
 export const statusMeta: Record<MonitorStatus, StatusMeta> = {
 	operational: {
 		label: 'Operational',
-		badge: 'bg-chart-3/15 text-chart-3 border-chart-3/20',
 		dot: 'bg-chart-3',
-		stripe: 'border-l-chart-3/70',
 		text: 'text-chart-3',
 		token: '--chart-3'
 	},
 	degraded: {
 		label: 'Degraded',
-		badge: 'bg-chart-4/15 text-chart-4 border-chart-4/20',
 		dot: 'bg-chart-4',
-		stripe: 'border-l-chart-4/70',
 		text: 'text-chart-4',
 		token: '--chart-4'
 	},
 	down: {
 		label: 'Down',
-		badge: 'bg-chart-5/15 text-chart-5 border-chart-5/20',
 		dot: 'bg-chart-5',
-		stripe: 'border-l-chart-5/70',
 		text: 'text-chart-5',
 		token: '--chart-5'
 	},
 	unknown: {
 		label: 'Unknown',
-		badge: 'bg-muted text-muted-foreground border-border',
 		dot: 'bg-muted-foreground',
-		stripe: 'border-l-border',
 		text: 'text-muted-foreground',
 		token: '--muted-foreground'
 	}

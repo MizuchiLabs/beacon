@@ -10,6 +10,7 @@
 	import AppHeader from '$lib/components/nav/AppHeader.svelte';
 	import { QueryClientProvider } from '@tanstack/svelte-query';
 	import NoiseTexture from '$lib/components/magic/noise-texture/noise-texture.svelte';
+	import StatusGlow from '$lib/components/util/StatusGlow.svelte';
 
 	let { children } = $props();
 
@@ -33,9 +34,10 @@
 
 <ModeWatcher />
 <Toaster />
-<NoiseTexture noiseOpacity={0.1} />
 
 <QueryClientProvider client={queryClient}>
+	<StatusGlow />
+	<NoiseTexture noiseOpacity={0.1} class="fixed" />
 	<Tooltip.Provider>
 		<div class="flex min-h-screen flex-col">
 			<AppHeader />

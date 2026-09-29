@@ -2,8 +2,12 @@
 	import { resolve } from '$app/paths';
 	import { getIncidents, useMonitorPercentiles, type MonitorStats } from '$lib/api/queries';
 	import StatusChart from '$lib/components/chart/StatusChart.svelte';
+	import * as Alert from '$lib/components/ui/alert';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import * as Empty from '$lib/components/ui/empty';
+	import * as Item from '$lib/components/ui/item';
 	import { Separator } from '$lib/components/ui/separator';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import * as Tooltip from '$lib/components/ui/tooltip';
@@ -25,7 +29,7 @@
 		uptimeTextClass
 	} from '$lib/status.js';
 	import { cn } from '$lib/utils.js';
-	import { ExternalLinkIcon } from '@lucide/svelte';
+	import { CircleAlertIcon, ExternalLinkIcon } from '@lucide/svelte';
 
 	interface Props {
 		monitor: MonitorStats | null;
@@ -69,9 +73,7 @@
 						<div class="flex items-center gap-2">
 							<Sheet.Title>{monitor.name}</Sheet.Title>
 							{#if typeLabel(monitor.type)}
-								<span class="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-									{typeLabel(monitor.type)}
-								</span>
+								<Badge variant="secondary">{typeLabel(monitor.type)}</Badge>
 							{/if}
 						</div>
 						<Sheet.Description class="mt-1 flex items-center">
@@ -92,7 +94,10 @@
 					</div>
 					<div class="flex shrink-0 items-center gap-1.5 pr-6">
 						<SubscribeBell monitorId={monitor.id} />
-						<Badge variant="outline" class={meta.badge}>{meta.label}</Badge>
+						<Badge variant="outline">
+							<span class={cn('size-1.5 rounded-full', meta.dot)}></span>
+							{meta.label}
+						</Badge>
 					</div>
 				</div>
 				<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -121,34 +126,38 @@
 			<Separator />
 
 			<div class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-5">
-				<section class="grid grid-cols-3 gap-3 rounded-xl border p-3 text-center">
-					<div class="flex flex-col gap-0.5">
-						<span class="text-[11px] text-muted-foreground">Uptime</span>
-						<span
-							class={cn(
-								'text-base font-semibold tabular-nums',
-								uptimeTextClass(monitor.uptime_pct)
-							)}
-						>
-							{monitor.uptime_pct == null ? '-' : `${monitor.uptime_pct.toFixed(2)}%`}
-						</span>
-					</div>
-					<div class="flex flex-col gap-0.5">
-						<span class="text-[11px] text-muted-foreground">Avg response</span>
-						<span
-							class={cn(
-								'text-base font-semibold tabular-nums',
-								latencyTextClass(monitor.avg_response_time, monitor.degraded_threshold)
-							)}
-						>
-							{formatMs(monitor.avg_response_time)}
-						</span>
-					</div>
-					<div class="flex flex-col gap-0.5">
-						<span class="text-[11px] text-muted-foreground">Checks</span>
-						<span class="text-base font-semibold tabular-nums">{checks.toLocaleString()}</span>
-					</div>
-				</section>
+				<Card.Root size="sm">
+					<Card.Content>
+						<div class="grid grid-cols-3 gap-3 text-center">
+							<div class="flex flex-col gap-0.5">
+								<span class="text-[11px] text-muted-foreground">Uptime</span>
+								<span
+									class={cn(
+										'text-base font-semibold tabular-nums',
+										uptimeTextClass(monitor.uptime_pct)
+									)}
+								>
+									{monitor.uptime_pct == null ? '-' : `${monitor.uptime_pct.toFixed(2)}%`}
+								</span>
+							</div>
+							<div class="flex flex-col gap-0.5">
+								<span class="text-[11px] text-muted-foreground">Avg response</span>
+								<span
+									class={cn(
+										'text-base font-semibold tabular-nums',
+										latencyTextClass(monitor.avg_response_time, monitor.degraded_threshold)
+									)}
+								>
+									{formatMs(monitor.avg_response_time)}
+								</span>
+							</div>
+							<div class="flex flex-col gap-0.5">
+								<span class="text-[11px] text-muted-foreground">Checks</span>
+								<span class="text-base font-semibold tabular-nums">{checks.toLocaleString()}</span>
+							</div>
+						</div>
+					</Card.Content>
+				</Card.Root>
 
 				<section class="flex flex-col gap-2">
 					<h3 class="text-xs font-medium text-muted-foreground">Uptime and response time</h3>
@@ -191,41 +200,44 @@
 						<Button variant="ghost" size="xs" href={resolve('/events')}>View all</Button>
 					</div>
 					{#if incidents.length === 0}
-						<p
-							class="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground"
-						>
-							No incidents recorded for this monitor
-						</p>
+						<Empty.Root>
+							<Empty.Header>
+								<Empty.Description>No incidents recorded for this monitor</Empty.Description>
+							</Empty.Header>
+						</Empty.Root>
 					{:else}
-						<ul class="flex flex-col gap-2">
+						<Item.Group>
 							{#each incidents.slice(0, 5) as incident (incident.id)}
 								{@const severity = incidentSeverity(incident.severity)}
 								{@const status = incidentStatus(incident.status)}
-								<li class="flex flex-col gap-1 rounded-lg border px-3 py-2">
-									<div class="flex items-center justify-between gap-2">
-										<span class="truncate text-xs font-medium">{incident.title}</span>
-										<Badge variant={severity.variant}>{severity.label}</Badge>
-									</div>
-									<div class="flex items-center gap-2 text-[11px] text-muted-foreground">
-										<Badge variant={status.variant}>{status.label}</Badge>
-										<span>
+								<Item.Root variant="outline" size="xs" role="listitem">
+									<Item.Content class="min-w-0">
+										<Item.Title>{incident.title}</Item.Title>
+										<Item.Description>
 											{monthDay.format(new Date(incident.started_at))}
 											· {durationText(incident.started_at, incident.resolved_at)}
-										</span>
-									</div>
-								</li>
+										</Item.Description>
+									</Item.Content>
+									<Item.Actions>
+										<Badge variant={status.variant}>{status.label}</Badge>
+										<Badge variant={severity.variant}>{severity.label}</Badge>
+									</Item.Actions>
+								</Item.Root>
 							{/each}
-							{#if incidents.length > 5}
-								<li class="text-center text-[11px] text-muted-foreground">
-									and {incidents.length - 5} more
-								</li>
-							{/if}
-						</ul>
+						</Item.Group>
+						{#if incidents.length > 5}
+							<p class="text-center text-xs text-muted-foreground">
+								and {incidents.length - 5} more
+							</p>
+						{/if}
 					{/if}
 				</section>
 
 				{#if pushNotifications.error}
-					<p class="text-xs text-destructive">{pushNotifications.error}</p>
+					<Alert.Root variant="destructive">
+						<CircleAlertIcon />
+						<Alert.Description>{pushNotifications.error}</Alert.Description>
+					</Alert.Root>
 				{/if}
 			</div>
 		{/if}
