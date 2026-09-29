@@ -5,11 +5,6 @@ report_sizes: true
 before:
   hooks:
     - go generate ./web
-    - go fmt ./...
-    - go vet ./...
-    - go test ./...
-    - go mod tidy
-    - go mod verify
 
 builds:
   - binary: "{{ .ProjectName }}"
@@ -35,19 +30,12 @@ builds:
       - goos: windows
         goarch: arm64
 
-upx:
-  - enabled: true
-    lzma: true
-    compress: best
-    goos: [linux]
-
 kos:
   - main: ./cmd/beacon
-    base_image: alpine
+    base_image: gcr.io/distroless/static-debian13
     repositories: [ghcr.io/mizuchilabs/beacon]
     bare: true
     preserve_import_paths: false
-    sbom: none
     creation_time: "{{ .CommitTimestamp }}"
     tags:
       - "{{ .Version }}"
@@ -65,6 +53,11 @@ signs:
       - "--yes"
       - "${artifact}"
       - "--bundle=${signature}"
+
+docker_signs:
+  - cmd: cosign
+    artifacts: manifests
+    args: ["sign", "${artifact}@${digest}", "--yes"]
 
 sboms:
   - cmd: syft
