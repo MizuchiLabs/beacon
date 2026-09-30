@@ -109,20 +109,38 @@
 			"Incident": {
 				"additionalProperties": false,
 				"properties": {
-					"affected_monitors": { "items": { "type": "string" }, "type": ["array", "null"] },
+					"affected_monitors": {
+						"description": "Monitor names, empty means every monitor",
+						"items": { "type": "string" },
+						"type": ["array", "null"]
+					},
 					"description": { "type": "string" },
+					"ends_at": {
+						"description": "Planned end of a maintenance window, it counts as resolved afterwards",
+						"format": "date-time",
+						"type": "string"
+					},
 					"id": { "type": "string" },
-					"resolved_at": { "format": "date-time", "type": "string" },
-					"severity": { "type": "string" },
+					"resolved_at": {
+						"description": "Taken from the resolved update unless the file sets it",
+						"format": "date-time",
+						"type": "string"
+					},
+					"severity": { "enum": ["critical", "major", "minor", "maintenance"], "type": "string" },
 					"started_at": { "format": "date-time", "type": "string" },
-					"status": { "type": "string" },
+					"status": {
+						"description": "Taken from the latest update unless the file sets it",
+						"enum": ["scheduled", "investigating", "identified", "monitoring", "resolved"],
+						"type": "string"
+					},
 					"title": { "type": "string" },
 					"updates": {
+						"description": "Oldest first",
 						"items": { "$ref": "#/components/schemas/IncidentUpdate" },
 						"type": ["array", "null"]
 					}
 				},
-				"required": ["started_at"],
+				"required": ["id", "title", "severity", "status", "started_at"],
 				"type": "object"
 			},
 			"IncidentUpdate": {
@@ -130,7 +148,10 @@
 				"properties": {
 					"created_at": { "format": "date-time", "type": "string" },
 					"message": { "type": "string" },
-					"status": { "type": "string" }
+					"status": {
+						"enum": ["scheduled", "investigating", "identified", "monitoring", "resolved"],
+						"type": "string"
+					}
 				},
 				"required": ["message", "status", "created_at"],
 				"type": "object"
@@ -281,6 +302,12 @@
 				"required": ["monitor_ids"],
 				"type": "object"
 			},
+			"SyncIncidentsOutputBody": {
+				"additionalProperties": false,
+				"properties": { "ok": { "type": "boolean" } },
+				"required": ["ok"],
+				"type": "object"
+			},
 			"UnsubscribeInputBody": {
 				"additionalProperties": false,
 				"properties": {
@@ -425,6 +452,69 @@
 					}
 				},
 				"summary": "List incidents",
+				"tags": ["Incidents"]
+			}
+		},
+		"/api/incidents/sync": {
+			"post": {
+				"description": "Point a git push webhook here so updates show up without waiting for the sync interval. Needs BEACON_INCIDENT_SYNC_TOKEN as the webhook secret.",
+				"operationId": "sync-incidents",
+				"parameters": [
+					{
+						"description": "Bearer \u003ctoken\u003e, e.g. Gitea, Forgejo or curl",
+						"in": "header",
+						"name": "Authorization",
+						"schema": {
+							"description": "Bearer \u003ctoken\u003e, e.g. Gitea, Forgejo or curl",
+							"type": "string"
+						}
+					},
+					{
+						"description": "GitLab webhook secret token",
+						"in": "header",
+						"name": "X-Gitlab-Token",
+						"schema": { "description": "GitLab webhook secret token", "type": "string" }
+					},
+					{
+						"description": "GitHub webhook signature, the secret is the token",
+						"in": "header",
+						"name": "X-Hub-Signature-256",
+						"schema": {
+							"description": "GitHub webhook signature, the secret is the token",
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/octet-stream": {
+							"schema": {
+								"contentMediaType": "application/octet-stream",
+								"format": "binary",
+								"type": "string"
+							}
+						}
+					}
+				},
+				"responses": {
+					"202": {
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/SyncIncidentsOutputBody" }
+							}
+						},
+						"description": "Accepted"
+					},
+					"default": {
+						"content": {
+							"application/problem+json": {
+								"schema": { "$ref": "#/components/schemas/ErrorModel" }
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"summary": "Reload incidents now",
 				"tags": ["Incidents"]
 			}
 		},

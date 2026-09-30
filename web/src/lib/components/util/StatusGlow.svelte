@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { useMonitorStats } from '$lib/api/queries';
-	import { aggregateStatus, statusMeta } from '$lib/status.js';
+	import { getIncidents, useMonitorStats } from '$lib/api/queries';
+	import { pageStatus, statusMeta } from '$lib/status.js';
 	import { cn } from '$lib/utils.js';
 
 	const statsQuery = useMonitorStats();
 	const monitors = $derived(statsQuery.data ?? []);
-	const meta = $derived(statusMeta[aggregateStatus(monitors)]);
+	const incidentsQuery = getIncidents();
+	const meta = $derived(statusMeta[pageStatus(monitors, incidentsQuery.data ?? []).status]);
 </script>
 
 <div

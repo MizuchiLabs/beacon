@@ -3,12 +3,43 @@ version: "3"
 env:
   IMAGE: ghcr.io/mizuchilabs/beacon
   BEACON_CONFIG: ./examples/config.yaml
+  BEACON_INCIDENT_SYNC_TOKEN: dev
 
 tasks:
   seed:
     desc: Generate seed data
     cmds:
       - go run ./cmd/seed
+
+  incidents:
+    desc: Add example incidents to data/incidents, with a live one and maintenance tomorrow
+    vars:
+      TODAY:
+        sh: date -u +%F
+      TOMORROW:
+        sh: date -u -d tomorrow +%F
+      LIVE: "{{.TODAY}}-slow-responses-from-github"
+      MAINT: "{{.TOMORROW}}-database-upgrade"
+    cmds:
+      - mkdir -p data/incidents
+      - cp examples/incidents/*.yaml data/incidents/
+      - rm -f data/incidents/{{.LIVE}}.yaml data/incidents/{{.MAINT}}.yaml
+      - >-
+        go run ./cmd/beacon incident new "Slow responses from GitHub" -s minor -m GitHub
+        --message "Response times are up, we are looking into it."
+      - >-
+        go run ./cmd/beacon incident update {{.LIVE}} -s identified
+        -m "The slowdown is on GitHub's side, we keep an eye on it."
+      - >-
+        go run ./cmd/beacon incident new "Database upgrade" -s maintenance
+        --at {{.TOMORROW}}T02:00:00Z --until {{.TOMORROW}}T04:00:00Z
+        --message "The database moves to a new version, the dashboard may be read only for a bit."
+      - go run ./cmd/beacon incident lint
+      - >-
+        curl -fs -X POST -H "Authorization: Bearer $BEACON_INCIDENT_SYNC_TOKEN"
+        http://localhost:3000/api/incidents/sync > /dev/null
+        && echo "Synced the running server"
+        || echo "Server not running, it loads them on start"
 
   dev:
     desc: Run backend and frontend concurrently

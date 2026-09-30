@@ -133,7 +133,7 @@ JSON:
 }
 ```
 
-`event` is `down`, `up`, `cert_expiry` or `test`. A `body` is a Go template
+`event` is `down`, `up`, `cert_expiry`, `incident` or `test`. A `body` is a Go template
 over those fields, `{{json .Message}}` quotes a value for JSON:
 
 ```yaml
@@ -216,43 +216,90 @@ services:
 
 ## Incidents
 
-Drop incident files into `data/incidents` (inside `BEACON_DATA_DIR`) and they
-show up within a few minutes:
+Incidents are YAML files in `data/incidents` (inside `BEACON_DATA_DIR`). They
+show up within a few minutes, or right away with a sync webhook. An active
+incident also sets the headline, so the page never says everything is fine
+while an outage is announced.
 
 ```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mizuchilabs/beacon/main/incident.schema.json
 title: Database Connection Issues
 description: Users experiencing intermittent connection errors
 severity: major # minor, major, critical, maintenance
-status: resolved # investigating, identified, monitoring, resolved
-affected_monitors:
+affected_monitors: # leave out for all monitors
   - My Website
   - API
 started_at: 2025-01-15T14:30:00Z
-resolved_at: 2025-01-15T16:45:00Z
 updates:
   - message: Investigating connection timeouts
-    status: investigating
+    status: investigating # scheduled, investigating, identified, monitoring, resolved
     created_at: 2025-01-15T14:30:00Z
   - message: All systems operational
     status: resolved
     created_at: 2025-01-15T16:45:00Z
 ```
 
-The file name is the incident id unless the file sets `id`. Files that don't
-parse are skipped with a warning in the log.
+The status comes from the latest update and `resolved_at` from the resolved
+one, so an update is all you need to write. Setting `status` or `resolved_at`
+in the file still works and wins.
 
-To keep incidents in git instead, point Beacon at the repository. It is cloned
-into the incident directory and synced every few minutes:
+The file name is the incident id unless the file sets `id`. Every incident
+has its own page at `/events/<id>`. Files that don't parse are skipped with a
+warning in the log, and so is a monitor name that isn't in the config.
 
-| Variable               | Default                | Description                                                                        |
-| ---------------------- | ---------------------- | ---------------------------------------------------------------------------------- |
-| `BEACON_INCIDENT_REPO` | -                      | Git repository URL for incidents, private repos use `https://user:token@host/repo` |
-| `BEACON_INCIDENT_PATH` | `<data dir>/incidents` | Local directory for incident files                                                 |
-| `BEACON_INCIDENT_SYNC` | `5m`                   | How often to sync and reload                                                       |
+### Maintenance
+
+A `maintenance` incident with a future `started_at` shows as upcoming until it
+starts. With `ends_at` it resolves itself when the window is over:
+
+```yaml
+title: Database upgrade
+severity: maintenance
+started_at: 2025-02-01T02:00:00Z
+ends_at: 2025-02-01T04:00:00Z
+```
+
+### Writing incidents from the CLI
+
+```bash
+beacon incident new "Database connection issues" --severity major -m API -m "My Website"
+beacon incident new "Database upgrade" -s maintenance --at "2025-02-01 02:00" --until "2025-02-01 04:00"
+beacon incident update 2025-01-15-database-connection-issues -s identified -m "Found a bad index"
+beacon incident resolve 2025-01-15-database-connection-issues
+beacon incident lint # checks every file and the monitor names, handy in CI
+```
+
+`--dir` picks the directory, it defaults to `<data dir>/incidents`. Updates
+edit the file in place, so comments stay. New files get a schema line, which
+gives autocompletion in editors with the YAML language server.
+
+### Keeping incidents in git
+
+Point Beacon at a repository. It is cloned into the incident directory and
+synced every few minutes:
+
+| Variable                     | Default                | Description                                                                        |
+| ---------------------------- | ---------------------- | ---------------------------------------------------------------------------------- |
+| `BEACON_INCIDENT_REPO`       | -                      | Git repository URL for incidents, private repos use `https://user:token@host/repo` |
+| `BEACON_INCIDENT_PATH`       | `<data dir>/incidents` | Local directory for incident files                                                 |
+| `BEACON_INCIDENT_SYNC`       | `5m`                   | How often to sync and reload                                                       |
+| `BEACON_INCIDENT_SYNC_TOKEN` | -                      | Secret for the sync webhook, the webhook is off without it                         |
+
+To skip the wait, add a push webhook in your git host that posts to
+`https://status.example.com/api/incidents/sync` with the token as its secret.
+GitHub signatures, GitLab's secret token and `Authorization: Bearer <token>`
+(Gitea, Forgejo, curl) all work.
+
+### Following incidents
+
+Browser push subscribers get new incidents and updates for the monitors they
+follow, and webhooks get them as an `incident` event. Only fresh news is sent,
+adding an old incident to the history stays quiet. There is also an Atom feed
+at `/incidents.atom`.
 
 ## Keyboard shortcuts
 
-`1` to `6` switch the time range, `/` filters the monitors.
+`1` to `5` switch the time range, `/` filters the monitors.
 
 ## Screenshots
 

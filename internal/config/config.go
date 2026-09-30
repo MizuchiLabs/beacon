@@ -199,3 +199,11 @@ func validateMonitor(m Monitor) error {
 	}
 	return nil
 }
+
+func (c *Config) MonitorNames() []string {
+	names := make([]string, 0, len(c.Monitors))
+	for _, m := range c.Monitors {
+		names = append(names, m.Name)
+	}
+	return names
+}

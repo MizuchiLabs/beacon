@@ -1,12 +1,11 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mizuchilabs/beacon/main/incident.schema.json
 id: 2025-01-15-database-outage
 title: Database Connection Issues
 description: Users experiencing intermittent connection errors
 severity: major
-status: resolved
 affected_monitors:
-  - Github
+  - GitHub
 started_at: 2025-01-15T14:30:00Z
-resolved_at: 2025-01-15T16:45:00Z
 updates:
   - message: We are investigating reports of connection timeouts
     status: investigating

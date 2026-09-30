@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetBadgeData, GetBadgeErrors, GetBadgeResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetIncidentData, GetIncidentErrors, GetIncidentResponses, GetIncidentsData, GetIncidentsErrors, GetIncidentsResponses, GetMonitorPercentilesData, GetMonitorPercentilesErrors, GetMonitorPercentilesResponses, GetMonitorsData, GetMonitorsErrors, GetMonitorsResponses, GetVapidPublicKeyData, GetVapidPublicKeyErrors, GetVapidPublicKeyResponses, HeartbeatGetData, HeartbeatGetErrors, HeartbeatGetResponses, HeartbeatPostData, HeartbeatPostErrors, HeartbeatPostResponses, ListSubscriptionsData, ListSubscriptionsErrors, ListSubscriptionsResponses, SubscribeToMonitorData, SubscribeToMonitorErrors, SubscribeToMonitorResponses, UnsubscribeFromMonitorData, UnsubscribeFromMonitorErrors, UnsubscribeFromMonitorResponses } from './types.gen';
+import type { GetBadgeData, GetBadgeErrors, GetBadgeResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetIncidentData, GetIncidentErrors, GetIncidentResponses, GetIncidentsData, GetIncidentsErrors, GetIncidentsResponses, GetMonitorPercentilesData, GetMonitorPercentilesErrors, GetMonitorPercentilesResponses, GetMonitorsData, GetMonitorsErrors, GetMonitorsResponses, GetVapidPublicKeyData, GetVapidPublicKeyErrors, GetVapidPublicKeyResponses, HeartbeatGetData, HeartbeatGetErrors, HeartbeatGetResponses, HeartbeatPostData, HeartbeatPostErrors, HeartbeatPostResponses, ListSubscriptionsData, ListSubscriptionsErrors, ListSubscriptionsResponses, SubscribeToMonitorData, SubscribeToMonitorErrors, SubscribeToMonitorResponses, SyncIncidentsData, SyncIncidentsErrors, SyncIncidentsResponses, UnsubscribeFromMonitorData, UnsubscribeFromMonitorErrors, UnsubscribeFromMonitorResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -36,6 +36,21 @@ export const getConfig = <ThrowOnError extends boolean = false>(options?: Option
  * List incidents
  */
 export const getIncidents = <ThrowOnError extends boolean = false>(options?: Options<GetIncidentsData, ThrowOnError>): RequestResult<GetIncidentsResponses, GetIncidentsErrors, ThrowOnError> => (options?.client ?? client).get<GetIncidentsResponses, GetIncidentsErrors, ThrowOnError>({ url: '/api/incidents', ...options });
+
+/**
+ * Reload incidents now
+ *
+ * Point a git push webhook here so updates show up without waiting for the sync interval. Needs BEACON_INCIDENT_SYNC_TOKEN as the webhook secret.
+ */
+export const syncIncidents = <ThrowOnError extends boolean = false>(options?: Options<SyncIncidentsData, ThrowOnError>): RequestResult<SyncIncidentsResponses, SyncIncidentsErrors, ThrowOnError> => (options?.client ?? client).post<SyncIncidentsResponses, SyncIncidentsErrors, ThrowOnError>({
+    bodySerializer: null,
+    url: '/api/incidents/sync',
+    ...options,
+    headers: {
+        'Content-Type': 'application/octet-stream',
+        ...options?.headers
+    }
+});
 
 /**
  * Get an incident

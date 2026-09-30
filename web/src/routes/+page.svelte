@@ -16,18 +16,21 @@
 	import TimeRange from '$lib/components/util/TimeRange.svelte';
 	import { timeRange, timeRanges } from '$lib/range.svelte';
 	import {
-		aggregateStatus,
 		ago,
+		currentStatus,
 		durationText,
 		groupMonitors,
 		incidentSeverity,
 		isActiveIncident,
+		isUpcoming,
+		pageStatus,
 		statusMeta,
 		statusTitle,
 		targetOf
 	} from '$lib/status.js';
 	import {
 		ArrowRightIcon,
+		CalendarClockIcon,
 		CheckIcon,
 		CircleCheckIcon,
 		SearchIcon,
@@ -106,14 +109,14 @@
 		if (range) timeRange.current = range.value;
 	}
 
-	const activeIncidents = $derived((incidentsQuery.data ?? []).filter(isActiveIncident));
+	const incidents = $derived(incidentsQuery.data ?? []);
+	const activeIncidents = $derived(incidents.filter(isActiveIncident));
+	// Soonest first, the API sorts newest first.
+	const upcoming = $derived(incidents.filter(isUpcoming).toReversed());
 	const pastIncidents = $derived.by(() => {
 		const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
-		return (incidentsQuery.data ?? [])
-			.filter(
-				(incident) =>
-					!isActiveIncident(incident) && new Date(incident.started_at).getTime() >= cutoff
-			)
+		return incidents
+			.filter((i) => i.status === 'resolved' && Date.parse(i.started_at) >= cutoff)
 			.slice(0, 5);
 	});
 
@@ -128,7 +131,7 @@
 	$effect(() => {
 		if (monitors.length === 0) return;
 		const style = getComputedStyle(document.documentElement);
-		const token = statusMeta[aggregateStatus(monitors)].token;
+		const token = statusMeta[pageStatus(monitors, incidents).status].token;
 		const canvas = document.createElement('canvas');
 		canvas.width = 64;
 		canvas.height = 64;
@@ -142,6 +145,14 @@
 	});
 
 	const monthDay = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+	const whenFormat = new Intl.DateTimeFormat(undefined, {
+		weekday: 'short',
+		month: 'short',
+		day: 'numeric',
+		hour: 'numeric',
+		minute: '2-digit'
+	});
+	const timeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
 </script>
 
 <svelte:window {onkeydown} />
@@ -176,38 +187,70 @@
 			</Empty.Header>
 		</Empty.Root>
 	{:else}
-		<div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-			<OverallBanner {monitors} {updatedAgo} />
-			<TimeRange />
-		</div>
+		<OverallBanner {monitors} {incidents} {updatedAgo} />
 
-		{#if incidentsQuery.isSuccess && activeIncidents.length > 0}
+		{#if activeIncidents.length > 0 || upcoming.length > 0}
 			<div class="flex flex-col gap-2">
 				{#each activeIncidents as incident (incident.id)}
 					{@const severity = incidentSeverity(incident.severity)}
+					{@const status = currentStatus(incident)}
 					{@const latest = incident.updates?.at(-1)}
-					<Alert.Root variant={severity.variant === 'destructive' ? 'destructive' : 'default'}>
-						<severity.icon />
-						<Alert.Title class="flex flex-wrap items-center">
-							{incident.title}
-							<Badge variant={severity.variant} class="ml-2">
-								<severity.icon data-icon="inline-start" />
-								{severity.label}
-							</Badge>
-						</Alert.Title>
-						<Alert.Description>
-							{latest?.message ?? incident.description}
-							{#if latest}
-								· {ago(new Date(latest.created_at))}
-							{/if}
-							{#if incident.affected_monitors?.length}
-								· affects {incident.affected_monitors.join(', ')}
-							{/if}
-						</Alert.Description>
-					</Alert.Root>
+					<a
+						href={resolve('/events/[id]', { id: incident.id })}
+						class="group rounded-2xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+					>
+						<Alert.Root variant={severity.variant === 'destructive' ? 'destructive' : 'default'}>
+							<severity.icon />
+							<Alert.Title class="flex flex-wrap items-center">
+								<span class="group-hover:underline">{incident.title}</span>
+								<Badge variant={status.variant} class="ml-2">
+									<status.icon data-icon="inline-start" />
+									{status.label}
+								</Badge>
+							</Alert.Title>
+							<Alert.Description>
+								{latest?.message ?? incident.description}
+								{#if latest}
+									· {ago(new Date(latest.created_at))}
+								{/if}
+								{#if incident.affected_monitors?.length}
+									· affects {incident.affected_monitors.join(', ')}
+								{/if}
+							</Alert.Description>
+						</Alert.Root>
+					</a>
+				{/each}
+				{#each upcoming as incident (incident.id)}
+					<a
+						href={resolve('/events/[id]', { id: incident.id })}
+						class="group rounded-2xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+					>
+						<Alert.Root>
+							<CalendarClockIcon />
+							<Alert.Title>
+								<span class="group-hover:underline">{incident.title}</span>
+							</Alert.Title>
+							<Alert.Description>
+								Scheduled for {whenFormat.format(new Date(incident.started_at))}
+								{#if incident.ends_at}
+									to {timeFormat.format(new Date(incident.ends_at))}
+								{/if}
+								{#if incident.affected_monitors?.length}
+									· affects {incident.affected_monitors.join(', ')}
+								{/if}
+							</Alert.Description>
+						</Alert.Root>
+					</a>
 				{/each}
 			</div>
 		{/if}
+
+		<div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+			<h2 class="px-1 text-sm font-medium text-muted-foreground">
+				Uptime · {timeRange.entry.title.toLowerCase()}
+			</h2>
+			<TimeRange />
+		</div>
 
 		{#if showFilter}
 			<InputGroup.Root>
@@ -290,25 +333,29 @@
 							{/if}
 							{@const severity = incidentSeverity(incident.severity)}
 							<Item.Root size="sm">
-								<Item.Media variant="icon">
-									<CircleCheckIcon class="text-chart-3" />
-								</Item.Media>
-								<Item.Content class="min-w-0">
-									<Item.Title>{incident.title}</Item.Title>
-									<Item.Description>
-										{monthDay.format(new Date(incident.started_at))}
-										· {durationText(incident.started_at, incident.resolved_at)}
-										{#if incident.affected_monitors?.length}
-											· affects {incident.affected_monitors.join(', ')}
-										{/if}
-									</Item.Description>
-								</Item.Content>
-								<Item.Actions class="shrink-0">
-									<Badge variant={severity.variant}>
-										<severity.icon data-icon="inline-start" />
-										{severity.label}
-									</Badge>
-								</Item.Actions>
+								{#snippet child({ props })}
+									<a href={resolve('/events/[id]', { id: incident.id })} {...props}>
+										<Item.Media variant="icon">
+											<CircleCheckIcon class="text-chart-3" />
+										</Item.Media>
+										<Item.Content class="min-w-0">
+											<Item.Title>{incident.title}</Item.Title>
+											<Item.Description>
+												{monthDay.format(new Date(incident.started_at))}
+												· {durationText(incident.started_at, incident.resolved_at)}
+												{#if incident.affected_monitors?.length}
+													· affects {incident.affected_monitors.join(', ')}
+												{/if}
+											</Item.Description>
+										</Item.Content>
+										<Item.Actions class="shrink-0">
+											<Badge variant={severity.variant}>
+												<severity.icon data-icon="inline-start" />
+												{severity.label}
+											</Badge>
+										</Item.Actions>
+									</a>
+								{/snippet}
 							</Item.Root>
 						{/each}
 					{/if}

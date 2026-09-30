@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mizuchilabs/beacon/main/incident.schema.json
+title: Network maintenance
+description: Our hosting provider replaced core switches in the data center.
+severity: maintenance
+started_at: 2026-08-12T01:00:00Z
+ends_at: 2026-08-12T03:00:00Z
+updates:
+  - message: Switches get replaced between 01:00 and 03:00 UTC, short blips are possible.
+    status: scheduled
+    created_at: 2026-08-10T09:00:00Z

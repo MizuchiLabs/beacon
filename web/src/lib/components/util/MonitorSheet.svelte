@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { getIncidents, useMonitorPercentiles, type MonitorStats } from '$lib/api/queries';
-	import StatusChart from '$lib/components/chart/StatusChart.svelte';
+	import ResponseChart from '$lib/components/chart/ResponseChart.svelte';
+	import UptimeBar from '$lib/components/chart/UptimeBar.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
@@ -10,8 +11,8 @@
 	import * as Item from '$lib/components/ui/item';
 	import { Separator } from '$lib/components/ui/separator';
 	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Tooltip from '$lib/components/ui/tooltip';
 	import SubscribeBell from '$lib/components/util/SubscribeBell.svelte';
+	import { timeRange } from '$lib/range.svelte';
 	import { pushNotifications } from '$lib/stores/push.svelte';
 	import {
 		affectsMonitor,
@@ -19,8 +20,10 @@
 		certTextClass,
 		durationText,
 		formatMs,
+		incidentLevel,
 		incidentSeverity,
-		incidentStatus,
+		currentStatus,
+		incidentWindow,
 		intervalText,
 		latencyTextClass,
 		statusMeta,
@@ -29,7 +32,14 @@
 		uptimeTextClass
 	} from '$lib/status.js';
 	import { cn } from '$lib/utils.js';
-	import { CircleAlertIcon, ExternalLinkIcon } from '@lucide/svelte';
+	import {
+		CircleAlertIcon,
+		ClockIcon,
+		ExternalLinkIcon,
+		FolderIcon,
+		RefreshCwIcon,
+		ShieldCheckIcon
+	} from '@lucide/svelte';
 
 	interface Props {
 		monitor: MonitorStats | null;
@@ -41,11 +51,10 @@
 	const incidentsQuery = getIncidents();
 	const percentilesQuery = useMonitorPercentiles(() => (open ? monitor?.id : undefined));
 
+	const meta = $derived(monitor ? statusMeta[monitor.status] : null);
 	// Layerchart walks every point on each render, plain objects keep that
 	// cheap compared to the query's reactive proxies.
-	const chartMonitor = $derived(monitor ? $state.snapshot(monitor) : null);
-	const meta = $derived(monitor ? statusMeta[monitor.status] : null);
-	const checks = $derived((monitor?.data_points ?? []).reduce((sum, p) => sum + p.total, 0));
+	const points = $derived(monitor?.data_points ? $state.snapshot(monitor.data_points) : []);
 	const incidents = $derived(
 		monitor ? (incidentsQuery.data ?? []).filter((i) => affectsMonitor(i, monitor.name)) : []
 	);
@@ -60,63 +69,78 @@
 			{ label: 'P99', ms: p.p99 }
 		];
 	});
-	const percentileMax = $derived(percentiles.at(-1)?.ms ?? 0);
+	const fills: Record<string, string> = {
+		down: 'fill-chart-5/10',
+		degraded: 'fill-chart-4/10',
+		maintenance: 'fill-chart-2/10'
+	};
+	const incidentMarks = $derived(
+		incidents.map((i) => {
+			const [start, end] = incidentWindow(i);
+			const level = incidentLevel(i);
+			return { start, end, title: i.title, class: statusMeta[level].dot, fill: fills[level] };
+		})
+	);
+	const p95 = $derived(percentilesQuery.data?.percentiles?.p95 ?? null);
 	const monthDay = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 </script>
 
 <Sheet.Root {open} {onOpenChange}>
 	<Sheet.Content class="sm:max-w-xl">
-		{#if monitor && chartMonitor && meta}
+		{#if monitor && meta}
 			<Sheet.Header>
-				<div class="flex items-start justify-between gap-3">
-					<div class="min-w-0">
-						<div class="flex items-center gap-2">
-							<Sheet.Title>{monitor.name}</Sheet.Title>
-							{#if typeLabel(monitor.type)}
-								<Badge variant="secondary">{typeLabel(monitor.type)}</Badge>
-							{/if}
-						</div>
-						<Sheet.Description class="mt-1 flex items-center">
-							{#if monitor.url.startsWith('http')}
-								<a
-									href={monitor.url}
-									target="_blank"
-									rel="noreferrer"
-									class="flex min-w-0 items-center gap-1 transition-colors hover:text-foreground"
-								>
-									<span class="truncate">{monitor.url}</span>
-									<ExternalLinkIcon class="size-3 shrink-0" />
-								</a>
-							{:else}
-								<span class="truncate">{monitor.url || targetOf(monitor)}</span>
-							{/if}
-						</Sheet.Description>
-					</div>
-					<div class="flex shrink-0 items-center gap-1.5 pr-6">
-						<SubscribeBell monitorId={monitor.id} />
-						<Badge variant="outline">
-							<span class={cn('size-1.5 rounded-full', meta.dot)}></span>
-							{meta.label}
-						</Badge>
-					</div>
+				<div class="flex min-w-0 flex-wrap items-center gap-2 pr-8">
+					<Sheet.Title>{monitor.name}</Sheet.Title>
+					{#if typeLabel(monitor.type)}
+						<Badge variant="secondary">{typeLabel(monitor.type)}</Badge>
+					{/if}
+					<Badge variant="outline" class={meta.badge}>{meta.label}</Badge>
 				</div>
-				<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-					<span>
+				<div class="flex items-center justify-between gap-3">
+					<Sheet.Description class="flex min-w-0 items-center">
+						{#if monitor.url.startsWith('http')}
+							<a
+								href={monitor.url}
+								target="_blank"
+								rel="noreferrer"
+								class="flex min-w-0 items-center gap-1 transition-colors hover:text-foreground"
+							>
+								<span class="truncate">{monitor.url}</span>
+								<ExternalLinkIcon class="size-3 shrink-0" />
+							</a>
+						{:else}
+							<span class="truncate">{monitor.url || targetOf(monitor)}</span>
+						{/if}
+					</Sheet.Description>
+					<SubscribeBell monitorId={monitor.id} />
+				</div>
+				<div
+					class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground [&_svg]:size-3.5 [&_svg]:shrink-0"
+				>
+					<span class="flex items-center gap-1.5">
+						<ClockIcon />
 						Checked {monitor.last_checked_at ? ago(new Date(monitor.last_checked_at)) : 'never'}
 					</span>
-					<span>Every {intervalText(monitor.check_interval)}</span>
+					<span class="flex items-center gap-1.5">
+						<RefreshCwIcon />
+						Every {intervalText(monitor.check_interval)}
+					</span>
 					{#if monitor.group}
-						<span>{monitor.group}</span>
+						<span class="flex items-center gap-1.5">
+							<FolderIcon />
+							{monitor.group}
+						</span>
 					{/if}
 					{#if monitor.days_remaining != null}
 						<span
 							class={cn(
-								'tabular-nums',
+								'flex items-center gap-1.5 tabular-nums',
 								monitor.ignore_cert_expiry
 									? 'text-muted-foreground'
 									: certTextClass(monitor.days_remaining)
 							)}
 						>
+							<ShieldCheckIcon />
 							Cert expires in {monitor.days_remaining}d
 						</span>
 					{/if}
@@ -125,74 +149,80 @@
 
 			<Separator />
 
-			<div class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-5">
-				<Card.Root size="sm">
-					<Card.Content>
-						<div class="grid grid-cols-3 gap-3 text-center">
-							<div class="flex flex-col gap-0.5">
-								<span class="text-[11px] text-muted-foreground">Uptime</span>
-								<span
-									class={cn(
-										'text-base font-semibold tabular-nums',
-										uptimeTextClass(monitor.uptime_pct)
-									)}
-								>
-									{monitor.uptime_pct == null ? '-' : `${monitor.uptime_pct.toFixed(2)}%`}
-								</span>
-							</div>
-							<div class="flex flex-col gap-0.5">
-								<span class="text-[11px] text-muted-foreground">Avg response</span>
-								<span
-									class={cn(
-										'text-base font-semibold tabular-nums',
-										latencyTextClass(monitor.avg_response_time, monitor.degraded_threshold)
-									)}
-								>
-									{formatMs(monitor.avg_response_time)}
-								</span>
-							</div>
-							<div class="flex flex-col gap-0.5">
-								<span class="text-[11px] text-muted-foreground">Checks</span>
-								<span class="text-base font-semibold tabular-nums">{checks.toLocaleString()}</span>
-							</div>
-						</div>
-					</Card.Content>
-				</Card.Root>
+			<div class="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-5">
+				<div class="grid grid-cols-3 gap-4">
+					<div class="flex flex-col gap-1">
+						<span class="text-xs text-muted-foreground">Uptime · {timeRange.entry.label}</span>
+						<span
+							class={cn(
+								'text-2xl font-semibold tracking-tight tabular-nums',
+								uptimeTextClass(monitor.uptime_pct)
+							)}
+						>
+							{monitor.uptime_pct == null ? '-' : `${monitor.uptime_pct.toFixed(2)}%`}
+						</span>
+					</div>
+					<div class="flex flex-col gap-1">
+						<span class="text-xs text-muted-foreground">Avg response</span>
+						<span
+							class={cn(
+								'text-2xl font-semibold tracking-tight tabular-nums',
+								latencyTextClass(monitor.avg_response_time, monitor.degraded_threshold)
+							)}
+						>
+							{formatMs(monitor.avg_response_time)}
+						</span>
+					</div>
+					<div class="flex flex-col gap-1">
+						<span class="text-xs text-muted-foreground">P95</span>
+						<span
+							class={cn(
+								'text-2xl font-semibold tracking-tight tabular-nums',
+								latencyTextClass(p95, monitor.degraded_threshold)
+							)}
+						>
+							{formatMs(p95)}
+						</span>
+					</div>
+				</div>
 
 				<section class="flex flex-col gap-2">
-					<h3 class="text-xs font-medium text-muted-foreground">Uptime and response time</h3>
-					<StatusChart monitor={chartMonitor} showTicks class="h-44" />
+					<h3 class="text-xs font-medium text-muted-foreground">Uptime</h3>
+					<UptimeBar {points} alert={monitor.status === 'down'} marks={incidentMarks} />
 				</section>
 
-				{#if percentiles.length > 0}
-					<section class="flex flex-col gap-3">
-						<div class="flex items-baseline justify-between">
-							<h3 class="text-xs font-medium text-muted-foreground">Response time percentiles</h3>
-							<span class="text-[11px] text-muted-foreground">
-								degraded above {formatMs(monitor.degraded_threshold)}
-							</span>
-						</div>
-						<div class="relative h-2 rounded-full bg-muted">
+				<section class="flex flex-col gap-2">
+					<div class="flex items-baseline justify-between">
+						<h3 class="text-xs font-medium text-muted-foreground">Response time</h3>
+						<span class="flex items-center gap-1.5 text-xs text-muted-foreground">
+							<span class="w-3 border-t-2 border-dashed border-chart-4"></span>
+							degraded above {formatMs(monitor.degraded_threshold)}
+						</span>
+					</div>
+					<ResponseChart
+						{points}
+						threshold={monitor.degraded_threshold}
+						ranges={incidentMarks.map((m) => ({ start: m.start, end: m.end, class: m.fill }))}
+						class="h-44"
+					/>
+					{#if percentiles.length > 0}
+						<dl class="grid grid-cols-5 gap-2 pt-2">
 							{#each percentiles as row (row.label)}
-								<Tooltip.Root>
-									<Tooltip.Trigger
-										class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-default"
-										style="left: {Math.min(100, (row.ms / percentileMax) * 100)}%"
-										aria-label="{row.label} response time {formatMs(row.ms)}"
+								<div class="flex flex-col gap-0.5">
+									<dt class="text-xs text-muted-foreground">{row.label}</dt>
+									<dd
+										class={cn(
+											'text-sm font-medium tabular-nums',
+											row.ms > monitor.degraded_threshold && 'text-chart-4'
+										)}
 									>
-										<div
-											class={cn(
-												'size-3 rounded-full border-2 border-background transition-transform hover:scale-125',
-												row.ms > monitor.degraded_threshold ? 'bg-chart-4' : 'bg-chart-3'
-											)}
-										></div>
-									</Tooltip.Trigger>
-									<Tooltip.Content>{row.label} · {formatMs(row.ms)}</Tooltip.Content>
-								</Tooltip.Root>
+										{formatMs(row.ms)}
+									</dd>
+								</div>
 							{/each}
-						</div>
-					</section>
-				{/if}
+						</dl>
+					{/if}
+				</section>
 
 				<section class="flex flex-col gap-2">
 					<div class="flex items-center justify-between">
@@ -209,19 +239,25 @@
 						<Item.Group>
 							{#each incidents.slice(0, 5) as incident (incident.id)}
 								{@const severity = incidentSeverity(incident.severity)}
-								{@const status = incidentStatus(incident.status)}
 								<Item.Root variant="outline" size="xs" role="listitem">
-									<Item.Content class="min-w-0">
-										<Item.Title>{incident.title}</Item.Title>
-										<Item.Description>
-											{monthDay.format(new Date(incident.started_at))}
-											· {durationText(incident.started_at, incident.resolved_at)}
-										</Item.Description>
-									</Item.Content>
-									<Item.Actions>
-										<Badge variant={status.variant}>{status.label}</Badge>
-										<Badge variant={severity.variant}>{severity.label}</Badge>
-									</Item.Actions>
+									{#snippet child({ props })}
+										<a href={resolve('/events/[id]', { id: incident.id })} {...props}>
+											<Item.Content class="min-w-0">
+												<Item.Title>{incident.title}</Item.Title>
+												<Item.Description>
+													{monthDay.format(new Date(incident.started_at))}
+													· {durationText(incident.started_at, incident.resolved_at)}
+													· {currentStatus(incident).label}
+												</Item.Description>
+											</Item.Content>
+											<Item.Actions>
+												<Badge variant={severity.variant}>
+													<severity.icon data-icon="inline-start" />
+													{severity.label}
+												</Badge>
+											</Item.Actions>
+										</a>
+									{/snippet}
 								</Item.Root>
 							{/each}
 						</Item.Group>

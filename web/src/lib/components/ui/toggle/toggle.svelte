@@ -6,7 +6,9 @@
 		variants: {
 			variant: {
 				default: 'bg-transparent',
-				outline: 'border-input hover:bg-muted border bg-transparent'
+				outline: 'border-input hover:bg-muted border bg-transparent',
+				segmented:
+					'text-muted-foreground hover:bg-transparent aria-pressed:bg-transparent data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm'
 			},
 			size: {
 				default:

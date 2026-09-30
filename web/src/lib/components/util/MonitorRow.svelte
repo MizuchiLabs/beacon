@@ -29,16 +29,11 @@ while the bar and the bell stay usable on top of it. -->
 	role="listitem"
 	class={cn('group relative transition-colors hover:bg-muted/40', flash && 'animate-status-flash')}
 >
+	{#if monitor.status !== 'operational'}
+		<span class={cn('absolute inset-y-0 left-0 w-0.5', meta.dot)}></span>
+	{/if}
 	<Item.Root class="md:flex-nowrap">
-		<div class="flex min-w-0 flex-1 items-center gap-2.5 md:w-44 md:flex-none">
-			<span
-				class={cn(
-					'size-2 shrink-0 rounded-full',
-					meta.dot,
-					meta.text,
-					monitor.status === 'down' && 'animate-status-pulse'
-				)}
-			></span>
+		<div class="flex min-w-0 flex-1 items-center md:w-44 md:flex-none">
 			<Item.Content class="min-w-0">
 				<Item.Title class="w-full min-w-0">
 					<button
@@ -52,6 +47,11 @@ while the bar and the bell stay usable on top of it. -->
 					{#if typeLabel(monitor.type)}
 						<Badge variant="secondary">{typeLabel(monitor.type)}</Badge>
 					{/if}
+					{#if monitor.status !== 'operational'}
+						<Badge variant="outline" class={cn('shrink-0', meta.badge)}>
+							{meta.label}
+						</Badge>
+					{/if}
 				</Item.Title>
 				<Item.Description>
 					<span class="block truncate">{targetOf(monitor)}</span>
@@ -62,6 +62,7 @@ while the bar and the bell stay usable on top of it. -->
 		<div class="order-last w-full md:order-0 md:w-auto md:min-w-0 md:flex-1">
 			<UptimeBar
 				points={monitor.data_points ?? []}
+				alert={monitor.status === 'down'}
 				class="relative"
 				onclick={() => onOpen(monitor.id)}
 			/>

@@ -36,7 +36,8 @@ func TestSyncRepo(t *testing.T) {
 	titles := func(s *Service) []string {
 		t.Helper()
 		require.NoError(t, s.syncRepo(t.Context()))
-		require.NoError(t, s.loadIncidents())
+		_, err := s.loadIncidents()
+		require.NoError(t, err)
 		var out []string
 		for _, inc := range s.GetIncidents() {
 			out = append(out, inc.Title)
@@ -55,4 +56,41 @@ func TestSyncRepo(t *testing.T) {
 	assert.ElementsMatch(t, []string{"First", "Rewritten"}, titles(s), "force push is followed")
 
 	assert.ElementsMatch(t, []string{"First", "Rewritten"}, titles(s), "sync without changes is a no-op")
+}
+
+func TestChanges(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
+	update := func(status string, at time.Time) IncidentUpdate {
+		return IncidentUpdate{Message: status, Status: status, CreatedAt: at}
+	}
+	before := []Incident{
+		{
+			ID:        "old",
+			StartedAt: now.Add(-2 * time.Hour),
+			Updates:   []IncidentUpdate{update("investigating", now.Add(-2*time.Hour))},
+		},
+	}
+	after := []Incident{
+		{ID: "old", StartedAt: now.Add(-2 * time.Hour), Updates: []IncidentUpdate{
+			update("investigating", now.Add(-2*time.Hour)),
+			update("identified", now.Add(-time.Minute)),
+		}},
+		{ID: "fresh", Status: "investigating", StartedAt: now.Add(-time.Minute)},
+		{ID: "history", Status: "resolved", StartedAt: now.Add(-48 * time.Hour)},
+		{
+			ID:        "maint",
+			StartedAt: now.Add(-3 * time.Hour),
+			Updates:   []IncidentUpdate{update("scheduled", now.Add(-3*time.Hour))},
+		},
+	}
+
+	var got []string
+	for _, e := range changes(before, after, now) {
+		got = append(got, e.ID+":"+e.Status)
+	}
+	assert.Equal(t, []string{"old:identified", "fresh:investigating", "maint:scheduled"}, got,
+		"new updates and incidents notify, backfilled history does not, announced maintenance always does")
+	assert.Empty(t, changes(after, after, now), "an unchanged reload is quiet")
 }

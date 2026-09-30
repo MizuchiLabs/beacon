@@ -7,9 +7,26 @@
 	interface Props {
 		points: DataPoint[];
 		class?: string;
+		alert?: boolean;
+		marks?: { start: number; end: number; title: string; class: string }[];
 		onclick?: () => void;
 	}
-	let { points, class: className, onclick }: Props = $props();
+	let { points, class: className, alert = false, marks = [], onclick }: Props = $props();
+
+	// Marks are placed on the same time axis the pills cover.
+	const placed = $derived.by(() => {
+		if (points.length < 2 || marks.length === 0) return [];
+		const first = Date.parse(points[0].timestamp);
+		const step = Date.parse(points[1].timestamp) - first;
+		const span = Date.parse(points[points.length - 1].timestamp) + step - first;
+		return marks
+			.filter((m) => m.end > first && m.start < first + span)
+			.map((m) => ({
+				...m,
+				left: (Math.max(m.start - first, 0) / span) * 100,
+				width: ((Math.min(m.end, first + span) - Math.max(m.start, first)) / span) * 100
+			}));
+	});
 
 	let hovered = $state<number | null>(null);
 	let anchor = $state<HTMLElement | null>(null);
@@ -70,6 +87,8 @@
 						class={cn(
 							'min-w-0.5 flex-1 rounded-full transition-[transform,opacity] duration-150',
 							pillClass(p),
+							i === points.length - 1 && 'flex-[1.75]',
+							i === points.length - 1 && alert && 'animate-status-pulse text-chart-5',
 							hovered === i ? 'scale-y-110' : hovered !== null && 'opacity-60'
 						)}
 					></span>
@@ -94,3 +113,14 @@
 		{/if}
 	</Tooltip.Content>
 </Tooltip.Root>
+{#if placed.length > 0}
+	<div class="relative mt-1.5 h-1" aria-label="Incidents">
+		{#each placed as mark, i (i)}
+			<span
+				class={cn('absolute inset-y-0 min-w-1 rounded-full', mark.class)}
+				style="left: {mark.left}%; width: {mark.width}%"
+				title={mark.title}
+			></span>
+		{/each}
+	</div>
+{/if}

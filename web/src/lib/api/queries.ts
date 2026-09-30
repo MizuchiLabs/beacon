@@ -1,6 +1,7 @@
 import { createQuery, keepPreviousData } from '@tanstack/svelte-query';
 import {
 	getConfigOptions,
+	getIncidentOptions,
 	getIncidentsOptions,
 	getMonitorPercentilesOptions,
 	getMonitorsOptions
@@ -43,5 +44,13 @@ export function getIncidents() {
 	return createQuery(() => ({
 		...getIncidentsOptions(),
 		refetchInterval: 60_000
+	}));
+}
+
+export function getIncident(id: () => string) {
+	return createQuery(() => ({
+		...getIncidentOptions({ path: { id: id() } }),
+		refetchInterval: 60_000,
+		retry: false
 	}));
 }

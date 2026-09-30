@@ -3,8 +3,8 @@
 import { type MutationOptions, queryOptions } from '@tanstack/svelte-query';
 
 import { client } from '../client.gen';
-import { getBadge, getConfig, getIncident, getIncidents, getMonitorPercentiles, getMonitors, getVapidPublicKey, heartbeatGet, heartbeatPost, listSubscriptions, type Options, subscribeToMonitor, unsubscribeFromMonitor } from '../sdk.gen';
-import type { GetBadgeData, GetBadgeError, GetBadgeResponse, GetConfigData, GetConfigError, GetConfigResponse, GetIncidentData, GetIncidentError, GetIncidentResponse, GetIncidentsData, GetIncidentsError, GetIncidentsResponse, GetMonitorPercentilesData, GetMonitorPercentilesError, GetMonitorPercentilesResponse, GetMonitorsData, GetMonitorsError, GetMonitorsResponse, GetVapidPublicKeyData, GetVapidPublicKeyError, GetVapidPublicKeyResponse, HeartbeatGetData, HeartbeatGetError, HeartbeatGetResponse, HeartbeatPostData, HeartbeatPostError, HeartbeatPostResponse, ListSubscriptionsData, ListSubscriptionsError, ListSubscriptionsResponse, SubscribeToMonitorData, SubscribeToMonitorError, SubscribeToMonitorResponse, UnsubscribeFromMonitorData, UnsubscribeFromMonitorError, UnsubscribeFromMonitorResponse } from '../types.gen';
+import { getBadge, getConfig, getIncident, getIncidents, getMonitorPercentiles, getMonitors, getVapidPublicKey, heartbeatGet, heartbeatPost, listSubscriptions, type Options, subscribeToMonitor, syncIncidents, unsubscribeFromMonitor } from '../sdk.gen';
+import type { GetBadgeData, GetBadgeError, GetBadgeResponse, GetConfigData, GetConfigError, GetConfigResponse, GetIncidentData, GetIncidentError, GetIncidentResponse, GetIncidentsData, GetIncidentsError, GetIncidentsResponse, GetMonitorPercentilesData, GetMonitorPercentilesError, GetMonitorPercentilesResponse, GetMonitorsData, GetMonitorsError, GetMonitorsResponse, GetVapidPublicKeyData, GetVapidPublicKeyError, GetVapidPublicKeyResponse, HeartbeatGetData, HeartbeatGetError, HeartbeatGetResponse, HeartbeatPostData, HeartbeatPostError, HeartbeatPostResponse, ListSubscriptionsData, ListSubscriptionsError, ListSubscriptionsResponse, SubscribeToMonitorData, SubscribeToMonitorError, SubscribeToMonitorResponse, SyncIncidentsData, SyncIncidentsError, SyncIncidentsResponse, UnsubscribeFromMonitorData, UnsubscribeFromMonitorError, UnsubscribeFromMonitorResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -96,6 +96,25 @@ export const getIncidentsOptions = (options?: Options<GetIncidentsData>) => quer
     },
     queryKey: getIncidentsQueryKey(options)
 });
+
+/**
+ * Reload incidents now
+ *
+ * Point a git push webhook here so updates show up without waiting for the sync interval. Needs BEACON_INCIDENT_SYNC_TOKEN as the webhook secret.
+ */
+export const syncIncidentsMutation = (options?: Partial<Options<SyncIncidentsData>>): MutationOptions<SyncIncidentsResponse, SyncIncidentsError, Options<SyncIncidentsData>> => {
+    const mutationOptions: MutationOptions<SyncIncidentsResponse, SyncIncidentsError, Options<SyncIncidentsData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await syncIncidents({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 export const getIncidentQueryKey = (options: Options<GetIncidentData>) => createQueryKey('getIncident', options);
 

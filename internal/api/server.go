@@ -45,7 +45,8 @@ func New(q *db.Queries, inc *incidents.Service, sched *scheduler.Service) (*Serv
 	mux.Use(middleware.CleanPath)
 
 	api := humachi.New(mux, humaConfig())
-	if err := registerConfig(api); err != nil {
+	cfg, err := registerConfig(api)
+	if err != nil {
 		return nil, err
 	}
 	registerMonitors(api, q)
@@ -58,6 +59,7 @@ func New(q *db.Queries, inc *incidents.Service, sched *scheduler.Service) (*Serv
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	mux.Get("/incidents.atom", incidentFeed(inc, cfg.Title))
 	mux.Handle("/*", web.Handler())
 	return &Server{api: api, mux: mux}, nil
 }

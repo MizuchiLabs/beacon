@@ -24,10 +24,10 @@ type configEnv struct {
 	LogoURL string `env:"BEACON_LOGO_URL"`
 }
 
-func registerConfig(api huma.API) error {
+func registerConfig(api huma.API) (*configEnv, error) {
 	cfg, err := env.ParseAs[configEnv]()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	huma.Register(api, huma.Operation{
 		OperationID: "get-config",
@@ -37,7 +37,7 @@ func registerConfig(api huma.API) error {
 		Description: "Public configuration used by the dashboard frontend.",
 		Tags:        []string{"Config"},
 	}, cfg.getConfig)
-	return nil
+	return &cfg, nil
 }
 
 func (s *configEnv) getConfig(_ context.Context, _ *struct{}) (*ConfigOutput, error) {

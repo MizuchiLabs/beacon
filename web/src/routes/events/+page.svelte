@@ -1,113 +1,58 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { getIncidents } from '$lib/api/queries';
-	import * as Card from '$lib/components/ui/card';
-	import * as Empty from '$lib/components/ui/empty';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import * as Empty from '$lib/components/ui/empty';
+	import * as Item from '$lib/components/ui/item';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { durationText, incidentSeverity, incidentStatus } from '$lib/status.js';
-	import { CheckIcon, ClockIcon } from '@lucide/svelte';
+	import IncidentCard from '$lib/components/util/IncidentCard.svelte';
+	import { durationText, incidentSeverity, isActiveIncident, isUpcoming } from '$lib/status.js';
+	import { CheckIcon, ChevronRightIcon, RssIcon } from '@lucide/svelte';
 
-	const incidents = getIncidents();
-	const dateTimeFormat = new Intl.DateTimeFormat(undefined, {
-		month: 'short',
-		day: 'numeric',
-		year: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-		timeZoneName: 'short'
+	const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
+	const dayFormat = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+
+	const incidentsQuery = getIncidents();
+	const incidents = $derived(incidentsQuery.data ?? []);
+
+	const open = $derived(incidents.filter((i) => isActiveIncident(i) || isUpcoming(i)));
+	const months = $derived.by(() => {
+		const groups = new Map<string, typeof incidents>();
+		for (const incident of incidents) {
+			if (incident.status !== 'resolved') continue;
+			const month = monthFormat.format(new Date(incident.started_at));
+			groups.set(month, [...(groups.get(month) ?? []), incident]);
+		}
+		return [...groups];
 	});
 </script>
 
-<div class="mx-auto flex w-full flex-col gap-4 p-6 sm:max-w-4xl">
-	{#if incidents.isSuccess && (incidents.data?.length ?? 0) > 0}
-		{#each incidents.data ?? [] as incident (incident.id ?? incident.started_at)}
-			{@const severity = incidentSeverity(incident.severity)}
-			{@const status = incidentStatus(incident.status)}
+<svelte:head>
+	<link rel="alternate" type="application/atom+xml" title="Incidents" href="/incidents.atom" />
+</svelte:head>
 
-			<Card.Root>
-				<Card.Header>
-					<div class="flex flex-wrap items-center gap-2">
-						<Badge variant={severity.variant}>
-							<severity.icon data-icon="inline-start" />
-							{severity.label}
-						</Badge>
-						<Badge variant={status.variant}>
-							<status.icon data-icon="inline-start" />
-							{status.label}
-						</Badge>
-					</div>
-					<Card.Title>{incident.title}</Card.Title>
-					<Card.Description>{incident.description}</Card.Description>
-					<Card.Action>
-						<Badge variant="outline">
-							<ClockIcon data-icon="inline-start" />
-							{durationText(incident.started_at, incident.resolved_at)}
-						</Badge>
-					</Card.Action>
-					{#if (incident.affected_monitors?.length ?? 0) > 0}
-						<div class="flex flex-wrap gap-2 pt-2">
-							{#each incident.affected_monitors! as monitor (monitor)}
-								<Badge variant="secondary">{monitor}</Badge>
-							{/each}
-						</div>
-					{/if}
-				</Card.Header>
+<div class="mx-auto flex w-full flex-col gap-6 p-6 sm:max-w-3xl">
+	<div class="flex items-center justify-between gap-2">
+		<h1 class="text-xl font-semibold tracking-tight">Incidents</h1>
+		<Button variant="ghost" size="sm" href="/incidents.atom" data-sveltekit-reload>
+			<RssIcon data-icon="inline-start" />
+			Feed
+		</Button>
+	</div>
 
-				{#if (incident.updates?.length ?? 0) > 0}
-					<Card.Content>
-						<div class="flex flex-col gap-4">
-							<Separator />
-							<h3 class="text-sm font-semibold">Timeline</h3>
-							<ol
-								class="relative flex flex-col gap-4 pl-6 before:absolute before:top-2 before:left-2 before:h-[calc(100%-1rem)] before:w-px before:bg-border"
-							>
-								{#each incident.updates! as update (update.created_at)}
-									{@const updateStatus = incidentStatus(update.status)}
-									<li class="relative flex flex-col gap-1">
-										<span
-											class="absolute top-1 -left-6 flex size-4 items-center justify-center rounded-full bg-background"
-										>
-											<span class="size-2 rounded-full bg-primary"></span>
-										</span>
-										<div class="flex items-center gap-2">
-											<Badge variant={updateStatus.variant}>
-												<updateStatus.icon data-icon="inline-start" />
-												{updateStatus.label}
-											</Badge>
-											<span class="text-xs text-muted-foreground">
-												{dateTimeFormat.format(new Date(update.created_at))}
-											</span>
-										</div>
-										<p class="text-sm">{update.message}</p>
-									</li>
-								{/each}
-							</ol>
-						</div>
-					</Card.Content>
-				{/if}
-
-				<Card.Footer>
-					<div class="flex w-full flex-wrap items-center justify-between gap-2">
-						<span>Started: {dateTimeFormat.format(new Date(incident.started_at))}</span>
-						{#if incident.resolved_at}
-							<span>Resolved: {dateTimeFormat.format(new Date(incident.resolved_at))}</span>
-						{/if}
-					</div>
-				</Card.Footer>
-			</Card.Root>
-		{/each}
-	{:else if incidents.isPending}
+	{#if incidentsQuery.isPending}
 		<Skeleton class="h-40 w-full" />
-		<Skeleton class="h-40 w-full" />
-	{:else if incidents.isError}
+		<Skeleton class="h-24 w-full" />
+	{:else if incidentsQuery.isError}
 		<Empty.Root>
 			<Empty.Header>
 				<Empty.Title>Could not load incidents</Empty.Title>
 				<Empty.Description>Try refreshing the page.</Empty.Description>
 			</Empty.Header>
 		</Empty.Root>
-	{:else}
+	{:else if incidents.length === 0}
 		<Empty.Root>
 			<Empty.Header>
 				<Empty.Media variant="icon">
@@ -117,5 +62,49 @@
 				<Empty.Description>Everything is working as expected.</Empty.Description>
 			</Empty.Header>
 		</Empty.Root>
+	{:else}
+		{#each open as incident (incident.id)}
+			<IncidentCard {incident} link />
+		{/each}
+
+		{#each months as [month, list] (month)}
+			<section class="flex flex-col gap-2">
+				<h2 class="flex items-center gap-2 px-1 text-sm font-medium text-muted-foreground">
+					{month}
+					<Badge variant="secondary">{list.length}</Badge>
+				</h2>
+				<div class="flex flex-col overflow-hidden rounded-2xl border bg-card">
+					{#each list as incident, i (incident.id)}
+						{#if i > 0}
+							<Separator />
+						{/if}
+						{@const severity = incidentSeverity(incident.severity)}
+						<Item.Root size="sm">
+							{#snippet child({ props })}
+								<a href={resolve('/events/[id]', { id: incident.id })} {...props}>
+									<Item.Content class="min-w-0">
+										<Item.Title>{incident.title}</Item.Title>
+										<Item.Description>
+											{dayFormat.format(new Date(incident.started_at))}
+											· {durationText(incident.started_at, incident.resolved_at)}
+											{#if incident.affected_monitors?.length}
+												· {incident.affected_monitors.join(', ')}
+											{/if}
+										</Item.Description>
+									</Item.Content>
+									<Item.Actions class="shrink-0">
+										<Badge variant={severity.variant}>
+											<severity.icon data-icon="inline-start" />
+											{severity.label}
+										</Badge>
+										<ChevronRightIcon class="size-4 text-muted-foreground/50" />
+									</Item.Actions>
+								</a>
+							{/snippet}
+						</Item.Root>
+					{/each}
+				</div>
+			</section>
+		{/each}
 	{/if}
 </div>

@@ -9,6 +9,9 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,6 +36,7 @@ const (
 	EventDown       = "down"
 	EventUp         = "up"
 	EventCertExpiry = "cert_expiry"
+	EventIncident   = "incident"
 	EventTest       = "test"
 )
 
@@ -57,12 +61,22 @@ type Service struct {
 	Subscriber string `env:"BEACON_PUSH_SUBSCRIBER" envDefault:"mailto:beacon@mizuchi.dev"`
 }
 
+// IncidentEvent is a new incident or a new update on one.
+type IncidentEvent struct {
+	ID       string
+	Title    string
+	Status   string
+	Message  string
+	Monitors []string // empty means every monitor
+}
+
 // pushPayload is what the service worker reads to show a notification.
 type pushPayload struct {
 	Title     string `json:"title"`
 	Body      string `json:"body"`
 	URL       string `json:"url"`
-	MonitorID int64  `json:"monitorId"`
+	Tag       string `json:"tag"`
+	MonitorID int64  `json:"monitorId,omitempty"`
 }
 
 func New(ctx context.Context, q *db.Queries) (*Service, error) {
@@ -123,6 +137,48 @@ func (n *Service) CertExpiring(ctx context.Context, m *db.Monitor, days int64) {
 	})
 }
 
+// Incident tells webhooks and the subscribers of the affected monitors about
+// an incident. A browser subscribed to several of them gets it once.
+func (n *Service) Incident(ctx context.Context, e IncidentEvent) {
+	title := "📢 " + e.Title
+	switch e.Status {
+	case "resolved":
+		title = "✅ " + e.Title
+	case "scheduled":
+		title = "🔧 " + e.Title
+	}
+	event := Event{
+		Event:   EventIncident,
+		Monitor: strings.Join(e.Monitors, ", "),
+		Title:   title,
+		Message: e.Message,
+		Time:    time.Now(),
+	}
+	for _, w := range n.hooks() {
+		if err := n.sendWebhook(ctx, w, event); err != nil {
+			slog.Error("Failed to send webhook", "url", w.url, "incident", e.ID, "error", err)
+		}
+	}
+
+	monitors, err := n.q.GetMonitors(ctx)
+	if err != nil {
+		slog.Error("Failed to load monitors", "error", err)
+		return
+	}
+	payload := pushPayload{
+		Title: title,
+		Body:  e.Message,
+		URL:   "/events/" + url.PathEscape(e.ID),
+		Tag:   "incident-" + e.ID,
+	}
+	seen := map[string]bool{}
+	for _, m := range monitors {
+		if len(e.Monitors) == 0 || slices.Contains(e.Monitors, m.Name) {
+			n.sendPush(ctx, m.ID, payload, seen)
+		}
+	}
+}
+
 // Test sends a sample event to every webhook and returns the first failure.
 func (n *Service) Test(ctx context.Context) error {
 	event := Event{
@@ -150,7 +206,13 @@ func (n *Service) send(ctx context.Context, m *db.Monitor, event Event) {
 			slog.Error("Failed to send webhook", "url", w.url, "monitor", m.Name, "error", err)
 		}
 	}
-	n.sendPush(ctx, m.ID, event)
+	n.sendPush(ctx, m.ID, pushPayload{
+		Title:     event.Title,
+		Body:      event.Message,
+		URL:       "/",
+		Tag:       fmt.Sprintf("monitor-%d", m.ID),
+		MonitorID: m.ID,
+	}, nil)
 }
 
 // PublicURL is the monitor url that is safe to show. A push url holds the
@@ -162,7 +224,9 @@ func PublicURL(m *db.Monitor) string {
 	return m.Url
 }
 
-func (n *Service) sendPush(ctx context.Context, monitorID int64, event Event) {
+// sendPush skips and records endpoints in seen, so one alert that covers
+// several monitors reaches each browser once. seen may be nil.
+func (n *Service) sendPush(ctx context.Context, monitorID int64, p pushPayload, seen map[string]bool) {
 	subs, err := n.q.GetPushSubscriptionsByMonitor(ctx, monitorID)
 	if err != nil {
 		slog.Error("Failed to load push subscriptions", "monitor_id", monitorID, "error", err)
@@ -172,13 +236,19 @@ func (n *Service) sendPush(ctx context.Context, monitorID int64, event Event) {
 		return
 	}
 
-	payload, err := json.Marshal(pushPayload{Title: event.Title, Body: event.Message, URL: "/", MonitorID: monitorID})
+	payload, err := json.Marshal(p)
 	if err != nil {
 		slog.Error("Failed to marshal push payload", "error", err)
 		return
 	}
 
 	for _, sub := range subs {
+		if seen != nil {
+			if seen[sub.Endpoint] {
+				continue
+			}
+			seen[sub.Endpoint] = true
+		}
 		status, err := n.pushTo(ctx, sub, payload)
 		if err == nil {
 			continue

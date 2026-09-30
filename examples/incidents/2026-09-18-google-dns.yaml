@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mizuchilabs/beacon/main/incident.schema.json
+title: Intermittent DNS failures
+description: Lookups for some monitors timed out from our checker.
+severity: minor
+affected_monitors:
+  - Google
+started_at: 2026-09-18T07:40:00Z
+updates:
+  - message: Some DNS lookups time out, we are looking into it.
+    status: investigating
+    created_at: 2026-09-18T07:40:00Z
+  - message: Our resolver dropped requests under load. We switched to a second one.
+    status: monitoring
+    created_at: 2026-09-18T08:25:00Z
+  - message: No failures for an hour, all good.
+    status: resolved
+    created_at: 2026-09-18T09:30:00Z

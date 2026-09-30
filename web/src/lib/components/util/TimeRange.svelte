@@ -4,8 +4,10 @@
 </script>
 
 <ToggleGroup.Root
-	variant="outline"
 	type="single"
+	size="sm"
+	spacing={0.5}
+	variant="segmented"
 	bind:value={timeRange.current}
 	aria-label="Time range"
 >

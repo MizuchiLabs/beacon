@@ -82,21 +82,37 @@ export type HeartbeatOutputBody = {
 };
 
 export type Incident = {
+    /**
+     * Monitor names, empty means every monitor
+     */
     affected_monitors?: Array<string> | null;
     description?: string;
-    id?: string;
+    /**
+     * Planned end of a maintenance window, it counts as resolved afterwards
+     */
+    ends_at?: string;
+    id: string;
+    /**
+     * Taken from the resolved update unless the file sets it
+     */
     resolved_at?: string;
-    severity?: string;
+    severity: 'critical' | 'major' | 'minor' | 'maintenance';
     started_at: string;
-    status?: string;
-    title?: string;
+    /**
+     * Taken from the latest update unless the file sets it
+     */
+    status: 'scheduled' | 'investigating' | 'identified' | 'monitoring' | 'resolved';
+    title: string;
+    /**
+     * Oldest first
+     */
     updates?: Array<IncidentUpdate> | null;
 };
 
 export type IncidentUpdate = {
     created_at: string;
     message: string;
-    status: string;
+    status: 'scheduled' | 'investigating' | 'identified' | 'monitoring' | 'resolved';
 };
 
 export type MonitorStats = {
@@ -193,6 +209,10 @@ export type SubscriptionsOutputBody = {
      * Monitors this endpoint is subscribed to
      */
     monitor_ids: Array<number> | null;
+};
+
+export type SyncIncidentsOutputBody = {
+    ok: boolean;
 };
 
 export type UnsubscribeInputBody = {
@@ -301,6 +321,45 @@ export type GetIncidentsResponses = {
 };
 
 export type GetIncidentsResponse = GetIncidentsResponses[keyof GetIncidentsResponses];
+
+export type SyncIncidentsData = {
+    body?: Blob | File;
+    headers?: {
+        /**
+         * Bearer <token>, e.g. Gitea, Forgejo or curl
+         */
+        Authorization?: string;
+        /**
+         * GitLab webhook secret token
+         */
+        'X-Gitlab-Token'?: string;
+        /**
+         * GitHub webhook signature, the secret is the token
+         */
+        'X-Hub-Signature-256'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/incidents/sync';
+};
+
+export type SyncIncidentsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type SyncIncidentsError = SyncIncidentsErrors[keyof SyncIncidentsErrors];
+
+export type SyncIncidentsResponses = {
+    /**
+     * Accepted
+     */
+    202: SyncIncidentsOutputBody;
+};
+
+export type SyncIncidentsResponse = SyncIncidentsResponses[keyof SyncIncidentsResponses];
 
 export type GetIncidentData = {
     body?: never;

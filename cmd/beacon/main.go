@@ -43,6 +43,7 @@ func main() {
 				Usage:  "Send a test notification to every webhook in the config",
 				Action: testNotify,
 			},
+			incidentCommand(),
 			{
 				Name:    "openapi",
 				Aliases: []string{"o"},
@@ -119,6 +120,11 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
+	inc, err := incidents.New(dataDir, notifier)
+	if err != nil {
+		return err
+	}
+
 	// apply runs on startup and again whenever the config file changes.
 	apply := func(cfg *config.Config) error {
 		if err := notifier.SetWebhooks(cfg.Webhooks); err != nil {
@@ -129,6 +135,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			return err
 		}
 		sched.Schedule(ctx, monitors)
+		inc.SetMonitors(cfg.MonitorNames())
 		return nil
 	}
 	cfg, err := config.Load(path)
@@ -139,11 +146,6 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	go config.Watch(ctx, path, apply)
-
-	inc, err := incidents.New(dataDir)
-	if err != nil {
-		return err
-	}
 	inc.Start(ctx)
 
 	server, err := api.New(q, inc, sched)

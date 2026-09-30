@@ -98,7 +98,7 @@ self.addEventListener('push', (event) => {
 				url: data.url || '/',
 				monitorId: data.monitorId
 			},
-			tag: `monitor-${data.monitorId}`,
+			tag: data.tag || `monitor-${data.monitorId}`,
 			requireInteraction: true,
 			actions: [
 				{
@@ -126,8 +126,10 @@ self.addEventListener('notificationclick', (event) => {
 	async function focusOrOpen() {
 		const tabs = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
 		const tab = tabs.find((client) => new URL(client.url).origin === self.location.origin);
-		if (tab) return tab.focus();
-		return self.clients.openWindow(event.notification.data?.url || '/');
+		const url = event.notification.data?.url || '/';
+		if (!tab) return self.clients.openWindow(url);
+		if (url !== '/') await tab.navigate(url).catch(() => {});
+		return tab.focus();
 	}
 	event.waitUntil(focusOrOpen());
 });

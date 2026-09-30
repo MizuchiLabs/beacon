@@ -3,7 +3,6 @@ import { PersistedState } from 'runed';
 export const timeRanges = [
 	{ label: '24h', value: '86400', title: 'Last 24 hours' },
 	{ label: '7d', value: '604800', title: 'Last 7 days' },
-	{ label: '14d', value: '1209600', title: 'Last 14 days' },
 	{ label: '30d', value: '2592000', title: 'Last 30 days' },
 	{ label: '90d', value: '7776000', title: 'Last 90 days' },
 	{ label: '1y', value: '31536000', title: 'Last year' }
@@ -28,5 +27,8 @@ export const timeRange = {
 	},
 	set current(value: string) {
 		if (isKnownRange(value)) stored.current = value;
+	},
+	get entry() {
+		return timeRanges.find((r) => r.value === this.current) ?? timeRanges[0];
 	}
 };

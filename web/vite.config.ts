@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 import { compression } from 'vite-plugin-compression2';
 
 const proxy = {
-	'^/(api|openapi|docs|schemas)': {
+	'^/(api|openapi|docs|schemas|incidents\\.atom)': {
 		target: 'http://localhost:3000',
 		changeOrigin: true
 	}
