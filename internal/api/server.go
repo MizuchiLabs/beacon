@@ -31,18 +31,13 @@ type Server struct {
 func New(q *db.Queries, inc *incidents.Service, sched *scheduler.Service) (*Server, error) {
 	mux := chi.NewRouter()
 
-	if logx.IsTerminal() {
-		mux.Use(middleware.Logger)
-		mux.Use(middleware.Recoverer)
-	} else {
-		mux.Use(httplog.RequestLogger(slog.Default(), &httplog.Options{
-			RecoverPanics: true,
-			Schema:        httplog.SchemaOTEL,
-			Skip: func(req *http.Request, respStatus int) bool {
-				return respStatus < http.StatusBadRequest && req.URL.Path == "/healthz"
-			},
-		}))
-	}
+	mux.Use(httplog.RequestLogger(slog.Default(), &httplog.Options{
+		RecoverPanics: true,
+		Schema:        httplog.SchemaOTEL.Concise(logx.IsTerminal()),
+		Skip: func(req *http.Request, respStatus int) bool {
+			return respStatus < http.StatusBadRequest && req.URL.Path == "/healthz"
+		},
+	}))
 	mux.Use(cors.Default().Handler)
 	mux.Use(middleware.RequestSize(1 << 20))
 	mux.Use(securityHeaders())
