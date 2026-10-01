@@ -10,7 +10,7 @@ require (
 	github.com/go-chi/httplog/v3 v3.5.0
 	github.com/go-chi/httprate v0.16.0
 	github.com/go-git/go-git/v5 v5.19.2
-	github.com/mizuchilabs/kata v0.1.14
+	github.com/mizuchilabs/kata v0.1.15
 	github.com/mizuchilabs/sqlite-schema-diff v0.2.5
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.12.1
