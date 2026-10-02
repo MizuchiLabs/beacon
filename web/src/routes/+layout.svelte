@@ -13,7 +13,8 @@
 	let { children } = $props();
 </script>
 
-<ModeWatcher />
+<!-- Same values as --background in layout.css. -->
+<ModeWatcher themeColors={{ dark: '#0f0f1a', light: '#f5f5ff' }} />
 <Toaster />
 
 <QueryClientProvider client={queryClient}>

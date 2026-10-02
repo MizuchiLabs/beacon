@@ -1,21 +1,25 @@
 <script lang="ts">
-	import type { Incident, MonitorStats } from '#lib/api/queries.js';
+	import { usePageStatus } from '#lib/hooks/page-status.svelte.js';
 	import { timeRange } from '#lib/range.svelte.js';
-	import { pageStatus, statusMeta } from '#lib/status.js';
 	import { cn } from '#lib/utils.js';
-	import { CheckIcon, CircleHelpIcon, TriangleAlertIcon, WrenchIcon, XIcon } from '@lucide/svelte';
+	import {
+		CheckIcon,
+		CircleHelpIcon,
+		TriangleAlertIcon,
+		WifiOffIcon,
+		WrenchIcon,
+		XIcon
+	} from '@lucide/svelte';
 
 	interface Props {
-		monitors: MonitorStats[];
-		incidents: Incident[];
 		updatedAgo?: string | null;
 		class?: string;
 	}
-	let { monitors, incidents, updatedAgo, class: className }: Props = $props();
+	let { updatedAgo, class: className }: Props = $props();
 
-	const page = $derived(pageStatus(monitors, incidents));
+	const page = usePageStatus();
+	const monitors = $derived(page.monitors);
 	const status = $derived(page.status);
-	const meta = $derived(statusMeta[status]);
 	const avgUptime = $derived.by(() => {
 		const values = monitors.map((m) => m.uptime_pct).filter((v): v is number => v != null);
 		if (values.length === 0) return null;
@@ -36,7 +40,7 @@
 		maintenance: 'bg-chart-2/15',
 		unknown: 'bg-muted'
 	};
-	const Icon = $derived(icons[status]);
+	const Icon = $derived(page.stale ? WifiOffIcon : icons[status]);
 </script>
 
 <div class={cn('flex items-center gap-4 px-1 py-2', className)} role="status">
@@ -44,7 +48,7 @@
 		class={cn(
 			'flex size-12 shrink-0 items-center justify-center rounded-full transition-colors duration-500',
 			rings[status],
-			meta.text,
+			page.meta.text,
 			(status === 'degraded' || status === 'down') &&
 				'animate-status-pulse animation-duration-[1.2s]'
 		)}
@@ -56,13 +60,17 @@
 			{page.phrase}
 		</h1>
 		<p class="text-sm text-muted-foreground">
-			{monitors.length}
-			{monitors.length === 1 ? 'monitor' : 'monitors'}
-			{#if avgUptime !== null}
-				· <span class="tabular-nums">{avgUptime.toFixed(2)}%</span> over {timeRange.entry.label}
-			{/if}
-			{#if updatedAgo}
-				<span class="hidden sm:inline">· updated {updatedAgo}</span>
+			{#if page.stale}
+				Showing the last known state{updatedAgo ? `, updated ${updatedAgo}` : ''}
+			{:else}
+				{monitors.length}
+				{monitors.length === 1 ? 'monitor' : 'monitors'}
+				{#if avgUptime !== null}
+					· <span class="tabular-nums">{avgUptime.toFixed(2)}%</span> over {timeRange.entry.label}
+				{/if}
+				{#if updatedAgo}
+					<span class="hidden sm:inline">· updated {updatedAgo}</span>
+				{/if}
 			{/if}
 		</p>
 	</div>

@@ -6,6 +6,17 @@
 		<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 		<meta name="apple-mobile-web-app-title" content="Beacon" />
 		<link rel="manifest" href="/site.webmanifest" />
+		<!-- ModeWatcher only mounts once the app has loaded, this keeps dark mode from flashing light before that. -->
+		<script>
+			{
+				const mode = localStorage.getItem('mode-watcher-mode') ?? 'system';
+				const light =
+					mode === 'light' ||
+					(mode === 'system' && matchMedia('(prefers-color-scheme: light)').matches);
+				document.documentElement.classList.toggle('dark', !light);
+				document.documentElement.style.colorScheme = light ? 'light' : 'dark';
+			}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { getIncidents, useConfig, useMonitorStats } from '#lib/api/queries.js';
+	import { useConfig } from '#lib/api/queries.js';
 	import Beacon from '#lib/assets/beacon.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import { pageStatus, statusMeta } from '#lib/status.js';
+	import { usePageStatus } from '#lib/hooks/page-status.svelte.js';
 	import { pushNotifications } from '#lib/stores/push.svelte.js';
 	import { cn } from '#lib/utils.js';
 	import { Bell, Moon, Sun } from '@lucide/svelte';
@@ -21,14 +21,11 @@
 	const configQuery = useConfig();
 	const logoURL = $derived(configQuery.data?.logo_url ?? null);
 
-	const statsQuery = useMonitorStats();
-	const incidentsQuery = getIncidents();
-	const monitors = $derived(statsQuery.data ?? []);
-	const meta = $derived(statusMeta[pageStatus(monitors, incidentsQuery.data ?? []).status]);
+	const status = usePageStatus();
 
 	// The favicon doubles as a passive status light for pinned tabs.
 	const faviconHref = $derived.by(() => {
-		if (monitors.length === 0) return '';
+		if (status.monitors.length === 0) return '';
 		const canvas = document.createElement('canvas');
 		canvas.width = 64;
 		canvas.height = 64;
@@ -40,7 +37,9 @@
 		ctx.beginPath();
 		ctx.arc(32, 32, 26, 0, Math.PI * 2);
 		ctx.stroke();
-		ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(meta.token).trim();
+		ctx.fillStyle = getComputedStyle(document.documentElement)
+			.getPropertyValue(status.meta.token)
+			.trim();
 		ctx.beginPath();
 		ctx.arc(32, 32, 12, 0, Math.PI * 2);
 		ctx.fill();
@@ -57,7 +56,7 @@
 
 <SubscribeModal bind:open={showSubscriptionDialog} />
 
-<header class="pointer-events-none sticky z-50 mx-auto mt-4 mb-6 w-full max-w-4xl px-4 sm:px-6">
+<header class="pointer-events-none z-50 mx-auto mt-4 mb-6 w-full max-w-4xl px-4 sm:px-6">
 	<div class="flex items-center justify-between gap-3">
 		<div
 			class="pointer-events-auto flex h-10 min-w-0 items-center rounded-full border bg-background/80 px-1.5 shadow-sm backdrop-blur-md"
@@ -66,7 +65,7 @@
 				{#if logoURL}
 					<img src={logoURL} alt="" class="size-5 shrink-0 rounded-sm object-contain" />
 				{:else}
-					<Beacon class={cn('size-5 transition-colors duration-500', meta.text)} />
+					<Beacon class={cn('size-5 transition-colors duration-500', status.meta.text)} />
 				{/if}
 				{#if configQuery.data?.title}
 					<span class="truncate font-semibold tracking-tight">{configQuery.data.title}</span>

@@ -17,7 +17,7 @@
 	<title>{incidentQuery.data ? `${incidentQuery.data.title} · ${brand}` : brand}</title>
 </svelte:head>
 
-<div class="mx-auto flex w-full flex-col gap-4 p-6 sm:max-w-3xl">
+<div class="mx-auto flex w-full flex-col gap-4 p-6 sm:max-w-4xl">
 	<div>
 		<Button variant="ghost" size="sm" href={resolve('events')}>
 			<ArrowLeftIcon data-icon="inline-start" />

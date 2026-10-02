@@ -6,7 +6,6 @@
 	import * as Alert from '#lib/components/ui/alert/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import * as Card from '#lib/components/ui/card/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import * as Item from '#lib/components/ui/item/index.js';
 	import { Separator } from '#lib/components/ui/separator/index.js';
@@ -25,6 +24,7 @@
 		currentStatus,
 		incidentWindow,
 		intervalText,
+		isUpcoming,
 		latencyTextClass,
 		statusMeta,
 		targetOf,
@@ -48,6 +48,8 @@
 	}
 	let { monitor, open, onOpenChange }: Props = $props();
 
+	let panel = $state<HTMLElement | null>(null);
+
 	const incidentsQuery = getIncidents();
 	const percentilesQuery = useMonitorPercentiles(() => (open ? monitor?.id : undefined));
 
@@ -65,7 +67,6 @@
 			{ label: 'P50', ms: p.p50 },
 			{ label: 'P75', ms: p.p75 },
 			{ label: 'P90', ms: p.p90 },
-			{ label: 'P95', ms: p.p95 },
 			{ label: 'P99', ms: p.p99 }
 		];
 	});
@@ -86,7 +87,15 @@
 </script>
 
 <Sheet.Root {open} {onOpenChange}>
-	<Sheet.Content class="sm:max-w-xl">
+	<!-- Focus goes to the panel. The first control can be the bell, and its tooltip would open over the close button. -->
+	<Sheet.Content
+		bind:ref={panel}
+		class="sm:max-w-xl"
+		onOpenAutoFocus={(event) => {
+			event.preventDefault();
+			panel?.focus();
+		}}
+	>
 		{#if monitor && meta}
 			<Sheet.Header>
 				<div class="flex min-w-0 flex-wrap items-center gap-2 pr-8">
@@ -105,11 +114,13 @@
 								rel="noreferrer"
 								class="flex min-w-0 items-center gap-1 transition-colors hover:text-foreground"
 							>
-								<span class="truncate">{monitor.url}</span>
+								<span class="truncate font-mono">{monitor.url}</span>
 								<ExternalLinkIcon class="size-3 shrink-0" />
 							</a>
 						{:else}
-							<span class="truncate">{monitor.url || targetOf(monitor)}</span>
+							<span class={cn('truncate', monitor.type !== 'push' && 'font-mono')}>
+								{monitor.url || targetOf(monitor)}
+							</span>
 						{/if}
 					</Sheet.Description>
 					<SubscribeBell monitorId={monitor.id} />
@@ -189,7 +200,12 @@
 				<section class="flex flex-col gap-2">
 					<h3 class="text-xs font-medium text-muted-foreground">Uptime</h3>
 
-					<UptimeBar {points} alert={monitor.status === 'down'} marks={incidentMarks} />
+					<UptimeBar
+						{points}
+						interval={monitor.check_interval}
+						alert={monitor.status === 'down'}
+						marks={incidentMarks}
+					/>
 				</section>
 
 				<section class="flex flex-col gap-2">
@@ -207,7 +223,7 @@
 						class="h-44"
 					/>
 					{#if percentiles.length > 0}
-						<dl class="grid grid-cols-5 gap-2 pt-2">
+						<dl class="grid grid-cols-4 gap-2 pt-2">
 							{#each percentiles as row (row.label)}
 								<div class="flex flex-col gap-0.5">
 									<dt class="text-xs text-muted-foreground">{row.label}</dt>
@@ -247,12 +263,14 @@
 												<Item.Title>{incident.title}</Item.Title>
 												<Item.Description>
 													{monthDay.format(new Date(incident.started_at))}
-													· {durationText(incident.started_at, incident.resolved_at)}
+													{#if !isUpcoming(incident)}
+														· {durationText(incident.started_at, incident.resolved_at)}
+													{/if}
 													· {currentStatus(incident).label}
 												</Item.Description>
 											</Item.Content>
 											<Item.Actions>
-												<Badge variant={severity.variant}>
+												<Badge variant={severity.variant} class={severity.class}>
 													<severity.icon data-icon="inline-start" />
 													{severity.label}
 												</Badge>

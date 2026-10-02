@@ -215,21 +215,43 @@ export function formatMs(ms: number | null | undefined): string {
 }
 
 type IncidentBadge = {
-	variant: 'destructive' | 'default' | 'secondary' | 'outline';
+	variant: 'secondary' | 'outline';
 	label: string;
 	icon: Component;
+	class?: string;
 };
 
+// Severity uses the same colors as the monitors. Critical is the only solid one.
 export function incidentSeverity(severity: string | undefined): IncidentBadge {
 	switch (severity) {
 		case 'critical':
-			return { variant: 'destructive', label: 'Critical', icon: CircleAlertIcon };
+			return {
+				variant: 'outline',
+				class: 'border-transparent bg-chart-5 text-background',
+				label: 'Critical',
+				icon: CircleAlertIcon
+			};
 		case 'major':
-			return { variant: 'default', label: 'Major', icon: TriangleAlertIcon };
+			return {
+				variant: 'outline',
+				class: statusMeta.down.badge,
+				label: 'Major',
+				icon: TriangleAlertIcon
+			};
 		case 'minor':
-			return { variant: 'secondary', label: 'Minor', icon: InfoIcon };
+			return {
+				variant: 'outline',
+				class: statusMeta.degraded.badge,
+				label: 'Minor',
+				icon: InfoIcon
+			};
 		case 'maintenance':
-			return { variant: 'outline', label: 'Maintenance', icon: WrenchIcon };
+			return {
+				variant: 'outline',
+				class: statusMeta.maintenance.badge,
+				label: 'Maintenance',
+				icon: WrenchIcon
+			};
 		default:
 			return { variant: 'secondary', label: severity ?? 'Unknown', icon: InfoIcon };
 	}
@@ -240,9 +262,9 @@ export function incidentStatus(status: string | undefined): IncidentBadge {
 		case 'scheduled':
 			return { variant: 'outline', label: 'Scheduled', icon: CalendarClockIcon };
 		case 'investigating':
-			return { variant: 'default', label: 'Investigating', icon: SearchIcon };
+			return { variant: 'secondary', label: 'Investigating', icon: SearchIcon };
 		case 'identified':
-			return { variant: 'default', label: 'Identified', icon: TriangleAlertIcon };
+			return { variant: 'secondary', label: 'Identified', icon: TriangleAlertIcon };
 		case 'monitoring':
 			return { variant: 'secondary', label: 'Monitoring', icon: ActivityIcon };
 		case 'resolved':

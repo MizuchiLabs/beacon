@@ -1,36 +1,39 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { getIncidents, useConfig, useMonitorStats } from '#lib/api/queries.js';
 	import * as Alert from '#lib/components/ui/alert/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import * as InputGroup from '#lib/components/ui/input-group/index.js';
-	import * as Item from '#lib/components/ui/item/index.js';
 	import { Kbd } from '#lib/components/ui/kbd/index.js';
 	import { Separator } from '#lib/components/ui/separator/index.js';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import IncidentRow from '#lib/components/util/IncidentRow.svelte';
 	import MonitorRow from '#lib/components/util/MonitorRow.svelte';
 	import MonitorSheet from '#lib/components/util/MonitorSheet.svelte';
 	import OverallBanner from '#lib/components/util/OverallBanner.svelte';
 	import TimeRange from '#lib/components/util/TimeRange.svelte';
+	import { usePageStatus } from '#lib/hooks/page-status.svelte.js';
 	import { timeRange, timeRanges } from '#lib/range.svelte.js';
 	import {
 		ago,
 		currentStatus,
-		durationText,
 		groupMonitors,
+		incidentLevel,
 		incidentSeverity,
 		isActiveIncident,
 		isUpcoming,
 		statusTitle,
 		targetOf
 	} from '#lib/status.js';
+	import { cn } from '#lib/utils.js';
 	import {
 		ArrowRightIcon,
 		CalendarClockIcon,
 		CheckIcon,
-		CircleCheckIcon,
 		SearchIcon,
 		SearchXIcon
 	} from '@lucide/svelte';
@@ -44,18 +47,25 @@
 	const statsQuery = useMonitorStats();
 	const incidentsQuery = getIncidents();
 	const configQuery = useConfig();
+	const status = usePageStatus();
 
 	const monitors = $derived(statsQuery.data ?? []);
 	const brand = $derived(configQuery.data?.title ?? 'Beacon');
 
-	let sheetOpen = $state(false);
-	let selectedId = $state<number | null>(null);
+	// The open monitor is kept in the url, so a link to it can be shared.
+	const linkedId = Number(page.url.searchParams.get('m')) || null;
+	let selectedId = $state(linkedId);
+	let sheetOpen = $state(linkedId !== null);
 	// Derived from the live query, so the open sheet updates on every refetch.
 	const selected = $derived(monitors.find((m) => m.id === selectedId) ?? null);
 
-	function openMonitor(id: number) {
+	function setSheet(open: boolean, id = selectedId) {
 		selectedId = id;
-		sheetOpen = true;
+		sheetOpen = open;
+		const url = new URL(page.url.href);
+		if (open && id !== null) url.searchParams.set('m', String(id));
+		else url.searchParams.delete('m');
+		goto(url, { state: page.state, shallow: true, replace: true });
 	}
 
 	let filter = $state('');
@@ -124,7 +134,6 @@
 		return statsQuery.dataUpdatedAt ? ago(new Date(statsQuery.dataUpdatedAt)) : null;
 	});
 
-	const monthDay = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 	const whenFormat = new Intl.DateTimeFormat(undefined, {
 		weekday: 'short',
 		month: 'short',
@@ -136,7 +145,9 @@
 </script>
 
 <svelte:window {onkeydown} />
-<svelte:head><title>{statusTitle(monitors, brand)}</title></svelte:head>
+<svelte:head>
+	<title>{status.stale ? `offline · ${brand}` : statusTitle(monitors, brand)}</title>
+</svelte:head>
 
 <div class="mx-auto flex w-full flex-col gap-4 p-6 sm:max-w-4xl">
 	{#if statsQuery.isError && !statsQuery.data}
@@ -161,25 +172,25 @@
 			</Empty.Header>
 		</Empty.Root>
 	{:else}
-		<OverallBanner {monitors} {incidents} {updatedAgo} />
+		<OverallBanner {updatedAgo} />
 
 		{#if activeIncidents.length > 0 || upcoming.length > 0}
 			<div class="flex flex-col gap-2">
 				{#each activeIncidents as incident (incident.id)}
 					{@const severity = incidentSeverity(incident.severity)}
-					{@const status = currentStatus(incident)}
+					{@const stage = currentStatus(incident)}
 					{@const latest = incident.updates?.at(-1)}
 					<a
 						href={resolve('/events/[id]', { id: incident.id })}
 						class="group rounded-2xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
 					>
-						<Alert.Root variant={severity.variant === 'destructive' ? 'destructive' : 'default'}>
+						<Alert.Root variant={incidentLevel(incident) === 'down' ? 'destructive' : 'default'}>
 							<severity.icon />
 							<Alert.Title class="flex flex-wrap items-center">
 								<span class="group-hover:underline">{incident.title}</span>
-								<Badge variant={status.variant} class="ml-2">
-									<status.icon data-icon="inline-start" />
-									{status.label}
+								<Badge variant={stage.variant} class="ml-2">
+									<stage.icon data-icon="inline-start" />
+									{stage.label}
 								</Badge>
 							</Alert.Title>
 							<Alert.Description>
@@ -251,7 +262,12 @@
 		{/if}
 
 		{#each groups as group (group.name)}
-			<section class="flex flex-col gap-2">
+			<section
+				class={cn(
+					'flex flex-col gap-2 transition-[opacity,filter] duration-500',
+					status.stale && 'opacity-50 grayscale'
+				)}
+			>
 				{#if group.name}
 					<h2 class="flex items-center gap-2 px-1 text-sm font-medium text-muted-foreground">
 						{group.name}
@@ -264,7 +280,11 @@
 							<Separator />
 						{/if}
 
-						<MonitorRow {monitor} flash={flashing.has(monitor.id)} onOpen={openMonitor} />
+						<MonitorRow
+							{monitor}
+							flash={flashing.has(monitor.id)}
+							onOpen={(id) => setSheet(true, id)}
+						/>
 					{/each}
 				</div>
 			</section>
@@ -283,7 +303,7 @@
 		{#if incidentsQuery.isSuccess}
 			<section class="flex flex-col gap-2 pt-2">
 				<div class="flex items-center justify-between">
-					<h2 class="text-sm font-medium text-muted-foreground">Past incidents</h2>
+					<h2 class="px-1 text-sm font-medium text-muted-foreground">Past incidents</h2>
 					<Button variant="ghost" size="xs" href={resolve('events')}
 						>View all <ArrowRightIcon data-icon="inline-end" /></Button
 					>
@@ -305,32 +325,7 @@
 							{#if i > 0}
 								<Separator />
 							{/if}
-							{@const severity = incidentSeverity(incident.severity)}
-							<Item.Root size="sm">
-								{#snippet child({ props })}
-									<a href={resolve('/events/[id]', { id: incident.id })} {...props}>
-										<Item.Media variant="icon">
-											<CircleCheckIcon class="text-chart-3" />
-										</Item.Media>
-										<Item.Content class="min-w-0">
-											<Item.Title>{incident.title}</Item.Title>
-											<Item.Description>
-												{monthDay.format(new Date(incident.started_at))}
-												· {durationText(incident.started_at, incident.resolved_at)}
-												{#if incident.affected_monitors?.length}
-													· affects {incident.affected_monitors.join(', ')}
-												{/if}
-											</Item.Description>
-										</Item.Content>
-										<Item.Actions class="shrink-0">
-											<Badge variant={severity.variant}>
-												<severity.icon data-icon="inline-start" />
-												{severity.label}
-											</Badge>
-										</Item.Actions>
-									</a>
-								{/snippet}
-							</Item.Root>
+							<IncidentRow {incident} />
 						{/each}
 					{/if}
 				</div>
@@ -339,4 +334,4 @@
 	{/if}
 </div>
 
-<MonitorSheet monitor={selected} open={sheetOpen} onOpenChange={(v) => (sheetOpen = v)} />
+<MonitorSheet monitor={selected} open={sheetOpen && selected !== null} onOpenChange={setSheet} />

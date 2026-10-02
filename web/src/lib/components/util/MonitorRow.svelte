@@ -54,7 +54,9 @@ while the bar and the bell stay usable on top of it. -->
 					{/if}
 				</Item.Title>
 				<Item.Description>
-					<span class="block truncate">{targetOf(monitor)}</span>
+					<span class={cn('block truncate', monitor.type !== 'push' && 'font-mono')}>
+						{targetOf(monitor)}
+					</span>
 				</Item.Description>
 			</Item.Content>
 		</div>
@@ -62,6 +64,7 @@ while the bar and the bell stay usable on top of it. -->
 		<div class="order-last w-full md:order-0 md:w-auto md:min-w-0 md:flex-1">
 			<UptimeBar
 				points={monitor.data_points ?? []}
+				interval={monitor.check_interval}
 				alert={monitor.status === 'down'}
 				class="relative"
 				onclick={() => onOpen(monitor.id)}

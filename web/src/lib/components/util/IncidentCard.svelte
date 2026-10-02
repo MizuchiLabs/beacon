@@ -27,7 +27,7 @@
 <Card.Root>
 	<Card.Header>
 		<div class="flex flex-wrap items-center gap-2">
-			<Badge variant={severity.variant}>
+			<Badge variant={severity.variant} class={severity.class}>
 				<severity.icon data-icon="inline-start" />
 				{severity.label}
 			</Badge>
