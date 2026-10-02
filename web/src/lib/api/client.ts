@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { QueryClient } from '@tanstack/svelte-query';
 import { client } from './generated/client.gen';
 import { toast } from 'svelte-sonner';

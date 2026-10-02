@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { Spinner } from '$lib/components/ui/spinner';
-	import { Toggle } from '$lib/components/ui/toggle';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { pushNotifications } from '$lib/stores/push.svelte';
+	import { Spinner } from '#lib/components/ui/spinner/index.js';
+	import { Toggle } from '#lib/components/ui/toggle/index.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import { pushNotifications } from '#lib/stores/push.svelte.js';
 	import { BellIcon, BellRingIcon } from '@lucide/svelte';
 
 	interface Props {

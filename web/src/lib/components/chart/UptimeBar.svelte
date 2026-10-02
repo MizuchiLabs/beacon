@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { DataPoint } from '$lib/api/generated/types.gen';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { formatMs } from '$lib/status.js';
-	import { cn } from '$lib/utils.js';
+	import type { DataPoint } from '#lib/api/generated/types.gen.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import { formatMs } from '#lib/status.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		points: DataPoint[];

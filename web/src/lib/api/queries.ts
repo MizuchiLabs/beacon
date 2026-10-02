@@ -6,7 +6,7 @@ import {
 	getMonitorPercentilesOptions,
 	getMonitorsOptions
 } from './generated/@tanstack/svelte-query.gen';
-import { timeRange } from '$lib/range.svelte';
+import { timeRange } from '#lib/range.svelte.js';
 
 export type {
 	ConfigBody,

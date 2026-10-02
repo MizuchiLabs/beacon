@@ -2,7 +2,6 @@ import adapter from '@sveltejs/adapter-static';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
-import { compression } from 'vite-plugin-compression2';
 
 const proxy = {
 	'^/(api|openapi|docs|schemas|incidents\\.atom)': {
@@ -21,8 +20,7 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter({ fallback: 'index.html' })
-		}),
-		compression()
+			adapter: adapter({ fallback: 'index.html', precompress: true })
+		})
 	]
 });

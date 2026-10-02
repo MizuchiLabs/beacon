@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { IncidentUpdate } from '$lib/api/queries';
-	import { incidentStatus, updateDot } from '$lib/status.js';
-	import { cn } from '$lib/utils.js';
+	import type { IncidentUpdate } from '#lib/api/queries.js';
+	import { incidentStatus, updateDot } from '#lib/status.js';
+	import { cn } from '#lib/utils.js';
 
 	interface Props {
 		updates: IncidentUpdate[];

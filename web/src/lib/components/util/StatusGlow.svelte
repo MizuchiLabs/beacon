@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { getIncidents, useMonitorStats } from '$lib/api/queries';
-	import { pageStatus, statusMeta } from '$lib/status.js';
-	import { cn } from '$lib/utils.js';
+	import { getIncidents, useMonitorStats } from '#lib/api/queries.js';
+	import { pageStatus, statusMeta } from '#lib/status.js';
+	import { cn } from '#lib/utils.js';
 
 	const statsQuery = useMonitorStats();
 	const monitors = $derived(statsQuery.data ?? []);

@@ -1,20 +1,20 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { getIncidents, useConfig, useMonitorStats } from '$lib/api/queries';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import * as InputGroup from '$lib/components/ui/input-group';
-	import * as Item from '$lib/components/ui/item';
-	import { Kbd } from '$lib/components/ui/kbd';
-	import { Separator } from '$lib/components/ui/separator';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import MonitorRow from '$lib/components/util/MonitorRow.svelte';
-	import MonitorSheet from '$lib/components/util/MonitorSheet.svelte';
-	import OverallBanner from '$lib/components/util/OverallBanner.svelte';
-	import TimeRange from '$lib/components/util/TimeRange.svelte';
-	import { timeRange, timeRanges } from '$lib/range.svelte';
+	import { getIncidents, useConfig, useMonitorStats } from '#lib/api/queries.js';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import * as InputGroup from '#lib/components/ui/input-group/index.js';
+	import * as Item from '#lib/components/ui/item/index.js';
+	import { Kbd } from '#lib/components/ui/kbd/index.js';
+	import { Separator } from '#lib/components/ui/separator/index.js';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import MonitorRow from '#lib/components/util/MonitorRow.svelte';
+	import MonitorSheet from '#lib/components/util/MonitorSheet.svelte';
+	import OverallBanner from '#lib/components/util/OverallBanner.svelte';
+	import TimeRange from '#lib/components/util/TimeRange.svelte';
+	import { timeRange, timeRanges } from '#lib/range.svelte.js';
 	import {
 		ago,
 		currentStatus,
@@ -25,7 +25,7 @@
 		isUpcoming,
 		statusTitle,
 		targetOf
-	} from '$lib/status.js';
+	} from '#lib/status.js';
 	import {
 		ArrowRightIcon,
 		CalendarClockIcon,
@@ -136,10 +136,7 @@
 </script>
 
 <svelte:window {onkeydown} />
-
-<svelte:head>
-	<title>{statusTitle(monitors, brand)}</title>
-</svelte:head>
+<svelte:head><title>{statusTitle(monitors, brand)}</title></svelte:head>
 
 <div class="mx-auto flex w-full flex-col gap-4 p-6 sm:max-w-4xl">
 	{#if statsQuery.isError && !statsQuery.data}
@@ -266,6 +263,7 @@
 						{#if i > 0}
 							<Separator />
 						{/if}
+
 						<MonitorRow {monitor} flash={flashing.has(monitor.id)} onOpen={openMonitor} />
 					{/each}
 				</div>
@@ -286,10 +284,9 @@
 			<section class="flex flex-col gap-2 pt-2">
 				<div class="flex items-center justify-between">
 					<h2 class="text-sm font-medium text-muted-foreground">Past incidents</h2>
-					<Button variant="ghost" size="xs" href={resolve('/events')}>
-						View all
-						<ArrowRightIcon data-icon="inline-end" />
-					</Button>
+					<Button variant="ghost" size="xs" href={resolve('events')}
+						>View all <ArrowRightIcon data-icon="inline-end" /></Button
+					>
 				</div>
 
 				<div class="flex flex-col overflow-hidden rounded-2xl border bg-card">

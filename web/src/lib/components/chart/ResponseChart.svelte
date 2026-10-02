@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { DataPoint } from '$lib/api/generated/types.gen';
-	import * as Chart from '$lib/components/ui/chart';
-	import { formatMs } from '$lib/status.js';
-	import { cn } from '$lib/utils.js';
+	import type { DataPoint } from '#lib/api/generated/types.gen.js';
+	import * as Chart from '#lib/components/ui/chart/index.js';
+	import { formatMs } from '#lib/status.js';
+	import { cn } from '#lib/utils.js';
 	import { scaleTime } from 'd3-scale';
 	import { AreaChart } from 'layerchart';
 

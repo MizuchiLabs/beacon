@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import { timeRange, timeRanges } from '$lib/range.svelte';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.js';
+	import { timeRange, timeRanges } from '#lib/range.svelte.js';
 </script>
 
 <ToggleGroup.Root

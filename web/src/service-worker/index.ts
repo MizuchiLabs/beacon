@@ -1,16 +1,14 @@
-/// <reference no-default-lib="true"/>
-/// <reference lib="esnext" />
-/// <reference lib="webworker" />
-/// <reference lib="dom" />
-/// <reference types="@sveltejs/kit" />
-
-import { build, files, version } from '$service-worker';
-
-const self = globalThis.self as unknown as ServiceWorkerGlobalScope;
+import { version } from '$app/env';
+import { assets, immutable } from '$app/manifest';
+import { asset } from '$app/paths';
+import { self } from '$app/service-worker';
+import type { AssetPath } from '$app/types';
 
 const CACHE = `cache-${version}`;
 
-const ASSETS = [...build, ...files];
+// Manifest paths are relative to the base path, url.pathname is not.
+// asset() is only typed for static files but build output resolves the same way.
+const ASSETS = [...immutable, ...assets].map((file) => asset(file.path as AssetPath));
 
 self.addEventListener('install', (event) => {
 	async function addFilesToCache() {

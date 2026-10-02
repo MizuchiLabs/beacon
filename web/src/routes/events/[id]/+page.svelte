@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { getIncident, useConfig } from '$lib/api/queries';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import IncidentCard from '$lib/components/util/IncidentCard.svelte';
+	import { getIncident, useConfig } from '#lib/api/queries.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import IncidentCard from '#lib/components/util/IncidentCard.svelte';
 	import { ArrowLeftIcon, SearchXIcon } from '@lucide/svelte';
 
 	const incidentQuery = getIncident(() => page.params.id ?? '');
@@ -19,7 +19,7 @@
 
 <div class="mx-auto flex w-full flex-col gap-4 p-6 sm:max-w-3xl">
 	<div>
-		<Button variant="ghost" size="sm" href={resolve('/events')}>
+		<Button variant="ghost" size="sm" href={resolve('events')}>
 			<ArrowLeftIcon data-icon="inline-start" />
 			All incidents
 		</Button>

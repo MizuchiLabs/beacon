@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import type { Incident } from '$lib/api/queries';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Card from '$lib/components/ui/card';
-	import IncidentTimeline from '$lib/components/util/IncidentTimeline.svelte';
-	import { currentStatus, durationText, incidentSeverity, isUpcoming } from '$lib/status.js';
+	import type { Incident } from '#lib/api/queries.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import IncidentTimeline from '#lib/components/util/IncidentTimeline.svelte';
+	import { currentStatus, durationText, incidentSeverity, isUpcoming } from '#lib/status.js';
 
 	interface Props {
 		incident: Incident;

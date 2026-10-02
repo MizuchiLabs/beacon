@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { getIncidents } from '$lib/api/queries';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import * as Item from '$lib/components/ui/item';
-	import { Separator } from '$lib/components/ui/separator';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import IncidentCard from '$lib/components/util/IncidentCard.svelte';
-	import { durationText, incidentSeverity, isActiveIncident, isUpcoming } from '$lib/status.js';
+	import { getIncidents } from '#lib/api/queries.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import * as Item from '#lib/components/ui/item/index.js';
+	import { Separator } from '#lib/components/ui/separator/index.js';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import IncidentCard from '#lib/components/util/IncidentCard.svelte';
+	import { durationText, incidentSeverity, isActiveIncident, isUpcoming } from '#lib/status.js';
 	import { CheckIcon, ChevronRightIcon, RssIcon } from '@lucide/svelte';
 
 	const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });

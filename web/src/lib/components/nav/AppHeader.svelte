@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { getIncidents, useConfig, useMonitorStats } from '$lib/api/queries';
-	import Beacon from '$lib/assets/beacon.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import { pageStatus, statusMeta } from '$lib/status.js';
-	import { pushNotifications } from '$lib/stores/push.svelte';
-	import { cn } from '$lib/utils.js';
+	import { getIncidents, useConfig, useMonitorStats } from '#lib/api/queries.js';
+	import Beacon from '#lib/assets/beacon.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { pageStatus, statusMeta } from '#lib/status.js';
+	import { pushNotifications } from '#lib/stores/push.svelte.js';
+	import { cn } from '#lib/utils.js';
 	import { Bell, Moon, Sun } from '@lucide/svelte';
 	import { mode, toggleMode } from 'mode-watcher';
 	import { onMount } from 'svelte';

@@ -1,4 +1,4 @@
-import type { Incident, MonitorStats } from '$lib/api/generated/types.gen';
+import type { Incident, MonitorStats } from '#lib/api/generated/types.gen.js';
 
 import type { Component } from 'svelte';
 import {

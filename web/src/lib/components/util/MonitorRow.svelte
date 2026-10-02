@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { MonitorStats } from '$lib/api/queries';
-	import UptimeBar from '$lib/components/chart/UptimeBar.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Item from '$lib/components/ui/item';
-	import SubscribeBell from '$lib/components/util/SubscribeBell.svelte';
-	import { certWarnDays, statusMeta, targetOf, typeLabel, uptimeTextClass } from '$lib/status.js';
-	import { cn } from '$lib/utils.js';
+	import type { MonitorStats } from '#lib/api/queries.js';
+	import UptimeBar from '#lib/components/chart/UptimeBar.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import * as Item from '#lib/components/ui/item/index.js';
+	import SubscribeBell from '#lib/components/util/SubscribeBell.svelte';
+	import { certWarnDays, statusMeta, targetOf, typeLabel, uptimeTextClass } from '#lib/status.js';
+	import { cn } from '#lib/utils.js';
 	import { CalendarClockIcon, ChevronRightIcon } from '@lucide/svelte';
 
 	interface Props {

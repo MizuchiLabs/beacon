@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { Incident, MonitorStats } from '$lib/api/queries';
-	import { timeRange } from '$lib/range.svelte';
-	import { pageStatus, statusMeta } from '$lib/status.js';
-	import { cn } from '$lib/utils.js';
+	import type { Incident, MonitorStats } from '#lib/api/queries.js';
+	import { timeRange } from '#lib/range.svelte.js';
+	import { pageStatus, statusMeta } from '#lib/status.js';
+	import { cn } from '#lib/utils.js';
 	import { CheckIcon, CircleHelpIcon, TriangleAlertIcon, WrenchIcon, XIcon } from '@lucide/svelte';
 
 	interface Props {

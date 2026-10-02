@@ -3,7 +3,7 @@ import {
 	listSubscriptions,
 	subscribeToMonitor,
 	unsubscribeFromMonitor
-} from '$lib/api/generated/sdk.gen';
+} from '#lib/api/generated/sdk.gen.js';
 import { SvelteSet } from 'svelte/reactivity';
 
 class PushNotifications {

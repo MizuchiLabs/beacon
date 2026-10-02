@@ -1,19 +1,19 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { getIncidents, useMonitorPercentiles, type MonitorStats } from '$lib/api/queries';
-	import ResponseChart from '$lib/components/chart/ResponseChart.svelte';
-	import UptimeBar from '$lib/components/chart/UptimeBar.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Empty from '$lib/components/ui/empty';
-	import * as Item from '$lib/components/ui/item';
-	import { Separator } from '$lib/components/ui/separator';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import SubscribeBell from '$lib/components/util/SubscribeBell.svelte';
-	import { timeRange } from '$lib/range.svelte';
-	import { pushNotifications } from '$lib/stores/push.svelte';
+	import { getIncidents, useMonitorPercentiles, type MonitorStats } from '#lib/api/queries.js';
+	import ResponseChart from '#lib/components/chart/ResponseChart.svelte';
+	import UptimeBar from '#lib/components/chart/UptimeBar.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.js';
+	import { Badge } from '#lib/components/ui/badge/index.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Card from '#lib/components/ui/card/index.js';
+	import * as Empty from '#lib/components/ui/empty/index.js';
+	import * as Item from '#lib/components/ui/item/index.js';
+	import { Separator } from '#lib/components/ui/separator/index.js';
+	import * as Sheet from '#lib/components/ui/sheet/index.js';
+	import SubscribeBell from '#lib/components/util/SubscribeBell.svelte';
+	import { timeRange } from '#lib/range.svelte.js';
+	import { pushNotifications } from '#lib/stores/push.svelte.js';
 	import {
 		affectsMonitor,
 		ago,
@@ -30,8 +30,8 @@
 		targetOf,
 		typeLabel,
 		uptimeTextClass
-	} from '$lib/status.js';
-	import { cn } from '$lib/utils.js';
+	} from '#lib/status.js';
+	import { cn } from '#lib/utils.js';
 	import {
 		CircleAlertIcon,
 		ClockIcon,
@@ -188,6 +188,7 @@
 
 				<section class="flex flex-col gap-2">
 					<h3 class="text-xs font-medium text-muted-foreground">Uptime</h3>
+
 					<UptimeBar {points} alert={monitor.status === 'down'} marks={incidentMarks} />
 				</section>
 
@@ -227,7 +228,7 @@
 				<section class="flex flex-col gap-2">
 					<div class="flex items-center justify-between">
 						<h3 class="text-xs font-medium text-muted-foreground">Incidents</h3>
-						<Button variant="ghost" size="xs" href={resolve('/events')}>View all</Button>
+						<Button variant="ghost" size="xs" href={resolve('events')}>View all</Button>
 					</div>
 					{#if incidents.length === 0}
 						<Empty.Root>
