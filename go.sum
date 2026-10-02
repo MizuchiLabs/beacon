@@ -82,8 +82,8 @@ github.com/mattn/go-isatty v0.0.24 h1:tGZZoVgT/KiqK1c8ocVLeDS8BSWMRd47J3Lbz7vsRe
 github.com/mattn/go-isatty v0.0.24/go.mod h1:nMCL3Zebbrt45jsMDgnfIwz6ydEQApk5oEI3HqDio6A=
 github.com/mizuchilabs/kata v0.1.15 h1:elUyxJghTH+Ig25IEbHwSNMm3F4bHJPQOau+2vgs9WM=
 github.com/mizuchilabs/kata v0.1.15/go.mod h1:s24K0qob5pRZAE57lWKnInhl2qGScuWmAOrLh9Zd4Oo=
-github.com/mizuchilabs/sqlite-schema-diff v0.2.5 h1:0kS5Q16pEPRogzn+NgdjTmZffFggzjDaJltIw/zzTag=
-github.com/mizuchilabs/sqlite-schema-diff v0.2.5/go.mod h1:8W8FjeMgi5AKAWFJanvDd4soe4C4x/7jS3CJT+Jmqto=
+github.com/mizuchilabs/sqlite-schema-diff v0.3.0 h1:DE2U6ZvXaw4CtyL3ePPEknK2Rga2xgxeB7xV0Q9KQq8=
+github.com/mizuchilabs/sqlite-schema-diff v0.3.0/go.mod h1:D1K0Jm/Y2tFJzPpQYbv1zdnVYSPjzmGOsG6koo/Gx/4=
 github.com/ncruces/go-strftime v1.0.0 h1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOFAw7w=
 github.com/ncruces/go-strftime v1.0.0/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
 github.com/onsi/gomega v1.34.1 h1:EUMJIKUjM8sKjYbtxQI9A4z2o+rruxnzNvpknOXie6k=
