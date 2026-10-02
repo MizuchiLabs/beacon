@@ -84,6 +84,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	for i, m := range monitors {
 		// Clamp to at least 60s so the data volume stays reasonable
 		interval := max(m.CheckInterval, 60)
+		bad := badSpells(i, start, now)
 		count := 0
 
 		for t := start; t.Before(now); t = t.Add(time.Duration(interval) * time.Second) {
@@ -92,7 +93,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 				MonitorID: m.ID,
 				CheckedAt: t.Unix() - t.Unix()%interval,
 			}
-			params.IsUp, params.StatusCode, params.ResponseTime, params.Error = generateCheck(i)
+			params.IsUp, params.StatusCode, params.ResponseTime, params.Error = generateCheck(params.CheckedAt, bad)
 
 			if err := q.InsertCheck(ctx, params); err != nil {
 				return fmt.Errorf("failed to insert check for %q: %w", m.Url, err)
@@ -106,36 +107,52 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-// generateCheck produces a realistic check result. The profile derived from the
-// monitor index gives each monitor a different reliability and latency behavior.
-func generateCheck(profile int) (up bool, code int64, responseTime int64, errStr *string) {
-	var downChance float64
-	switch profile % 4 {
-	case 0: // Excellent - 99.9% uptime
-		downChance = 0.001
-	case 1: // Good - 99.5% uptime
-		downChance = 0.005
-	case 2: // Moderate - 98% uptime
-		downChance = 0.02
-	case 3: // Problematic - 95% uptime
-		downChance = 0.05
-	}
+// spell is a stretch of time where a monitor is down or slow.
+type spell struct {
+	from, to int64
+	slow     bool
+}
 
-	if rand.Float64() < downChance { //nolint:gosec // synthetic seed data
-		msg := "connection timeout"
-		return false, 0, 0, &msg
+// badSpells picks the rough patches of one monitor. Real outages come in runs,
+// a coin flip per check would sprinkle failures evenly over the whole history.
+// The profile derived from the monitor index gives each monitor a different reliability.
+func badSpells(profile int, start, end time.Time) []spell {
+	perWeek := []float64{0, 0.5, 2, 4}[profile%4]
+	weeks := end.Sub(start).Hours() / (7 * 24)
+
+	spells := make([]spell, int(perWeek*weeks+rand.Float64())) //nolint:gosec // synthetic seed data
+	for i := range spells {
+		from := start.Unix() + rand.Int64N(end.Unix()-start.Unix()) //nolint:gosec // synthetic seed data
+		minutes := rand.Int64N(40) + 3                              //nolint:gosec // synthetic seed data
+		slow := rand.IntN(2) == 0                                   //nolint:gosec // synthetic seed data
+		if slow {
+			minutes *= 2
+		}
+		spells[i] = spell{from: from, to: from + minutes*60, slow: slow}
+	}
+	return spells
+}
+
+// generateCheck produces a realistic check result for a check at ts.
+func generateCheck(ts int64, bad []spell) (up bool, code int64, responseTime int64, errStr *string) {
+	for _, s := range bad {
+		if ts < s.from || ts >= s.to {
+			continue
+		}
+		if s.slow {
+			return true, 200, int64(rand.IntN(700) + 600), nil //nolint:gosec // synthetic seed data
+		}
+		return false, 0, 0, new("connection timeout")
 	}
 
 	latency := rand.Float64() //nolint:gosec // synthetic seed data
 	switch {
 	case latency < 0.7: // 70% fast
 		responseTime = int64(rand.IntN(80) + 20) //nolint:gosec // synthetic seed data
-	case latency < 0.9: // 20% moderate
+	case latency < 0.95: // 25% moderate
 		responseTime = int64(rand.IntN(150) + 100) //nolint:gosec // synthetic seed data
-	case latency < 0.98: // 8% slow
-		responseTime = int64(rand.IntN(300) + 250) //nolint:gosec // synthetic seed data
-	default: // 2% very slow
-		responseTime = int64(rand.IntN(500) + 500) //nolint:gosec // synthetic seed data
+	default: // 5% slow, still under the default degraded threshold
+		responseTime = int64(rand.IntN(200) + 250) //nolint:gosec // synthetic seed data
 	}
 
 	return true, 200, responseTime, nil
