@@ -1,14 +1,30 @@
 <p align="center">
-<img src="./.github/logo.svg" width="80">
-<br><br>
-<img alt="GitHub Tag" src="https://img.shields.io/github/v/tag/MizuchiLabs/beacon?label=Version">
-<img alt="GitHub License" src="https://img.shields.io/github/license/MizuchiLabs/beacon">
-<img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues/MizuchiLabs/beacon">
+  <img src="./.github/logo.svg" width="80" alt="">
 </p>
 
-# Beacon
+<h1 align="center">Beacon</h1>
 
-A lightweight, self-hosted uptime monitoring solution that keeps track of your websites and services.
+<p align="center">
+  A lightweight, self-hosted uptime monitoring solution that keeps track of your websites and services.
+</p>
+
+<p align="center">
+  <img alt="GitHub Tag" src="https://img.shields.io/github/v/tag/MizuchiLabs/beacon?label=Version">
+  <img alt="GitHub License" src="https://img.shields.io/github/license/MizuchiLabs/beacon">
+  <img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues/MizuchiLabs/beacon">
+</p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./.github/screenshots/dashboard-dark.png">
+  <img alt="Beacon dashboard with all systems operational" src="./.github/screenshots/dashboard-light.png">
+</picture>
+
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="#incidents">Incidents</a> ·
+  <a href="#environment-variables">Environment</a>
+</p>
 
 ## Features
 
@@ -35,11 +51,44 @@ docker run -d \
    ghcr.io/mizuchilabs/beacon:latest
 ```
 
+### Using Docker Compose
+
+```yaml
+services:
+  beacon:
+    image: ghcr.io/mizuchilabs/beacon:latest
+    container_name: beacon
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+      - ./config.yaml:/config.yaml:ro
+    environment:
+      - BEACON_DATA_DIR=/data
+      - BEACON_CONFIG=/config.yaml
+      - BEACON_TITLE=My Status Page
+      - TZ=America/New_York
+    restart: unless-stopped
+```
+
 ### Using Binary
 
 ```bash
 beacon --config config.yaml
 ```
+
+## Screenshots
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./.github/screenshots/monitor-dark.png">
+    <img alt="Monitor details with response times and percentiles" src="./.github/screenshots/monitor-light.png" width="49%">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./.github/screenshots/incidents-dark.png">
+    <img alt="Incident history with upcoming maintenance" src="./.github/screenshots/incidents-light.png" width="49%">
+  </picture>
+</p>
 
 ## Configuration
 
@@ -194,26 +243,6 @@ Only set this when the proxy actually sets the matching header, otherwise
 clients can spoof their IP and dodge the rate limit. Header modes also assume
 the port is not reachable without going through the proxy.
 
-## Docker Compose Example
-
-```yaml
-services:
-  beacon:
-    image: ghcr.io/mizuchilabs/beacon:latest
-    container_name: beacon
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./data:/data
-      - ./config.yaml:/config.yaml:ro
-    environment:
-      - BEACON_DATA_DIR=/data
-      - BEACON_CONFIG=/config.yaml
-      - BEACON_TITLE=My Status Page
-      - TZ=America/New_York
-    restart: unless-stopped
-```
-
 ## Incidents
 
 Incidents are YAML files in `data/incidents` (inside `BEACON_DATA_DIR`). They
@@ -300,11 +329,6 @@ at `/incidents.atom`.
 ## Keyboard shortcuts
 
 `1` to `5` switch the time range, `/` filters the monitors.
-
-## Screenshots
-
-![Dashboard](./.github/screenshots/dashboard.png)
-![Incidents](./.github/screenshots/incidents.png)
 
 ## License
 
