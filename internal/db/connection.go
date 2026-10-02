@@ -6,11 +6,11 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
 	"github.com/mizuchilabs/sqlite-schema-diff/pkg/diff"
-	"github.com/mizuchilabs/sqlite-schema-diff/pkg/parser"
 )
 
 //go:embed schemas/*.sql
@@ -68,6 +68,10 @@ func Open(ctx context.Context, dataDir string) (*Queries, error) {
 // migrate applies the embedded schema. A backup is only written when a path is
 // given and the schema actually changes.
 func migrate(ctx context.Context, db *sql.DB, backupPath string) error {
-	parser.SetBaseFS(schemaFS)
-	return diff.Apply(ctx, db, "schemas", diff.ApplyOptions{BackupPath: backupPath})
+	fsys, err := fs.Sub(schemaFS, "schemas")
+	if err != nil {
+		return err
+	}
+	_, err = diff.Apply(ctx, db, fsys, diff.ApplyOptions{BackupPath: backupPath})
+	return err
 }
