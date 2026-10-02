@@ -201,12 +201,12 @@ export function groupMonitors(monitors: MonitorStats[]): MonitorGroup[] {
 		.map(([name, list]) => ({ name, monitors: list }));
 }
 
-// Tab title that reads like a status light, e.g. "🔴 2 down · Beacon".
+// Tab title that names the trouble, e.g. "2 down · Beacon". The favicon has the color.
 export function statusTitle(monitors: MonitorStats[], brand: string): string {
 	const down = monitors.filter((m) => m.status === 'down').length;
-	if (down > 0) return `🔴 ${down} down · ${brand}`;
+	if (down > 0) return `${down} down · ${brand}`;
 	const degraded = monitors.filter((m) => m.status === 'degraded').length;
-	if (degraded > 0) return `🟡 ${degraded} degraded · ${brand}`;
+	if (degraded > 0) return `${degraded} degraded · ${brand}`;
 	return brand;
 }
 

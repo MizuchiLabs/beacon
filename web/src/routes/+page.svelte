@@ -23,8 +23,6 @@
 		incidentSeverity,
 		isActiveIncident,
 		isUpcoming,
-		pageStatus,
-		statusMeta,
 		statusTitle,
 		targetOf
 	} from '$lib/status.js';
@@ -126,24 +124,6 @@
 		return statsQuery.dataUpdatedAt ? ago(new Date(statsQuery.dataUpdatedAt)) : null;
 	});
 
-	// The favicon doubles as a passive status light for pinned tabs.
-	let faviconHref = $state('');
-	$effect(() => {
-		if (monitors.length === 0) return;
-		const style = getComputedStyle(document.documentElement);
-		const token = statusMeta[pageStatus(monitors, incidents).status].token;
-		const canvas = document.createElement('canvas');
-		canvas.width = 64;
-		canvas.height = 64;
-		const ctx = canvas.getContext('2d');
-		if (!ctx) return;
-		ctx.fillStyle = style.getPropertyValue(token).trim();
-		ctx.beginPath();
-		ctx.arc(32, 32, 26, 0, Math.PI * 2);
-		ctx.fill();
-		faviconHref = canvas.toDataURL('image/png');
-	});
-
 	const monthDay = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 	const whenFormat = new Intl.DateTimeFormat(undefined, {
 		weekday: 'short',
@@ -159,9 +139,6 @@
 
 <svelte:head>
 	<title>{statusTitle(monitors, brand)}</title>
-	{#if faviconHref}
-		<link rel="icon" type="image/png" href={faviconHref} />
-	{/if}
 </svelte:head>
 
 <div class="mx-auto flex w-full flex-col gap-4 p-6 sm:max-w-4xl">

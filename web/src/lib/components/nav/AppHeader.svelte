@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { useConfig } from '$lib/api/queries';
+	import { getIncidents, useConfig, useMonitorStats } from '$lib/api/queries';
 	import Beacon from '$lib/assets/beacon.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
+	import { pageStatus, statusMeta } from '$lib/status.js';
 	import { pushNotifications } from '$lib/stores/push.svelte';
 	import { cn } from '$lib/utils.js';
 	import { Bell, Moon, Sun } from '@lucide/svelte';
@@ -18,11 +19,41 @@
 	});
 
 	const configQuery = useConfig();
-	const brand = $derived(configQuery.data?.title ?? 'Beacon');
 	const logoURL = $derived(configQuery.data?.logo_url ?? null);
+
+	const statsQuery = useMonitorStats();
+	const incidentsQuery = getIncidents();
+	const monitors = $derived(statsQuery.data ?? []);
+	const meta = $derived(statusMeta[pageStatus(monitors, incidentsQuery.data ?? []).status]);
+
+	// The favicon doubles as a passive status light for pinned tabs.
+	const faviconHref = $derived.by(() => {
+		if (monitors.length === 0) return '';
+		const canvas = document.createElement('canvas');
+		canvas.width = 64;
+		canvas.height = 64;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return '';
+		// Same shapes as favicon.svg, only the dot color changes.
+		ctx.strokeStyle = '#8a5cf0';
+		ctx.lineWidth = 12;
+		ctx.beginPath();
+		ctx.arc(32, 32, 26, 0, Math.PI * 2);
+		ctx.stroke();
+		ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(meta.token).trim();
+		ctx.beginPath();
+		ctx.arc(32, 32, 12, 0, Math.PI * 2);
+		ctx.fill();
+		return canvas.toDataURL('image/png');
+	});
 
 	const subscribedCount = $derived(pushNotifications.subscribed.size);
 </script>
+
+<!-- The only icon link on the page. With several, browsers pick by type and the live one loses. -->
+<svelte:head>
+	<link rel="icon" href={faviconHref || '/favicon.svg'} />
+</svelte:head>
 
 <SubscribeModal bind:open={showSubscriptionDialog} />
 
@@ -35,9 +66,11 @@
 				{#if logoURL}
 					<img src={logoURL} alt="" class="size-5 shrink-0 rounded-sm object-contain" />
 				{:else}
-					<Beacon class="size-5" />
+					<Beacon class={cn('size-5 transition-colors duration-500', meta.text)} />
 				{/if}
-				<span class="truncate font-semibold tracking-tight">{brand}</span>
+				{#if configQuery.data?.title}
+					<span class="truncate font-semibold tracking-tight">{configQuery.data.title}</span>
+				{/if}
 			</Button>
 		</div>
 
