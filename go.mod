@@ -8,7 +8,7 @@ require (
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-chi/httplog/v3 v3.5.0
-	github.com/go-chi/httprate v0.16.0
+	github.com/go-chi/httprate v0.16.1
 	github.com/go-git/go-git/v5 v5.19.3
 	github.com/mizuchilabs/kata v0.1.15
 	github.com/mizuchilabs/sqlite-schema-diff v0.3.1
