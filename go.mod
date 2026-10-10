@@ -1,6 +1,6 @@
 module github.com/mizuchilabs/beacon
 
-go 1.27.0
+go 1.27.2
 
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
@@ -17,14 +17,14 @@ require (
 	github.com/unrolled/secure v1.17.0
 	github.com/urfave/cli/v3 v3.14.0
 	github.com/vearutop/statigz v1.5.0
-	golang.org/x/net v0.59.0
+	golang.org/x/net v0.61.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.60.1
 )
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
-	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/Microsoft/go-winio v0.6.3 // indirect
 	github.com/ProtonMail/go-crypto v1.5.2 // indirect
 	github.com/andybalholm/brotli v1.2.6 // indirect
 	github.com/cloudflare/circl v1.6.5 // indirect
@@ -50,8 +50,8 @@ require (
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/crypto v0.57.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	modernc.org/libc v1.77.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
