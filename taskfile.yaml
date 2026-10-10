@@ -47,6 +47,8 @@ tasks:
 
   backend:
     desc: Run backend
+    env:
+      BEACON_DEV_UI: http://localhost:5173
     cmds:
       - go run ./cmd/beacon
 

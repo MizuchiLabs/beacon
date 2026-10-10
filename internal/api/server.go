@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -35,7 +38,11 @@ func New(q *db.Queries, inc *incidents.Service, sched *scheduler.Service) (*Serv
 		RecoverPanics: true,
 		Schema:        httplog.SchemaOTEL.Concise(logx.IsTerminal()),
 		Skip: func(req *http.Request, respStatus int) bool {
-			return respStatus < http.StatusBadRequest && req.URL.Path == "/healthz"
+			if respStatus >= http.StatusBadRequest {
+				return false
+			}
+			p := req.URL.Path
+			return p == "/healthz" || !strings.HasPrefix(p, "/api/")
 		},
 	}))
 	mux.Use(cors.Default().Handler)
@@ -87,10 +94,16 @@ func (s *Server) Start(ctx context.Context, port string) error {
 		MaxHeaderBytes:    8192, // 8KB
 	}
 
+	var lc net.ListenConfig
+	ln, err := lc.Listen(ctx, "tcp", server.Addr)
+	if err != nil {
+		return fmt.Errorf("listen %s: %w", server.Addr, err)
+	}
+	slog.Info("server listening", "url", displayURL(ln.Addr()), "bind_address", ln.Addr().String())
+
 	serverErr := make(chan error, 1)
 	go func() {
-		slog.Info("Server listening on", "port", port)
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := server.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErr <- err
 		}
 	}()
@@ -106,4 +119,16 @@ func (s *Server) Start(ctx context.Context, port string) error {
 	case err := <-serverErr:
 		return fmt.Errorf("server error: %w", err)
 	}
+}
+
+func displayURL(a net.Addr) string {
+	tcp, ok := a.(*net.TCPAddr)
+	if !ok {
+		return ""
+	}
+	host := tcp.IP.String()
+	if tcp.IP.IsUnspecified() {
+		host = "localhost"
+	}
+	return "http://" + net.JoinHostPort(host, strconv.Itoa(tcp.Port))
 }

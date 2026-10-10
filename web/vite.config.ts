@@ -1,18 +1,23 @@
 import adapter from '@sveltejs/adapter-static';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 
-const proxy = {
-	'^/(api|openapi|docs|schemas|incidents\\.atom)': {
-		target: 'http://localhost:3000',
-		changeOrigin: true
-	}
-};
+function goServerUrl(): Plugin {
+	const port = process.env.BEACON_PORT || '3000';
+	const url = `http://localhost:${port}`;
+	return {
+		name: 'go-server-url',
+		configureServer(server) {
+			server.printUrls = () => server.config.logger.info(`  ➜  Dashboard: ${url}`);
+		}
+	};
+}
+
 export default defineConfig({
-	preview: { proxy },
-	server: { proxy },
+	server: { port: 5173, strictPort: true },
 	plugins: [
+		goServerUrl(),
 		tailwindcss(),
 		sveltekit({
 			compilerOptions: {

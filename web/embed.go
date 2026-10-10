@@ -6,6 +6,9 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"os"
 	"path"
 	"strings"
 
@@ -20,6 +23,9 @@ var StaticFS embed.FS
 
 // Handler serves the embedded SPA.
 func Handler() http.Handler {
+	if dev := os.Getenv("BEACON_DEV_UI"); dev != "" {
+		return devProxy(dev)
+	}
 	pinMimeTypes()
 	files := statigz.FileServer(StaticFS, brotli.AddEncoding, statigz.FSPrefix("build"))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -35,6 +41,22 @@ func Handler() http.Handler {
 		w.Header().Set("Cache-Control", cachePolicy(p))
 		files.ServeHTTP(w, r)
 	})
+}
+
+func devProxy(target string) http.Handler {
+	u, err := url.Parse(target)
+	if err != nil || u.Host == "" {
+		panic("BEACON_DEV_UI is not a url: " + target)
+	}
+	return &httputil.ReverseProxy{
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetURL(u)
+			r.SetXForwarded()
+		},
+		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
+			http.Error(w, "No Vite at "+target+", run pnpm dev in web. "+err.Error(), http.StatusBadGateway)
+		},
+	}
 }
 
 // pinMimeTypes keeps content types host independent.
