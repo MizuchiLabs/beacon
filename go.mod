@@ -6,7 +6,7 @@ require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/danielgtaylor/huma/v2 v2.39.1
-	github.com/go-chi/chi/v5 v5.4.0
+	github.com/go-chi/chi/v5 v5.5.0
 	github.com/go-chi/httplog/v3 v3.5.0
 	github.com/go-chi/httprate v0.16.1
 	github.com/go-git/go-git/v5 v5.19.3
