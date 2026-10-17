@@ -3,7 +3,6 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { getIncidents, useConfig, useMonitorStats } from '#lib/api/queries.js';
-	import * as Alert from '#lib/components/ui/alert/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
@@ -11,6 +10,8 @@
 	import { Kbd } from '#lib/components/ui/kbd/index.js';
 	import { Separator } from '#lib/components/ui/separator/index.js';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.js';
+	import HeadsUp from '#lib/components/util/HeadsUp.svelte';
 	import IncidentRow from '#lib/components/util/IncidentRow.svelte';
 	import MonitorRow from '#lib/components/util/MonitorRow.svelte';
 	import MonitorSheet from '#lib/components/util/MonitorSheet.svelte';
@@ -18,22 +19,13 @@
 	import TimeRange from '#lib/components/util/TimeRange.svelte';
 	import { usePageStatus } from '#lib/hooks/page-status.svelte.js';
 	import { timeRange, timeRanges } from '#lib/range.svelte.js';
-	import {
-		ago,
-		currentStatus,
-		groupMonitors,
-		incidentLevel,
-		incidentSeverity,
-		isActiveIncident,
-		isUpcoming,
-		statusTitle,
-		targetOf
-	} from '#lib/status.js';
+	import { ago, groupMonitors, statusTitle, targetOf } from '#lib/status.js';
 	import { cn } from '#lib/utils.js';
 	import {
 		ArrowRightIcon,
-		CalendarClockIcon,
 		CheckIcon,
+		LayoutGridIcon,
+		ListIcon,
 		SearchIcon,
 		SearchXIcon
 	} from '@lucide/svelte';
@@ -113,14 +105,15 @@
 			filterInput.focus();
 			return;
 		}
+		if (event.key === 'w') {
+			goto(resolve('/wall'));
+			return;
+		}
 		const range = timeRanges[Number(event.key) - 1];
 		if (range) timeRange.current = range.value;
 	}
 
 	const incidents = $derived(incidentsQuery.data ?? []);
-	const activeIncidents = $derived(incidents.filter(isActiveIncident));
-	// Soonest first, the API sorts newest first.
-	const upcoming = $derived(incidents.filter(isUpcoming).toReversed());
 	const pastIncidents = $derived.by(() => {
 		const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
 		return incidents
@@ -133,15 +126,6 @@
 		void clock.counter;
 		return statsQuery.dataUpdatedAt ? ago(new Date(statsQuery.dataUpdatedAt)) : null;
 	});
-
-	const whenFormat = new Intl.DateTimeFormat(undefined, {
-		weekday: 'short',
-		month: 'short',
-		day: 'numeric',
-		hour: 'numeric',
-		minute: '2-digit'
-	});
-	const timeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
 </script>
 
 <svelte:window {onkeydown} />
@@ -172,94 +156,57 @@
 			</Empty.Header>
 		</Empty.Root>
 	{:else}
-		<OverallBanner {updatedAgo} />
+		<OverallBanner {updatedAgo} onOpen={(id) => setSheet(true, id)} />
 
-		{#if activeIncidents.length > 0 || upcoming.length > 0}
-			<div class="flex flex-col gap-2">
-				{#each activeIncidents as incident (incident.id)}
-					{@const severity = incidentSeverity(incident.severity)}
-					{@const stage = currentStatus(incident)}
-					{@const latest = incident.updates?.at(-1)}
-					<a
-						href={resolve('/events/[id]', { id: incident.id })}
-						class="group rounded-2xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-					>
-						<Alert.Root variant={incidentLevel(incident) === 'down' ? 'destructive' : 'default'}>
-							<severity.icon />
-							<Alert.Title class="flex flex-wrap items-center">
-								<span class="group-hover:underline">{incident.title}</span>
-								<Badge variant={stage.variant} class="ml-2">
-									<stage.icon data-icon="inline-start" />
-									{stage.label}
-								</Badge>
-							</Alert.Title>
-							<Alert.Description>
-								{latest?.message ?? incident.description}
-								{#if latest}
-									· {ago(new Date(latest.created_at))}
-								{/if}
-								{#if incident.affected_monitors?.length}
-									· affects {incident.affected_monitors.join(', ')}
-								{/if}
-							</Alert.Description>
-						</Alert.Root>
-					</a>
-				{/each}
-				{#each upcoming as incident (incident.id)}
-					<a
-						href={resolve('/events/[id]', { id: incident.id })}
-						class="group rounded-2xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-					>
-						<Alert.Root>
-							<CalendarClockIcon />
-							<Alert.Title>
-								<span class="group-hover:underline">{incident.title}</span>
-							</Alert.Title>
-							<Alert.Description>
-								Scheduled for {whenFormat.format(new Date(incident.started_at))}
-								{#if incident.ends_at}
-									to {timeFormat.format(new Date(incident.ends_at))}
-								{/if}
-								{#if incident.affected_monitors?.length}
-									· affects {incident.affected_monitors.join(', ')}
-								{/if}
-							</Alert.Description>
-						</Alert.Root>
-					</a>
-				{/each}
-			</div>
-		{/if}
+		<HeadsUp {monitors} {incidents} onOpen={(id) => setSheet(true, id)} />
 
 		<div class="flex flex-wrap items-center justify-between gap-2 pt-2">
-			<h2 class="px-1 text-sm font-medium text-muted-foreground">
-				Uptime · {timeRange.entry.title.toLowerCase()}
-			</h2>
-			<TimeRange />
+			{#if showFilter}
+				<InputGroup.Root class="max-w-sm flex-1 basis-60">
+					<InputGroup.Input
+						bind:ref={filterInput}
+						bind:value={filter}
+						type="search"
+						placeholder="Filter by name, group or host"
+						aria-label="Filter monitors"
+						onkeydown={(event) => {
+							if (event.key === 'Escape') {
+								filter = '';
+								filterInput?.blur();
+							}
+						}}
+					/>
+					<InputGroup.Addon>
+						<SearchIcon />
+					</InputGroup.Addon>
+					<InputGroup.Addon align="inline-end">
+						<Kbd>/</Kbd>
+					</InputGroup.Addon>
+				</InputGroup.Root>
+			{:else}
+				<h2 class="px-1 text-sm font-medium text-muted-foreground">
+					Uptime · {timeRange.entry.title.toLowerCase()}
+				</h2>
+			{/if}
+			<div class="flex flex-wrap gap-2">
+				<TimeRange />
+				<ToggleGroup.Root
+					type="single"
+					size="sm"
+					spacing={0.5}
+					variant="segmented"
+					bind:value={() => 'list', (v) => v === 'wall' && goto(resolve('/wall'))}
+					aria-label="Layout"
+				>
+					<ToggleGroup.Item value="list" aria-label="List" title="List">
+						<ListIcon />
+					</ToggleGroup.Item>
+					<ToggleGroup.Item value="wall" aria-label="Wall mode" title="Wall mode (W)">
+						<LayoutGridIcon />
+					</ToggleGroup.Item>
+				</ToggleGroup.Root>
+			</div>
 		</div>
-
-		{#if showFilter}
-			<InputGroup.Root>
-				<InputGroup.Input
-					bind:ref={filterInput}
-					bind:value={filter}
-					type="search"
-					placeholder="Filter monitors"
-					aria-label="Filter monitors"
-					onkeydown={(event) => {
-						if (event.key === 'Escape') {
-							filter = '';
-							filterInput?.blur();
-						}
-					}}
-				/>
-				<InputGroup.Addon>
-					<SearchIcon />
-				</InputGroup.Addon>
-				<InputGroup.Addon align="inline-end">
-					<Kbd>/</Kbd>
-				</InputGroup.Addon>
-			</InputGroup.Root>
-		{/if}
 
 		{#each groups as group (group.name)}
 			<section

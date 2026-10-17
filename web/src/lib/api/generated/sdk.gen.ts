@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetBadgeData, GetBadgeErrors, GetBadgeResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetIncidentData, GetIncidentErrors, GetIncidentResponses, GetIncidentsData, GetIncidentsErrors, GetIncidentsResponses, GetMonitorPercentilesData, GetMonitorPercentilesErrors, GetMonitorPercentilesResponses, GetMonitorsData, GetMonitorsErrors, GetMonitorsResponses, GetVapidPublicKeyData, GetVapidPublicKeyErrors, GetVapidPublicKeyResponses, HeartbeatGetData, HeartbeatGetErrors, HeartbeatGetResponses, HeartbeatPostData, HeartbeatPostErrors, HeartbeatPostResponses, ListSubscriptionsData, ListSubscriptionsErrors, ListSubscriptionsResponses, SubscribeToMonitorData, SubscribeToMonitorErrors, SubscribeToMonitorResponses, SyncIncidentsData, SyncIncidentsErrors, SyncIncidentsResponses, UnsubscribeFromMonitorData, UnsubscribeFromMonitorErrors, UnsubscribeFromMonitorResponses } from './types.gen';
+import type { GetBadgeData, GetBadgeErrors, GetBadgeResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetIncidentData, GetIncidentErrors, GetIncidentResponses, GetIncidentsData, GetIncidentsErrors, GetIncidentsResponses, GetMonitorChecksData, GetMonitorChecksErrors, GetMonitorChecksResponses, GetMonitorPercentilesData, GetMonitorPercentilesErrors, GetMonitorPercentilesResponses, GetMonitorsData, GetMonitorsErrors, GetMonitorsResponses, GetVapidPublicKeyData, GetVapidPublicKeyErrors, GetVapidPublicKeyResponses, HeartbeatGetData, HeartbeatGetErrors, HeartbeatGetResponses, HeartbeatPostData, HeartbeatPostErrors, HeartbeatPostResponses, ListSubscriptionsData, ListSubscriptionsErrors, ListSubscriptionsResponses, SubscribeToMonitorData, SubscribeToMonitorErrors, SubscribeToMonitorResponses, SyncIncidentsData, SyncIncidentsErrors, SyncIncidentsResponses, UnsubscribeFromMonitorData, UnsubscribeFromMonitorErrors, UnsubscribeFromMonitorResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -63,6 +63,13 @@ export const getIncident = <ThrowOnError extends boolean = false>(options: Optio
  * Aggregated uptime and response time stats per monitor over the requested window.
  */
 export const getMonitors = <ThrowOnError extends boolean = false>(options?: Options<GetMonitorsData, ThrowOnError>): RequestResult<GetMonitorsResponses, GetMonitorsErrors, ThrowOnError> => (options?.client ?? client).get<GetMonitorsResponses, GetMonitorsErrors, ThrowOnError>({ url: '/api/monitors', ...options });
+
+/**
+ * Get recent checks
+ *
+ * The latest raw checks, newest first. Raw checks only go back as far as BEACON_RETENTION_DAYS.
+ */
+export const getMonitorChecks = <ThrowOnError extends boolean = false>(options: Options<GetMonitorChecksData, ThrowOnError>): RequestResult<GetMonitorChecksResponses, GetMonitorChecksErrors, ThrowOnError> => (options.client ?? client).get<GetMonitorChecksResponses, GetMonitorChecksErrors, ThrowOnError>({ url: '/api/monitors/{id}/checks', ...options });
 
 /**
  * Get response time percentiles

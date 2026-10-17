@@ -4,6 +4,20 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type CheckResult = {
+    checked_at: string;
+    error: string | null;
+    is_up: boolean;
+    /**
+     * Response time in ms
+     */
+    response_time: number;
+    /**
+     * HTTP status code, zero for other check types
+     */
+    status_code: number;
+};
+
 export type ConfigBody = {
     /**
      * URL of a custom logo image shown in the header
@@ -131,18 +145,30 @@ export type MonitorStats = {
      */
     degraded_threshold: number;
     /**
+     * First failed check of the current outage, only while down
+     */
+    down_since?: string;
+    /**
      * Group the monitor is shown under, empty for none
      */
     group: string;
     id: number;
     /**
-     * Whether certificate expiry is ignored for status and warnings
+     * Whether certificate expiry warnings are turned off
      */
     ignore_cert_expiry: boolean;
     /**
      * Timestamp of the latest check
      */
     last_checked_at?: string;
+    /**
+     * Error of the latest check, only while down
+     */
+    last_error?: string;
+    /**
+     * Response time of the latest check in ms, null while down
+     */
+    last_response_time: number | null;
     name: string;
     /**
      * Status of the latest check, unknown when the monitor has gone quiet
@@ -420,6 +446,45 @@ export type GetMonitorsResponses = {
 };
 
 export type GetMonitorsResponse = GetMonitorsResponses[keyof GetMonitorsResponses];
+
+export type GetMonitorChecksData = {
+    body?: never;
+    path: {
+        /**
+         * Monitor ID
+         */
+        id: number;
+    };
+    query?: {
+        /**
+         * Only return failed checks
+         */
+        failed?: boolean;
+        /**
+         * How many of the latest checks to return
+         */
+        limit?: number;
+    };
+    url: '/api/monitors/{id}/checks';
+};
+
+export type GetMonitorChecksErrors = {
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetMonitorChecksError = GetMonitorChecksErrors[keyof GetMonitorChecksErrors];
+
+export type GetMonitorChecksResponses = {
+    /**
+     * OK
+     */
+    200: Array<CheckResult> | null;
+};
+
+export type GetMonitorChecksResponse = GetMonitorChecksResponses[keyof GetMonitorChecksResponses];
 
 export type GetMonitorPercentilesData = {
     body?: never;

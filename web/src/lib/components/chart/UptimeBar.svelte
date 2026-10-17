@@ -61,15 +61,33 @@
 		});
 	});
 
+	// Bars are scaled to the monitor's own normal, so a spike stands out even on
+	// a 3ms TCP check. The median keeps one outlier from flattening the rest.
+	const scale = $derived.by(() => {
+		const ms = points
+			.map((p) => p.avg_ms)
+			.filter((v): v is number => v != null)
+			.toSorted((a, b) => a - b);
+		if (ms.length === 0) return 1;
+		return Math.max(ms[Math.floor(ms.length / 2)] * 2.2, ms[ms.length - 1], 1);
+	});
+
 	// One slow check in a busy bucket does not tint the pill.
-	function pillClass(p: DataPoint, shown: DataPoint | null) {
-		if (!shown) return p.expected > 0 ? 'bg-muted-foreground/25' : 'bg-muted';
-		return shown.degraded * 4 >= shown.total ? 'bg-chart-4' : 'bg-chart-3';
+	function slow(shown: DataPoint) {
+		return shown.degraded * 4 >= shown.total;
 	}
 
-	// How much of the pill turns red. A single failed check stays visible.
+	// The fill height is the response time, slow buckets fill up completely.
+	function fillHeight(shown: DataPoint | null) {
+		if (!shown || shown.avg_ms == null) return '0%';
+		if (slow(shown)) return '100%';
+		return `${Math.max(18, Math.min(100, (shown.avg_ms / scale) * 100))}%`;
+	}
+
+	// How much of the pill turns red from the top. A single failed check stays visible.
 	function failShare(shown: DataPoint | null) {
-		if (!shown || shown.down === 0) return null;
+		if (!shown || shown.down === 0) return '0%';
+		if (shown.down === shown.total) return '100%';
 		return `${Math.max(shown.down / shown.total, 0.25) * 100}%`;
 	}
 
@@ -106,17 +124,31 @@
 				{onclick}
 			>
 				{#each points as p, i (p.timestamp)}
+					{@const shown = held[i]}
 					<span
 						data-index={i}
-						style:--fail={failShare(held[i])}
 						class={cn(
-							'pill min-w-0.5 flex-1 rounded-full transition-[transform,opacity] duration-150',
-							pillClass(p, held[i]),
+							'relative min-w-0.5 flex-1 overflow-hidden rounded-sm transition-[transform,opacity] duration-150',
+							shown ? 'bg-muted' : p.expected > 0 ? 'bg-muted-foreground/25' : 'bg-muted/60',
 							i === points.length - 1 && 'flex-[1.75]',
 							i === points.length - 1 && alert && 'animate-status-pulse text-chart-5',
 							hovered === i ? 'scale-y-110' : hovered !== null && 'opacity-60'
 						)}
-					></span>
+					>
+						{#if shown}
+							<span
+								class={cn(
+									'pointer-events-none absolute inset-x-0 bottom-0 rounded-sm',
+									slow(shown) ? 'bg-chart-4' : 'bg-chart-3'
+								)}
+								style:height={fillHeight(shown)}
+							></span>
+							<span
+								class="pointer-events-none absolute inset-x-0 top-0 rounded-sm bg-chart-5"
+								style:height={failShare(shown)}
+							></span>
+						{/if}
+					</span>
 				{/each}
 			</div>
 		{/snippet}
@@ -149,13 +181,3 @@
 		{/each}
 	</div>
 {/if}
-
-<style>
-	.pill {
-		background-image: linear-gradient(
-			to top,
-			var(--chart-5) var(--fail, 0%),
-			transparent var(--fail, 0%)
-		);
-	}
-</style>

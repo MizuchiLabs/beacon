@@ -45,7 +45,7 @@ func createMonitor(t *testing.T, q *db.Queries, name, url, typ string) *db.Monit
 	return m
 }
 
-func latest(t *testing.T, q *db.Queries, monitorID int64) *db.GetLatestChecksRow {
+func latest(t *testing.T, q *db.Queries, monitorID int64) *db.Check {
 	t.Helper()
 
 	rows, err := q.GetLatestChecks(t.Context())

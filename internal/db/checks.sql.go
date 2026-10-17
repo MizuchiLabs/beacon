@@ -136,12 +136,66 @@ func (q *Queries) GetCheckWindow(ctx context.Context, arg *GetCheckWindowParams)
 	return items, nil
 }
 
+const getDownSince = `-- name: GetDownSince :many
+SELECT
+  m.id AS monitor_id,
+  CAST(MIN(c.checked_at) AS INTEGER) AS since
+FROM
+  monitors m
+  JOIN checks c ON c.monitor_id = m.id
+  AND c.checked_at > COALESCE(
+    (
+      SELECT
+        MAX(u.checked_at)
+      FROM
+        checks u
+      WHERE
+        u.monitor_id = m.id
+        AND u.is_up
+    ),
+    0
+  )
+GROUP BY
+  m.id
+`
+
+type GetDownSinceRow struct {
+	MonitorID int64 `json:"monitorId"`
+	Since     int64 `json:"since"`
+}
+
+// First failed check of each monitor's current outage. Everything after the
+// last up check is down, so seeking past it is enough.
+func (q *Queries) GetDownSince(ctx context.Context) ([]*GetDownSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDownSince)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*GetDownSinceRow
+	for rows.Next() {
+		var i GetDownSinceRow
+		if err := rows.Scan(&i.MonitorID, &i.Since); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getLatestChecks = `-- name: GetLatestChecks :many
 SELECT
   c.monitor_id,
   c.status_code,
   c.response_time,
   c.days_remaining,
+  c.error,
   c.is_up,
   c.checked_at
 FROM
@@ -158,31 +212,87 @@ WHERE
   )
 `
 
-type GetLatestChecksRow struct {
-	MonitorID     int64  `json:"monitorId"`
-	StatusCode    int64  `json:"statusCode"`
-	ResponseTime  int64  `json:"responseTime"`
-	DaysRemaining *int64 `json:"daysRemaining"`
-	IsUp          bool   `json:"isUp"`
-	CheckedAt     int64  `json:"checkedAt"`
-}
-
-func (q *Queries) GetLatestChecks(ctx context.Context) ([]*GetLatestChecksRow, error) {
+func (q *Queries) GetLatestChecks(ctx context.Context) ([]*Check, error) {
 	rows, err := q.db.QueryContext(ctx, getLatestChecks)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []*GetLatestChecksRow
+	var items []*Check
 	for rows.Next() {
-		var i GetLatestChecksRow
+		var i Check
 		if err := rows.Scan(
 			&i.MonitorID,
 			&i.StatusCode,
 			&i.ResponseTime,
 			&i.DaysRemaining,
+			&i.Error,
 			&i.IsUp,
 			&i.CheckedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRecentChecks = `-- name: GetRecentChecks :many
+SELECT
+  checked_at,
+  status_code,
+  response_time,
+  error,
+  is_up
+FROM
+  checks
+WHERE
+  monitor_id = ?1
+  AND (
+    NOT CAST(?2 AS BOOLEAN)
+    OR NOT is_up
+  )
+ORDER BY
+  checked_at DESC
+LIMIT
+  ?3
+`
+
+type GetRecentChecksParams struct {
+	MonitorID  int64 `json:"monitorId"`
+	FailedOnly bool  `json:"failedOnly"`
+	Lim        int64 `json:"lim"`
+}
+
+type GetRecentChecksRow struct {
+	CheckedAt    int64   `json:"checkedAt"`
+	StatusCode   int64   `json:"statusCode"`
+	ResponseTime int64   `json:"responseTime"`
+	Error        *string `json:"error"`
+	IsUp         bool    `json:"isUp"`
+}
+
+func (q *Queries) GetRecentChecks(ctx context.Context, arg *GetRecentChecksParams) ([]*GetRecentChecksRow, error) {
+	rows, err := q.db.QueryContext(ctx, getRecentChecks, arg.MonitorID, arg.FailedOnly, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*GetRecentChecksRow
+	for rows.Next() {
+		var i GetRecentChecksRow
+		if err := rows.Scan(
+			&i.CheckedAt,
+			&i.StatusCode,
+			&i.ResponseTime,
+			&i.Error,
+			&i.IsUp,
 		); err != nil {
 			return nil, err
 		}

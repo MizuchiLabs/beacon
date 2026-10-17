@@ -1,6 +1,13 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { getIncidents, useMonitorPercentiles, type MonitorStats } from '#lib/api/queries.js';
+	import { page } from '$app/state';
+	import {
+		getIncidents,
+		useMonitorChecks,
+		useMonitorHistory,
+		useMonitorPercentiles,
+		type MonitorStats
+	} from '#lib/api/queries.js';
 	import ResponseChart from '#lib/components/chart/ResponseChart.svelte';
 	import UptimeBar from '#lib/components/chart/UptimeBar.svelte';
 	import * as Alert from '#lib/components/ui/alert/index.js';
@@ -10,6 +17,7 @@
 	import * as Item from '#lib/components/ui/item/index.js';
 	import { Separator } from '#lib/components/ui/separator/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.js';
 	import SubscribeBell from '#lib/components/util/SubscribeBell.svelte';
 	import { timeRange } from '#lib/range.svelte.js';
 	import { pushNotifications } from '#lib/stores/push.svelte.js';
@@ -32,9 +40,11 @@
 		uptimeTextClass
 	} from '#lib/status.js';
 	import { cn } from '#lib/utils.js';
+	import { toast } from 'svelte-sonner';
 	import {
 		CircleAlertIcon,
 		ClockIcon,
+		CopyIcon,
 		ExternalLinkIcon,
 		FolderIcon,
 		RefreshCwIcon,
@@ -52,6 +62,19 @@
 
 	const incidentsQuery = getIncidents();
 	const percentilesQuery = useMonitorPercentiles(() => (open ? monitor?.id : undefined));
+	const historyQuery = useMonitorHistory(() => open);
+	let failedOnly = $state(true);
+	// Five rows answer "what broke lately", more only on request. Switching
+	// monitors starts short again.
+	const logStep = 20;
+	const logMax = 100;
+	let expanded = $state<{ id?: number; limit: number }>({ limit: 5 });
+	const logLimit = $derived(expanded.id === monitor?.id ? expanded.limit : 5);
+	const checksQuery = useMonitorChecks(
+		() => (open ? monitor?.id : undefined),
+		() => ({ failed: failedOnly, limit: logLimit })
+	);
+	const hasMoreChecks = $derived(checksQuery.data?.length === logLimit && logLimit < logMax);
 
 	const meta = $derived(monitor ? statusMeta[monitor.status] : null);
 	// Layerchart walks every point on each render, plain objects keep that
@@ -60,6 +83,21 @@
 	const incidents = $derived(
 		monitor ? (incidentsQuery.data ?? []).filter((i) => affectsMonitor(i, monitor.name)) : []
 	);
+	const history = $derived(historyQuery.data?.find((m) => m.id === monitor?.id)?.data_points ?? []);
+	const checks = $derived(points.reduce((sum, p) => sum + p.total, 0));
+	const failed = $derived(points.reduce((sum, p) => sum + p.down, 0));
+	const step = $derived(
+		points.length > 1 ? Date.parse(points[1].timestamp) - Date.parse(points[0].timestamp) : 0
+	);
+	const failures = $derived(
+		points
+			.filter((p) => p.down > 0)
+			.map((p) => {
+				const start = Date.parse(p.timestamp);
+				return { start, end: start + step, class: 'fill-chart-5/25' };
+			})
+	);
+
 	const percentiles = $derived.by(() => {
 		const p = percentilesQuery.data?.percentiles;
 		if (!p) return [];
@@ -67,8 +105,43 @@
 			{ label: 'P50', ms: p.p50 },
 			{ label: 'P75', ms: p.p75 },
 			{ label: 'P90', ms: p.p90 },
+			{ label: 'P95', ms: p.p95 },
 			{ label: 'P99', ms: p.p99 }
 		];
+	});
+	// The strip runs a bit past p99 so the tail has room to show.
+	const spread = $derived.by(() => {
+		const p = percentilesQuery.data?.percentiles;
+		if (!p) return null;
+		const max = Math.max(p.p99 * 1.15, 1);
+		const pct = (ms: number) => `${(ms / max) * 100}%`;
+		return {
+			p50: pct(p.p50),
+			p90: pct(p.p90),
+			mid: pct(p.p90 - p.p50),
+			tail: pct(p.p99 - p.p90)
+		};
+	});
+
+	const badgeURL = $derived(
+		monitor ? `${page.url.origin}/api/badge/${encodeURIComponent(monitor.name)}` : ''
+	);
+	const badgeMarkdown = $derived(monitor ? `![${monitor.name}](${badgeURL})` : '');
+
+	async function copyBadge() {
+		try {
+			await navigator.clipboard.writeText(badgeMarkdown);
+			toast.success('Badge copied');
+		} catch {
+			toast.error('Could not copy the badge');
+		}
+	}
+
+	const checkTime = new Intl.DateTimeFormat(undefined, {
+		month: 'short',
+		day: 'numeric',
+		hour: 'numeric',
+		minute: '2-digit'
 	});
 	const fills: Record<string, string> = {
 		down: 'fill-chart-5/10',
@@ -90,7 +163,8 @@
 	<!-- Focus goes to the panel. The first control can be the bell, and its tooltip would open over the close button. -->
 	<Sheet.Content
 		bind:ref={panel}
-		class="sm:max-w-xl"
+		floating
+		class="data-[side=right]:sm:max-w-lg"
 		onOpenAutoFocus={(event) => {
 			event.preventDefault();
 			panel?.focus();
@@ -161,7 +235,7 @@
 			<Separator />
 
 			<div class="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-5">
-				<div class="grid grid-cols-3 gap-4">
+				<div class="grid grid-cols-2 gap-4">
 					<div class="flex flex-col gap-1">
 						<span class="text-xs text-muted-foreground">Uptime · {timeRange.entry.label}</span>
 						<span
@@ -195,35 +269,63 @@
 							{formatMs(p95)}
 						</span>
 					</div>
+					<div class="flex flex-col gap-1">
+						<span class="text-xs text-muted-foreground">Failed checks</span>
+						<span class="text-2xl font-semibold tracking-tight tabular-nums">
+							<span class={cn(failed > 0 && 'text-chart-5')}>{failed}</span>
+							<span class="text-sm font-medium text-muted-foreground">
+								/ {checks.toLocaleString()}
+							</span>
+						</span>
+					</div>
 				</div>
 
 				<section class="flex flex-col gap-2">
-					<h3 class="text-xs font-medium text-muted-foreground">Uptime</h3>
-
-					<UptimeBar
-						{points}
-						interval={monitor.check_interval}
-						alert={monitor.status === 'down'}
-						marks={incidentMarks}
-					/>
-				</section>
-
-				<section class="flex flex-col gap-2">
-					<div class="flex items-baseline justify-between">
-						<h3 class="text-xs font-medium text-muted-foreground">Response time</h3>
-						<span class="flex items-center gap-1.5 text-xs text-muted-foreground">
-							<span class="w-3 border-t-2 border-dashed border-chart-4"></span>
-							degraded above {formatMs(monitor.degraded_threshold)}
+					<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+						<h3 class="text-xs font-medium text-muted-foreground">Response time and failures</h3>
+						<span class="flex items-center gap-3 text-xs text-muted-foreground">
+							<span class="flex items-center gap-1.5">
+								<span class="w-3 border-t-2 border-dashed border-chart-4"></span>
+								degraded above {formatMs(monitor.degraded_threshold)}
+							</span>
+							<span class="flex items-center gap-1.5">
+								<span class="h-2.5 w-2 rounded-[2px] bg-chart-5/50"></span>
+								failed
+							</span>
 						</span>
 					</div>
 					<ResponseChart
 						{points}
 						threshold={monitor.degraded_threshold}
-						ranges={incidentMarks.map((m) => ({ start: m.start, end: m.end, class: m.fill }))}
+						ranges={[
+							...incidentMarks.map((m) => ({ start: m.start, end: m.end, class: m.fill })),
+							...failures
+						]}
 						class="h-44"
 					/>
-					{#if percentiles.length > 0}
-						<dl class="grid grid-cols-4 gap-2 pt-2">
+				</section>
+
+				{#if spread}
+					<section class="flex flex-col gap-3">
+						<h3 class="text-xs font-medium text-muted-foreground">Latency spread</h3>
+						<div
+							class="relative h-3 overflow-hidden rounded-full bg-muted"
+							role="img"
+							aria-label="Response time percentiles from p50 to p99"
+						>
+							<span class="absolute inset-y-0 left-0 bg-primary" style:width={spread.p50}></span>
+							<span
+								class="absolute inset-y-0 bg-primary/55"
+								style:left={spread.p50}
+								style:width={spread.mid}
+							></span>
+							<span
+								class="absolute inset-y-0 bg-primary/25"
+								style:left={spread.p90}
+								style:width={spread.tail}
+							></span>
+						</div>
+						<dl class="grid grid-cols-5 gap-2">
 							{#each percentiles as row (row.label)}
 								<div class="flex flex-col gap-0.5">
 									<dt class="text-xs text-muted-foreground">{row.label}</dt>
@@ -238,6 +340,89 @@
 								</div>
 							{/each}
 						</dl>
+					</section>
+				{/if}
+
+				{#if history.length > 0}
+					<section class="flex flex-col gap-2">
+						<h3 class="text-xs font-medium text-muted-foreground">Last 90 days</h3>
+						<UptimeBar points={history} interval={monitor.check_interval} marks={incidentMarks} />
+						<div class="flex justify-between text-xs text-muted-foreground">
+							<span>90 days ago</span>
+							<span>today</span>
+						</div>
+					</section>
+				{/if}
+
+				<section class="flex flex-col gap-2">
+					<div class="flex items-center justify-between gap-3">
+						<h3 class="text-xs font-medium text-muted-foreground">Check log</h3>
+						<ToggleGroup.Root
+							type="single"
+							size="sm"
+							spacing={0.5}
+							variant="segmented"
+							bind:value={
+								() => (failedOnly ? 'failed' : 'all'),
+								(v) => {
+									if (!v) return;
+									failedOnly = v === 'failed';
+									expanded = { id: monitor?.id, limit: 5 };
+								}
+							}
+							aria-label="Which checks to show"
+						>
+							<ToggleGroup.Item value="failed">Failures</ToggleGroup.Item>
+							<ToggleGroup.Item value="all">All</ToggleGroup.Item>
+						</ToggleGroup.Root>
+					</div>
+					{#if checksQuery.data && checksQuery.data.length > 0}
+						<div class="flex flex-col overflow-hidden rounded-xl border text-xs">
+							{#each checksQuery.data as check, i (check.checked_at)}
+								{#if i > 0}
+									<Separator />
+								{/if}
+								<div
+									class="grid grid-cols-[6.5rem_2.5rem_minmax(0,1fr)] items-center gap-3 px-3 py-2"
+								>
+									<span class="text-muted-foreground tabular-nums">
+										{checkTime.format(new Date(check.checked_at))}
+									</span>
+									<span class={cn('font-mono', check.is_up ? 'text-chart-3' : 'text-chart-5')}>
+										{check.status_code || (check.is_up ? 'ok' : 'fail')}
+									</span>
+									{#if check.is_up}
+										<span class="tabular-nums">{formatMs(check.response_time)}</span>
+									{:else}
+										<span
+											class="truncate font-mono text-muted-foreground"
+											title={check.error ?? ''}
+										>
+											{check.error ?? 'failed'}
+										</span>
+									{/if}
+								</div>
+							{/each}
+						</div>
+						{#if hasMoreChecks}
+							<Button
+								variant="ghost"
+								size="sm"
+								disabled={checksQuery.isFetching}
+								onclick={() =>
+									(expanded = { id: monitor?.id, limit: Math.min(logLimit + logStep, logMax) })}
+							>
+								Show more
+							</Button>
+						{/if}
+					{:else if checksQuery.isSuccess}
+						<Empty.Root>
+							<Empty.Header>
+								<Empty.Description>
+									{failedOnly ? 'No failed checks recorded' : 'No checks recorded yet'}
+								</Empty.Description>
+							</Empty.Header>
+						</Empty.Root>
 					{/if}
 				</section>
 
@@ -286,6 +471,20 @@
 							</p>
 						{/if}
 					{/if}
+				</section>
+
+				<section class="flex flex-col gap-2">
+					<h3 class="text-xs font-medium text-muted-foreground">Badge</h3>
+					<div class="flex items-center gap-3 rounded-xl bg-muted/50 p-3">
+						<img src={badgeURL} alt="{monitor.name} status badge" class="h-5 shrink-0" />
+						<code class="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
+							{badgeMarkdown}
+						</code>
+						<Button variant="outline" size="sm" onclick={copyBadge}>
+							<CopyIcon data-icon="inline-start" />
+							Copy
+						</Button>
+					</div>
 				</section>
 
 				{#if pushNotifications.error}

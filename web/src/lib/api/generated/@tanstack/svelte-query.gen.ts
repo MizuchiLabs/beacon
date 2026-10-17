@@ -3,8 +3,8 @@
 import { type MutationOptions, queryOptions } from '@tanstack/svelte-query';
 
 import { client } from '../client.gen';
-import { getBadge, getConfig, getIncident, getIncidents, getMonitorPercentiles, getMonitors, getVapidPublicKey, heartbeatGet, heartbeatPost, listSubscriptions, type Options, subscribeToMonitor, syncIncidents, unsubscribeFromMonitor } from '../sdk.gen';
-import type { GetBadgeData, GetBadgeError, GetBadgeResponse, GetConfigData, GetConfigError, GetConfigResponse, GetIncidentData, GetIncidentError, GetIncidentResponse, GetIncidentsData, GetIncidentsError, GetIncidentsResponse, GetMonitorPercentilesData, GetMonitorPercentilesError, GetMonitorPercentilesResponse, GetMonitorsData, GetMonitorsError, GetMonitorsResponse, GetVapidPublicKeyData, GetVapidPublicKeyError, GetVapidPublicKeyResponse, HeartbeatGetData, HeartbeatGetError, HeartbeatGetResponse, HeartbeatPostData, HeartbeatPostError, HeartbeatPostResponse, ListSubscriptionsData, ListSubscriptionsError, ListSubscriptionsResponse, SubscribeToMonitorData, SubscribeToMonitorError, SubscribeToMonitorResponse, SyncIncidentsData, SyncIncidentsError, SyncIncidentsResponse, UnsubscribeFromMonitorData, UnsubscribeFromMonitorError, UnsubscribeFromMonitorResponse } from '../types.gen';
+import { getBadge, getConfig, getIncident, getIncidents, getMonitorChecks, getMonitorPercentiles, getMonitors, getVapidPublicKey, heartbeatGet, heartbeatPost, listSubscriptions, type Options, subscribeToMonitor, syncIncidents, unsubscribeFromMonitor } from '../sdk.gen';
+import type { GetBadgeData, GetBadgeError, GetBadgeResponse, GetConfigData, GetConfigError, GetConfigResponse, GetIncidentData, GetIncidentError, GetIncidentResponse, GetIncidentsData, GetIncidentsError, GetIncidentsResponse, GetMonitorChecksData, GetMonitorChecksError, GetMonitorChecksResponse, GetMonitorPercentilesData, GetMonitorPercentilesError, GetMonitorPercentilesResponse, GetMonitorsData, GetMonitorsError, GetMonitorsResponse, GetVapidPublicKeyData, GetVapidPublicKeyError, GetVapidPublicKeyResponse, HeartbeatGetData, HeartbeatGetError, HeartbeatGetResponse, HeartbeatPostData, HeartbeatPostError, HeartbeatPostResponse, ListSubscriptionsData, ListSubscriptionsError, ListSubscriptionsResponse, SubscribeToMonitorData, SubscribeToMonitorError, SubscribeToMonitorResponse, SyncIncidentsData, SyncIncidentsError, SyncIncidentsResponse, UnsubscribeFromMonitorData, UnsubscribeFromMonitorError, UnsubscribeFromMonitorResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -152,6 +152,26 @@ export const getMonitorsOptions = (options?: Options<GetMonitorsData>) => queryO
         return data;
     },
     queryKey: getMonitorsQueryKey(options)
+});
+
+export const getMonitorChecksQueryKey = (options: Options<GetMonitorChecksData>) => createQueryKey('getMonitorChecks', options);
+
+/**
+ * Get recent checks
+ *
+ * The latest raw checks, newest first. Raw checks only go back as far as BEACON_RETENTION_DAYS.
+ */
+export const getMonitorChecksOptions = (options: Options<GetMonitorChecksData>) => queryOptions<GetMonitorChecksResponse, GetMonitorChecksError, GetMonitorChecksResponse, ReturnType<typeof getMonitorChecksQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getMonitorChecks({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getMonitorChecksQueryKey(options)
 });
 
 export const getMonitorPercentilesQueryKey = (options: Options<GetMonitorPercentilesData>) => createQueryKey('getMonitorPercentiles', options);

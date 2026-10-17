@@ -206,7 +206,7 @@ func TestGetLatestChecks(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, latest, 2, "a monitor without checks has no latest check")
 
-	got := make(map[int64]*GetLatestChecksRow, len(latest))
+	got := make(map[int64]*Check, len(latest))
 	for _, l := range latest {
 		got[l.MonitorID] = l
 	}
@@ -216,4 +216,52 @@ func TestGetLatestChecks(t *testing.T) {
 	require.EqualValues(t, 42, got[up.ID].ResponseTime)
 	require.False(t, got[down.ID].IsUp)
 	require.NotContains(t, got, quiet.ID)
+}
+
+func TestGetDownSince(t *testing.T) {
+	q := newTestQueries(t)
+	recovered := createTestMonitor(t, q, "https://recovered.test")
+	flapping := createTestMonitor(t, q, "https://flapping.test")
+	neverUp := createTestMonitor(t, q, "https://never-up.test")
+
+	storeCheck(t, q, recovered.ID, 100, false, 0)
+	storeCheck(t, q, recovered.ID, 200, true, 20)
+	storeCheck(t, q, flapping.ID, 100, false, 0)
+	storeCheck(t, q, flapping.ID, 200, true, 20)
+	storeCheck(t, q, flapping.ID, 300, false, 0)
+	storeCheck(t, q, flapping.ID, 400, false, 0)
+	storeCheck(t, q, neverUp.ID, 50, false, 0)
+	storeCheck(t, q, neverUp.ID, 60, false, 0)
+
+	rows, err := q.GetDownSince(t.Context())
+	require.NoError(t, err)
+
+	got := make(map[int64]int64, len(rows))
+	for _, r := range rows {
+		got[r.MonitorID] = r.Since
+	}
+	assert.NotContains(t, got, recovered.ID, "a monitor that recovered has no open outage")
+	assert.EqualValues(t, 300, got[flapping.ID], "the outage starts after the last up check")
+	assert.EqualValues(t, 50, got[neverUp.ID], "without an up check the first failure counts")
+}
+
+func TestGetRecentChecks(t *testing.T) {
+	q := newTestQueries(t)
+	m := createTestMonitor(t, q, "https://recent.test")
+
+	storeCheck(t, q, m.ID, 100, true, 20)
+	storeCheck(t, q, m.ID, 200, false, 0)
+	storeCheck(t, q, m.ID, 300, true, 30)
+	storeCheck(t, q, m.ID, 400, false, 0)
+
+	all, err := q.GetRecentChecks(t.Context(), &GetRecentChecksParams{MonitorID: m.ID, Lim: 3})
+	require.NoError(t, err)
+	require.Len(t, all, 3)
+	assert.EqualValues(t, 400, all[0].CheckedAt, "newest first")
+
+	failed, err := q.GetRecentChecks(t.Context(), &GetRecentChecksParams{MonitorID: m.ID, FailedOnly: true, Lim: 10})
+	require.NoError(t, err)
+	require.Len(t, failed, 2)
+	assert.False(t, failed[0].IsUp)
+	assert.False(t, failed[1].IsUp)
 }

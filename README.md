@@ -131,7 +131,7 @@ a monitor starts a fresh one.
 | `degraded_threshold` | `500`       | Response time in ms above which an up check is degraded         |
 | `expected_status`    | any 2xx/3xx | http: the exact status code that counts as up                   |
 | `keyword`            | -           | http: text the response body must contain                       |
-| `ignore_cert_expiry` | `false`     | Keep certificate expiry from degrading status or sending alerts |
+| `ignore_cert_expiry` | `false`     | Turn off certificate expiry warnings and alerts                 |
 
 | Scheme         | Check                                                                  |
 | -------------- | ---------------------------------------------------------------------- |
@@ -143,8 +143,8 @@ a monitor starts a fresh one.
 | `push`         | Waits for heartbeats instead of checking anything, see below           |
 
 `https` monitors track certificate expiry automatically, no second monitor
-needed. Any monitor with certificate data turns degraded 30 days before expiry
-and subscribers get a daily reminder until it is renewed.
+needed. 30 days before expiry the certificate shows up under Heads up on the
+dashboard and subscribers get a daily reminder until it is renewed.
 
 Ping uses unprivileged ICMP sockets, so no root is needed. Docker allows them
 by default. On a bare Linux host the user running Beacon must be inside

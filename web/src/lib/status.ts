@@ -135,6 +135,14 @@ export function uptimeTextClass(pct: number | null): string {
 // Mirrors checker.CertWarnDays on the backend.
 export const certWarnDays = 30;
 
+export function certSoon(monitor: MonitorStats): boolean {
+	return (
+		!monitor.ignore_cert_expiry &&
+		monitor.days_remaining != null &&
+		monitor.days_remaining <= certWarnDays
+	);
+}
+
 export function certTextClass(days: number | null | undefined): string {
 	if (days == null) return 'text-muted-foreground';
 	return days <= certWarnDays ? 'text-chart-4' : 'text-muted-foreground';
@@ -314,6 +322,7 @@ export function incidentWindow(incident: Incident): [number, number] {
 export function durationText(startedAt: string, resolvedAt?: string | null): string {
 	const end = resolvedAt ? new Date(resolvedAt) : new Date();
 	const minutes = Math.max(0, Math.floor((end.getTime() - new Date(startedAt).getTime()) / 60000));
+	if (minutes < 1) return '<1m';
 	if (minutes < 60) return `${minutes}m`;
 	const hours = Math.floor(minutes / 60);
 	if (hours < 48) return `${hours}h ${minutes % 60}m`;

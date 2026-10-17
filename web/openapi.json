@@ -1,6 +1,26 @@
 {
 	"components": {
 		"schemas": {
+			"CheckResult": {
+				"additionalProperties": false,
+				"properties": {
+					"checked_at": { "format": "date-time", "type": "string" },
+					"error": { "type": ["string", "null"] },
+					"is_up": { "type": "boolean" },
+					"response_time": {
+						"description": "Response time in ms",
+						"format": "int64",
+						"type": "integer"
+					},
+					"status_code": {
+						"description": "HTTP status code, zero for other check types",
+						"format": "int64",
+						"type": "integer"
+					}
+				},
+				"required": ["checked_at", "is_up", "status_code", "response_time", "error"],
+				"type": "object"
+			},
 			"ConfigBody": {
 				"additionalProperties": false,
 				"properties": {
@@ -179,19 +199,33 @@
 						"format": "int64",
 						"type": "integer"
 					},
+					"down_since": {
+						"description": "First failed check of the current outage, only while down",
+						"format": "date-time",
+						"type": "string"
+					},
 					"group": {
 						"description": "Group the monitor is shown under, empty for none",
 						"type": "string"
 					},
 					"id": { "format": "int64", "type": "integer" },
 					"ignore_cert_expiry": {
-						"description": "Whether certificate expiry is ignored for status and warnings",
+						"description": "Whether certificate expiry warnings are turned off",
 						"type": "boolean"
 					},
 					"last_checked_at": {
 						"description": "Timestamp of the latest check",
 						"format": "date-time",
 						"type": "string"
+					},
+					"last_error": {
+						"description": "Error of the latest check, only while down",
+						"type": "string"
+					},
+					"last_response_time": {
+						"description": "Response time of the latest check in ms, null while down",
+						"format": "int64",
+						"type": ["integer", "null"]
 					},
 					"name": { "type": "string" },
 					"status": {
@@ -221,6 +255,7 @@
 					"status",
 					"days_remaining",
 					"ignore_cert_expiry",
+					"last_response_time",
 					"avg_response_time",
 					"uptime_pct",
 					"data_points"
@@ -592,6 +627,69 @@
 					}
 				},
 				"summary": "Get monitor stats",
+				"tags": ["Monitors"]
+			}
+		},
+		"/api/monitors/{id}/checks": {
+			"get": {
+				"description": "The latest raw checks, newest first. Raw checks only go back as far as BEACON_RETENTION_DAYS.",
+				"operationId": "get-monitor-checks",
+				"parameters": [
+					{
+						"description": "Monitor ID",
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": { "description": "Monitor ID", "format": "int64", "type": "integer" }
+					},
+					{
+						"description": "Only return failed checks",
+						"explode": false,
+						"in": "query",
+						"name": "failed",
+						"schema": {
+							"default": true,
+							"description": "Only return failed checks",
+							"type": "boolean"
+						}
+					},
+					{
+						"description": "How many of the latest checks to return",
+						"explode": false,
+						"in": "query",
+						"name": "limit",
+						"schema": {
+							"default": 20,
+							"description": "How many of the latest checks to return",
+							"format": "int64",
+							"maximum": 100,
+							"minimum": 1,
+							"type": "integer"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": { "$ref": "#/components/schemas/CheckResult" },
+									"type": ["array", "null"]
+								}
+							}
+						},
+						"description": "OK"
+					},
+					"default": {
+						"content": {
+							"application/problem+json": {
+								"schema": { "$ref": "#/components/schemas/ErrorModel" }
+							}
+						},
+						"description": "Error"
+					}
+				},
+				"summary": "Get recent checks",
 				"tags": ["Monitors"]
 			}
 		},

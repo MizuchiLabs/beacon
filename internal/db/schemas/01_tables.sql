@@ -9,7 +9,7 @@ CREATE TABLE monitors (
   degraded_threshold INTEGER NOT NULL DEFAULT 500, -- ms, slower up checks count as degraded
   expected_status INTEGER NOT NULL DEFAULT 0, -- http: required status, 0 accepts any 2xx or 3xx
   keyword TEXT NOT NULL DEFAULT '', -- http: text the response body must contain
-  ignore_cert_expiry BOOLEAN NOT NULL DEFAULT 0, -- keep cert expiry from degrading status or sending warnings
+  ignore_cert_expiry BOOLEAN NOT NULL DEFAULT 0, -- skip certificate expiry warnings
   created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 

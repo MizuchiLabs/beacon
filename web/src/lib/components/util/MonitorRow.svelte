@@ -1,12 +1,20 @@
 <script lang="ts">
 	import type { MonitorStats } from '#lib/api/queries.js';
+	import HeartbeatBar from '#lib/components/chart/HeartbeatBar.svelte';
 	import UptimeBar from '#lib/components/chart/UptimeBar.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import * as Item from '#lib/components/ui/item/index.js';
 	import SubscribeBell from '#lib/components/util/SubscribeBell.svelte';
-	import { certWarnDays, statusMeta, targetOf, typeLabel, uptimeTextClass } from '#lib/status.js';
+	import {
+		durationText,
+		formatMs,
+		statusMeta,
+		targetOf,
+		typeLabel,
+		uptimeTextClass
+	} from '#lib/status.js';
 	import { cn } from '#lib/utils.js';
-	import { CalendarClockIcon, ChevronRightIcon } from '@lucide/svelte';
+	import { ChevronRightIcon } from '@lucide/svelte';
 
 	interface Props {
 		monitor: MonitorStats;
@@ -16,24 +24,32 @@
 	let { monitor, flash = false, onOpen }: Props = $props();
 
 	const meta = $derived(statusMeta[monitor.status]);
-	const certSoon = $derived(
-		!monitor.ignore_cert_expiry &&
-			monitor.days_remaining != null &&
-			monitor.days_remaining <= certWarnDays
-	);
+	const isPush = $derived(monitor.type === 'push');
+	const badge = $derived.by(() => {
+		if (monitor.status === 'down') {
+			return monitor.down_since ? `Down for ${durationText(monitor.down_since)}` : 'Down';
+		}
+		if (monitor.status === 'degraded') return 'Slow';
+		if (monitor.status === 'unknown') return meta.label;
+		return null;
+	});
 </script>
 
 <!-- The name button stretches over the whole row, so the row is one tab stop
 while the bar and the bell stay usable on top of it. -->
 <div
 	role="listitem"
-	class={cn('group relative transition-colors hover:bg-muted/40', flash && 'animate-status-flash')}
+	class={cn(
+		'group relative transition-colors hover:bg-muted/40',
+		monitor.status === 'down' && 'bg-chart-5/5',
+		flash && 'animate-status-flash'
+	)}
 >
 	{#if monitor.status !== 'operational'}
 		<span class={cn('absolute inset-y-0 left-0 w-0.5', meta.dot)}></span>
 	{/if}
 	<Item.Root class="md:flex-nowrap">
-		<div class="flex min-w-0 flex-1 items-center md:w-44 md:flex-none">
+		<div class="flex min-w-0 flex-1 items-center md:w-48 md:flex-none">
 			<Item.Content class="min-w-0">
 				<Item.Title class="w-full min-w-0">
 					<button
@@ -47,37 +63,38 @@ while the bar and the bell stay usable on top of it. -->
 					{#if typeLabel(monitor.type)}
 						<Badge variant="secondary">{typeLabel(monitor.type)}</Badge>
 					{/if}
-					{#if monitor.status !== 'operational'}
-						<Badge variant="outline" class={cn('shrink-0', meta.badge)}>
-							{meta.label}
-						</Badge>
-					{/if}
 				</Item.Title>
 				<Item.Description>
-					<span class={cn('block truncate', monitor.type !== 'push' && 'font-mono')}>
+					<span class={cn('block truncate', !isPush && 'font-mono')}>
 						{targetOf(monitor)}
 					</span>
 				</Item.Description>
+				{#if badge}
+					<Badge variant="outline" class={cn('mt-0.5', meta.badge)}>{badge}</Badge>
+				{/if}
 			</Item.Content>
 		</div>
 
 		<div class="order-last w-full md:order-0 md:w-auto md:min-w-0 md:flex-1">
-			<UptimeBar
-				points={monitor.data_points ?? []}
-				interval={monitor.check_interval}
-				alert={monitor.status === 'down'}
-				class="relative"
-				onclick={() => onOpen(monitor.id)}
-			/>
+			{#if isPush}
+				<HeartbeatBar {monitor} class="relative" />
+			{:else}
+				<UptimeBar
+					points={monitor.data_points ?? []}
+					interval={monitor.check_interval}
+					alert={monitor.status === 'down'}
+					class="relative"
+					onclick={() => onOpen(monitor.id)}
+				/>
+			{/if}
 		</div>
 
 		<Item.Actions class="shrink-0">
-			{#if certSoon}
-				<Badge variant="outline" class="hidden md:inline-flex" title="Certificate expires soon">
-					<CalendarClockIcon data-icon="inline-start" />
-					{monitor.days_remaining}d
-				</Badge>
-			{/if}
+			<span class="hidden w-16 text-right text-sm font-medium tabular-nums sm:block">
+				{#if !isPush && monitor.status !== 'down'}
+					{formatMs(monitor.last_response_time)}
+				{/if}
+			</span>
 			<span
 				class={cn(
 					'w-16 text-right text-sm font-medium tabular-nums',

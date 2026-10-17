@@ -43,8 +43,11 @@ type MonitorStats struct {
 	DegradedThreshold int64       `json:"degraded_threshold"        doc:"Response time in ms above which an up check counts as degraded"`
 	Status            string      `json:"status"                    doc:"Status of the latest check, unknown when the monitor has gone quiet" enum:"operational,degraded,down,unknown"`
 	DaysRemaining     *int64      `json:"days_remaining"            doc:"Days until the certificate expires, https and ssl monitors only"`
-	IgnoreCert        bool        `json:"ignore_cert_expiry"        doc:"Whether certificate expiry is ignored for status and warnings"`
+	IgnoreCert        bool        `json:"ignore_cert_expiry"        doc:"Whether certificate expiry warnings are turned off"`
 	LastCheckedAt     *time.Time  `json:"last_checked_at,omitempty" doc:"Timestamp of the latest check"`
+	DownSince         *time.Time  `json:"down_since,omitempty"      doc:"First failed check of the current outage, only while down"`
+	LastError         *string     `json:"last_error,omitempty"      doc:"Error of the latest check, only while down"`
+	LastResponseTime  *int64      `json:"last_response_time"        doc:"Response time of the latest check in ms, null while down"`
 	AvgResponseTime   *int64      `json:"avg_response_time"         doc:"Mean response time of the up checks in the window"`
 	UptimePct         *float64    `json:"uptime_pct"`
 	Datapoints        []DataPoint `json:"data_points"`
@@ -92,6 +95,25 @@ type PercentilesOutput struct {
 	}
 }
 
+// CheckResult is one raw check as it was recorded.
+type CheckResult struct {
+	CheckedAt    time.Time `json:"checked_at"`
+	IsUp         bool      `json:"is_up"`
+	StatusCode   int64     `json:"status_code"   doc:"HTTP status code, zero for other check types"`
+	ResponseTime int64     `json:"response_time" doc:"Response time in ms"`
+	Error        *string   `json:"error"`
+}
+
+type ChecksInput struct {
+	ID     int64 `path:"id" doc:"Monitor ID"`
+	Failed bool  `          doc:"Only return failed checks"               query:"failed" default:"true"`
+	Limit  int64 `          doc:"How many of the latest checks to return" query:"limit"  default:"20"   minimum:"1" maximum:"100"`
+}
+
+type ChecksOutput struct {
+	Body []CheckResult
+}
+
 type monitorHandlers struct {
 	q *db.Queries
 }
@@ -114,6 +136,14 @@ func registerMonitors(api huma.API, q *db.Queries) {
 		Description: "Percentiles of the raw checks in the window, null without checks. Raw checks only go back as far as BEACON_RETENTION_DAYS.",
 		Tags:        []string{"Monitors"},
 	}, h.getPercentiles)
+	huma.Register(api, huma.Operation{
+		OperationID: "get-monitor-checks",
+		Method:      http.MethodGet,
+		Path:        "/api/monitors/{id}/checks",
+		Summary:     "Get recent checks",
+		Description: "The latest raw checks, newest first. Raw checks only go back as far as BEACON_RETENTION_DAYS.",
+		Tags:        []string{"Monitors"},
+	}, h.getChecks)
 }
 
 func (h *monitorHandlers) getMonitors(ctx context.Context, in *WindowInput) (*MonitorsOutput, error) {
@@ -131,9 +161,18 @@ func (h *monitorHandlers) getMonitors(ctx context.Context, in *WindowInput) (*Mo
 	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to get latest checks")
 	}
-	latestByMonitor := make(map[int64]*db.GetLatestChecksRow, len(latest))
+	latestByMonitor := make(map[int64]*db.Check, len(latest))
 	for _, l := range latest {
 		latestByMonitor[l.MonitorID] = l
+	}
+
+	downSince, err := h.q.GetDownSince(ctx)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to get outages")
+	}
+	downSinceByMonitor := make(map[int64]int64, len(downSince))
+	for _, d := range downSince {
+		downSinceByMonitor[d.MonitorID] = d.Since
 	}
 
 	rows, err := h.window(ctx, step, since)
@@ -148,6 +187,9 @@ func (h *monitorHandlers) getMonitors(ctx context.Context, in *WindowInput) (*Mo
 	result := make([]MonitorStats, len(monitors))
 	for i, m := range monitors {
 		result[i] = stats(m, rowsByMonitor[m.ID], latestByMonitor[m.ID], since, now, step)
+		if d, ok := downSinceByMonitor[m.ID]; ok && result[i].Status == statusDown {
+			result[i].DownSince = new(time.Unix(d, 0))
+		}
 	}
 	return &MonitorsOutput{Body: result}, nil
 }
@@ -192,12 +234,35 @@ func (h *monitorHandlers) getPercentiles(ctx context.Context, in *PercentilesInp
 	return out, nil
 }
 
+func (h *monitorHandlers) getChecks(ctx context.Context, in *ChecksInput) (*ChecksOutput, error) {
+	rows, err := h.q.GetRecentChecks(ctx, &db.GetRecentChecksParams{
+		MonitorID:  in.ID,
+		FailedOnly: in.Failed,
+		Lim:        in.Limit,
+	})
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to load checks")
+	}
+
+	out := &ChecksOutput{Body: make([]CheckResult, len(rows))}
+	for i, r := range rows {
+		out.Body[i] = CheckResult{
+			CheckedAt:    time.Unix(r.CheckedAt, 0),
+			IsUp:         r.IsUp,
+			StatusCode:   r.StatusCode,
+			ResponseTime: r.ResponseTime,
+			Error:        r.Error,
+		}
+	}
+	return out, nil
+}
+
 // stats folds the window totals out of the same grouped rows the chart draws,
 // so the numbers above the chart and the bars inside it can never disagree.
 func stats(
 	m *db.Monitor,
 	rows []*db.GetCheckWindowRow,
-	last *db.GetLatestChecksRow,
+	last *db.Check,
 	since, now, step int64,
 ) MonitorStats {
 	row := MonitorStats{
@@ -215,6 +280,12 @@ func stats(
 	if last != nil {
 		row.LastCheckedAt = new(time.Unix(last.CheckedAt, 0))
 		row.DaysRemaining = last.DaysRemaining
+		if last.IsUp {
+			row.LastResponseTime = new(last.ResponseTime)
+		}
+		if row.Status == statusDown {
+			row.LastError = last.Error
+		}
 	}
 
 	var total, alive, sum int64
@@ -270,8 +341,8 @@ func buildPoints(m *db.Monitor, rows []*db.GetCheckWindowRow, since, now, step i
 
 // statusOf reports the latest check, not the window average. A monitor that
 // just died has a healthy looking uptime, and one that stopped reporting is
-// unknown rather than up.
-func statusOf(m *db.Monitor, last *db.GetLatestChecksRow, now int64) string {
+// unknown rather than up. An expiring cert is a warning, not a degradation.
+func statusOf(m *db.Monitor, last *db.Check, now int64) string {
 	if last == nil || now-last.CheckedAt > stalenessFactor*m.CheckInterval {
 		return statusUnknown
 	}
@@ -279,9 +350,6 @@ func statusOf(m *db.Monitor, last *db.GetLatestChecksRow, now int64) string {
 		return statusDown
 	}
 	if last.ResponseTime > m.DegradedThreshold {
-		return statusDegraded
-	}
-	if !m.IgnoreCertExpiry && last.DaysRemaining != nil && *last.DaysRemaining < checker.CertWarnDays {
 		return statusDegraded
 	}
 	return statusOperational

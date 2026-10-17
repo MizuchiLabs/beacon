@@ -20,9 +20,13 @@ type Querier interface {
 	DeletePushSubscription(ctx context.Context, arg *DeletePushSubscriptionParams) error
 	DeletePushSubscriptionByEndpoint(ctx context.Context, endpoint string) error
 	GetCheckWindow(ctx context.Context, arg *GetCheckWindowParams) ([]*GetCheckWindowRow, error)
-	GetLatestChecks(ctx context.Context) ([]*GetLatestChecksRow, error)
+	// First failed check of each monitor's current outage. Everything after the
+	// last up check is down, so seeking past it is enough.
+	GetDownSince(ctx context.Context) ([]*GetDownSinceRow, error)
+	GetLatestChecks(ctx context.Context) ([]*Check, error)
 	GetMonitors(ctx context.Context) ([]*Monitor, error)
 	GetPushSubscriptionsByMonitor(ctx context.Context, monitorID int64) ([]*PushSubscription, error)
+	GetRecentChecks(ctx context.Context, arg *GetRecentChecksParams) ([]*GetRecentChecksRow, error)
 	GetResponseTimes(ctx context.Context, arg *GetResponseTimesParams) ([]int64, error)
 	GetRollupWindow(ctx context.Context, arg *GetRollupWindowParams) ([]*GetRollupWindowRow, error)
 	GetSubscribedMonitorIDs(ctx context.Context, endpoint string) ([]int64, error)

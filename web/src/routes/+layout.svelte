@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { queryClient } from '#lib/api/client.js';
 	import AppFooter from '#lib/components/nav/AppFooter.svelte';
 	import { Toaster } from '#lib/components/ui/sonner/index.js';
@@ -22,7 +24,10 @@
 	<NoiseTexture noiseOpacity={0.1} class="fixed" />
 	<Tooltip.Provider>
 		<div class="flex min-h-screen flex-col">
-			<AppHeader />
+			<!-- Wall mode runs on a TV, it gets the whole screen. -->
+			{#if page.url.pathname !== resolve('/wall')}
+				<AppHeader />
+			{/if}
 			<main class="z-10 mb-12 flex-1">
 				{@render children?.()}
 			</main>

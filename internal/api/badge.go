@@ -78,7 +78,7 @@ func (h *badgeHandlers) getBadge(ctx context.Context, in *BadgeInput) (*BadgeOut
 		if err != nil {
 			return nil, huma.Error500InternalServerError("failed to get latest checks")
 		}
-		var last *db.GetLatestChecksRow
+		var last *db.Check
 		for _, l := range latest {
 			if l.MonitorID == m.ID {
 				last = l

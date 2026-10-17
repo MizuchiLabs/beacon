@@ -52,6 +52,7 @@ SELECT
   c.status_code,
   c.response_time,
   c.days_remaining,
+  c.error,
   c.is_up,
   c.checked_at
 FROM
@@ -129,3 +130,47 @@ WHERE
   AND is_up
 ORDER BY
   response_time;
+
+-- name: GetDownSince :many
+-- First failed check of each monitor's current outage. Everything after the
+-- last up check is down, so seeking past it is enough.
+SELECT
+  m.id AS monitor_id,
+  CAST(MIN(c.checked_at) AS INTEGER) AS since
+FROM
+  monitors m
+  JOIN checks c ON c.monitor_id = m.id
+  AND c.checked_at > COALESCE(
+    (
+      SELECT
+        MAX(u.checked_at)
+      FROM
+        checks u
+      WHERE
+        u.monitor_id = m.id
+        AND u.is_up
+    ),
+    0
+  )
+GROUP BY
+  m.id;
+
+-- name: GetRecentChecks :many
+SELECT
+  checked_at,
+  status_code,
+  response_time,
+  error,
+  is_up
+FROM
+  checks
+WHERE
+  monitor_id = sqlc.arg (monitor_id)
+  AND (
+    NOT CAST(sqlc.arg (failed_only) AS BOOLEAN)
+    OR NOT is_up
+  )
+ORDER BY
+  checked_at DESC
+LIMIT
+  sqlc.arg (lim);

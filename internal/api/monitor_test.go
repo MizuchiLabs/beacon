@@ -77,62 +77,38 @@ func TestStatusOf(t *testing.T) {
 
 	httpMonitor := &db.Monitor{CheckInterval: 60, Type: checker.TypeHTTP, DegradedThreshold: 500}
 	sslMonitor := &db.Monitor{CheckInterval: 60, Type: checker.TypeSSL, DegradedThreshold: 500}
-	httpMonitorNoCert := &db.Monitor{
-		CheckInterval:     60,
-		Type:              checker.TypeHTTP,
-		DegradedThreshold: 500,
-		IgnoreCertExpiry:  true,
-	}
 	slowOK := &db.Monitor{CheckInterval: 60, Type: checker.TypeHTTP, DegradedThreshold: 2000}
 	tests := []struct {
 		name string
 		m    *db.Monitor
-		last *db.GetLatestChecksRow
+		last *db.Check
 		want string
 	}{
 		{"no checks yet", httpMonitor, nil, statusUnknown},
 		{
 			"fresh and up",
 			httpMonitor,
-			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 42, CheckedAt: now - 60},
+			&db.Check{IsUp: true, ResponseTime: 42, CheckedAt: now - 60},
 			statusOperational,
 		},
 		{
 			"fresh and slow",
 			httpMonitor,
-			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 501, CheckedAt: now - 60},
+			&db.Check{IsUp: true, ResponseTime: 501, CheckedAt: now - 60},
 			statusDegraded,
 		},
 		{
 			"slow but under its own threshold",
 			slowOK,
-			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 1500, CheckedAt: now - 60},
+			&db.Check{IsUp: true, ResponseTime: 1500, CheckedAt: now - 60},
 			statusOperational,
 		},
-		{"down", httpMonitor, &db.GetLatestChecksRow{IsUp: false, CheckedAt: now - 60}, statusDown},
-		{"stale", httpMonitor, &db.GetLatestChecksRow{IsUp: true, CheckedAt: now - 181}, statusUnknown},
+		{"down", httpMonitor, &db.Check{IsUp: false, CheckedAt: now - 60}, statusDown},
+		{"stale", httpMonitor, &db.Check{IsUp: true, CheckedAt: now - 181}, statusUnknown},
 		{
-			"ssl expiring soon",
+			"expiring cert stays operational",
 			sslMonitor,
-			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 42, DaysRemaining: new(int64(10)), CheckedAt: now - 60},
-			statusDegraded,
-		},
-		{
-			"ssl far from expiry",
-			sslMonitor,
-			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 42, DaysRemaining: new(int64(45)), CheckedAt: now - 60},
-			statusOperational,
-		},
-		{
-			"https expiring soon",
-			httpMonitor,
-			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 42, DaysRemaining: new(int64(10)), CheckedAt: now - 60},
-			statusDegraded,
-		},
-		{
-			"https opted out ignores expiry",
-			httpMonitorNoCert,
-			&db.GetLatestChecksRow{IsUp: true, ResponseTime: 42, DaysRemaining: new(int64(10)), CheckedAt: now - 60},
+			&db.Check{IsUp: true, ResponseTime: 42, DaysRemaining: new(int64(10)), CheckedAt: now - 60},
 			statusOperational,
 		},
 	}
