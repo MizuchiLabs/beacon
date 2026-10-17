@@ -246,8 +246,8 @@ importers:
         specifier: ^10.12.0
         version: 10.12.0(jiti@2.7.0)
       layerchart:
-        specifier: 2.7.0
-        version: 2.7.0(@sveltejs/kit@3.0.1(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.2(@typescript-eslint/types@8.71.2))(vite@8.3.4(jiti@2.7.0)))(svelte@5.57.2(@typescript-eslint/types@8.71.2))(typescript@6.0.3)(vite@8.3.4(jiti@2.7.0)))(svelte@5.57.2(@typescript-eslint/types@8.71.2))
+        specifier: 2.8.0
+        version: 2.8.0(@sveltejs/kit@3.0.1(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.2(@typescript-eslint/types@8.71.2))(vite@8.3.4(jiti@2.7.0)))(svelte@5.57.2(@typescript-eslint/types@8.71.2))(typescript@6.0.3)(vite@8.3.4(jiti@2.7.0)))(svelte@5.57.2(@typescript-eslint/types@8.71.2))
       mode-watcher:
         specifier: ^1.1.0
         version: 1.1.0(svelte@5.57.2(@typescript-eslint/types@8.71.2))
@@ -1849,8 +1849,8 @@ packages:
   keyv@5.6.0:
     resolution: {integrity: sha512-CYDD3SOtsHtyXeEORYRx2qBtpDJFjRTGXUtmNEMGyzYOKj1TE3tycdlho7kA1Ufx9OYWZzg52QFBGALTirzDSw==}
 
-  layerchart@2.7.0:
-    resolution: {integrity: sha512-PBOxDILfcuSUjnuGUBeC+s546aBxPJ0MNnFBarRAJM9lXBrsmJqrW3NqCmJJ8frI0kCVkUG/Yo6lA52TTdaYQg==}
+  layerchart@2.8.0:
+    resolution: {integrity: sha512-0GgN3gR0tbQEtCXZtBqfi7bC2509jrDCokAgBGLX+2sKLVictdwApYg+NOprPRoMoeBJegSDnoAK+8e4BwpwOQ==}
     peerDependencies:
       svelte: ^5.0.0
 
@@ -3725,7 +3725,7 @@ snapshots:
     dependencies:
       '@keyv/serialize': 1.1.1
 
-  layerchart@2.7.0(@sveltejs/kit@3.0.1(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.2(@typescript-eslint/types@8.71.2))(vite@8.3.4(jiti@2.7.0)))(svelte@5.57.2(@typescript-eslint/types@8.71.2))(typescript@6.0.3)(vite@8.3.4(jiti@2.7.0)))(svelte@5.57.2(@typescript-eslint/types@8.71.2)):
+  layerchart@2.8.0(@sveltejs/kit@3.0.1(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.2(@typescript-eslint/types@8.71.2))(vite@8.3.4(jiti@2.7.0)))(svelte@5.57.2(@typescript-eslint/types@8.71.2))(typescript@6.0.3)(vite@8.3.4(jiti@2.7.0)))(svelte@5.57.2(@typescript-eslint/types@8.71.2)):
     dependencies:
       '@dagrejs/dagre': 2.0.4
       '@layerstack/svelte-actions': 1.0.1-next.20
