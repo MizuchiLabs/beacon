@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"slices"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/SherClockHolmes/webpush-go"
@@ -29,7 +32,10 @@ const (
 	sendTimeout = 10 * time.Second
 )
 
-var httpClient = &http.Client{Timeout: sendTimeout}
+var (
+	httpClient = &http.Client{Timeout: sendTimeout}
+	pushClient = &http.Client{Timeout: sendTimeout, Transport: publicTransport()}
+)
 
 // Event kinds.
 const (
@@ -275,7 +281,7 @@ func (n *Service) pushTo(ctx context.Context, sub *db.PushSubscription, payload 
 			Keys:     webpush.Keys{P256dh: sub.P256dhKey, Auth: sub.AuthKey},
 		},
 		&webpush.Options{
-			HTTPClient:      httpClient,
+			HTTPClient:      pushClient,
 			Subscriber:      n.Subscriber,
 			VAPIDPublicKey:  n.vapidKeys.PublicKey,
 			VAPIDPrivateKey: n.vapidKeys.PrivateKey,
@@ -292,4 +298,25 @@ func (n *Service) pushTo(ctx context.Context, sub *db.PushSubscription, payload 
 		return resp.StatusCode, fmt.Errorf("push service returned status %d", resp.StatusCode)
 	}
 	return resp.StatusCode, nil
+}
+
+// publicTransport refuses to connect to loopback or private addresses. The
+// subscribe check only sees the hostname, which DNS or a redirect can point
+// anywhere.
+func publicTransport() *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone() //nolint:errcheck // stdlib default is always *http.Transport
+	t.Proxy = nil
+	t.DialContext = (&net.Dialer{
+		Control: func(_, address string, _ syscall.RawConn) error {
+			ap, err := netip.ParseAddrPort(address)
+			if err != nil {
+				return err
+			}
+			if ip := ap.Addr().Unmap(); !ip.IsGlobalUnicast() || ip.IsPrivate() {
+				return fmt.Errorf("push endpoint resolves to non-public address %s", ip)
+			}
+			return nil
+		},
+	}).DialContext
+	return t
 }

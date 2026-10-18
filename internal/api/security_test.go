@@ -68,7 +68,7 @@ func TestPublicHost(t *testing.T) {
 
 	assert.True(t, publicHost("fcm.googleapis.com"))
 	assert.True(t, publicHost("8.8.8.8"))
-	for _, host := range []string{"", "localhost", "api.localhost", "127.0.0.1", "10.0.0.5", "192.168.1.2", "::1", "fe80::1"} {
+	for _, host := range []string{"", "localhost", "localhost.", "LOCALHOST", "api.localhost.", "127.0.0.1", "10.0.0.5", "192.168.1.2", "::1", "fe80::1"} {
 		assert.False(t, publicHost(host), host)
 	}
 }

@@ -182,6 +182,7 @@ func (s *notifyHandlers) listSubscriptions(
 
 // publicHost rejects localhost and private or loopback ip literals.
 func publicHost(host string) bool {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
 	if host == "" || host == "localhost" || strings.HasSuffix(host, ".localhost") {
 		return false
 	}
