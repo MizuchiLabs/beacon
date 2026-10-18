@@ -172,6 +172,14 @@ describe('pageStatus', () => {
 		});
 	});
 
+	it('lets an incident speak when the monitors are unknown', () => {
+		const monitors = [monitor('api', 'unknown'), monitor('web', 'operational')];
+		expect(pageStatus(monitors, [incident('minor', { title: 'Slow' })])).toEqual({
+			status: 'degraded',
+			phrase: 'Slow'
+		});
+	});
+
 	it('ignores resolved and upcoming incidents', () => {
 		const incidents = [
 			incident('critical', { status: 'resolved' }),
