@@ -51,7 +51,7 @@
 		"d3-scale": "^4.0.2",
 		"d3-shape": "^3.2.0",
 		"eslint": "^10.13.0",
-		"layerchart": "2.8.1",
+		"layerchart": "2.9.1",
 		"mode-watcher": "^1.1.0",
 		"oxfmt": "^0.74.0",
 		"oxlint": "^1.88.0",
