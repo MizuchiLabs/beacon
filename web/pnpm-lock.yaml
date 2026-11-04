@@ -211,7 +211,7 @@ importers:
         version: 4.3.3(vite@8.3.5(jiti@2.7.0))
       '@tanstack/svelte-query':
         specifier: ^6.3.4
-        version: 6.3.6(svelte@5.57.3(@typescript-eslint/types@8.72.1))
+        version: 6.3.7(svelte@5.57.3(@typescript-eslint/types@8.72.1))
       '@types/d3-scale':
         specifier: ^4.0.9
         version: 4.0.9
@@ -1111,11 +1111,11 @@ packages:
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
 
-  '@tanstack/query-core@5.105.0':
-    resolution: {integrity: sha512-7p56vRmT/z4UJ6sctGIdl5WRUQyUv53IUpUwEKi2g97zMbO7zh8ZsCLffGAvCPBR4xD72e3VXsDyLwXHhoNTMQ==}
+  '@tanstack/query-core@5.105.1':
+    resolution: {integrity: sha512-B/rNlZoZ54w1dlddiUt9oEe1SLM+37c00SKLJEg9YH+7as3Y54P81o9Fh+2ujZ36tXPnQJ5oVe7AcyEWkyFhPg==}
 
-  '@tanstack/svelte-query@6.3.6':
-    resolution: {integrity: sha512-t00PjiCTrv2nB/Lb39pOb+TIwe80p+FpKzDCFy+6FZC6mz2j++b8lUITQ6O/JrZvkQn8eEEUvaju0nQ81vjorA==}
+  '@tanstack/svelte-query@6.3.7':
+    resolution: {integrity: sha512-yqw1xxx+nPQIoBpT9cEegm+MkQSF00WCklYv20cqOpmzoIDEiLKfEIoSwJOXZvOkp2yPbG2UD02GnpEPXLMDsQ==}
     peerDependencies:
       svelte: ^5.25.0
 
@@ -3206,11 +3206,11 @@ snapshots:
       tailwindcss: 4.3.3
       vite: 8.3.5(jiti@2.7.0)
 
-  '@tanstack/query-core@5.105.0': {}
+  '@tanstack/query-core@5.105.1': {}
 
-  '@tanstack/svelte-query@6.3.6(svelte@5.57.3(@typescript-eslint/types@8.72.1))':
+  '@tanstack/svelte-query@6.3.7(svelte@5.57.3(@typescript-eslint/types@8.72.1))':
     dependencies:
-      '@tanstack/query-core': 5.105.0
+      '@tanstack/query-core': 5.105.1
       svelte: 5.57.3(@typescript-eslint/types@8.72.1)
 
   '@types/chai@5.2.3':
