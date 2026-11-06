@@ -41,15 +41,15 @@ func New(q *db.Queries, inc *incidents.Service, sched *scheduler.Service) (*Serv
 			if respStatus >= http.StatusBadRequest {
 				return false
 			}
-			p := req.URL.Path
+			p := routePath(req)
 			return p == "/healthz" || !strings.HasPrefix(p, "/api/")
 		},
 	}))
 	mux.Use(cors.Default().Handler)
 	mux.Use(middleware.RequestSize(1 << 20))
 	mux.Use(securityHeaders())
+	mux.Use(middleware.CleanPath) // must run before rateLimitAPI, which reads the cleaned route path
 	mux.Use(rateLimitAPI(100, time.Minute))
-	mux.Use(middleware.CleanPath)
 
 	api := humachi.New(mux, humaConfig())
 	cfg, err := registerConfig(api)

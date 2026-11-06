@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httprate"
 	"github.com/unrolled/secure"
@@ -27,19 +28,28 @@ func clientIPKey(r *http.Request) (string, error) {
 	return httprate.CanonicalizeIP(ip), nil
 }
 
-// rateLimitAPI limits /api requests per client IP.
+// rateLimitAPI limits /api requests per client IP. It matches on chi's cleaned
+// route path so spellings like /x/../api/config can't skip the limit.
 func rateLimitAPI(n int, window time.Duration) func(http.Handler) http.Handler {
 	clientIP := clientIPMiddleware()
 	return func(next http.Handler) http.Handler {
 		limited := clientIP(httprate.LimitBy(n, window, clientIPKey)(next))
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !strings.HasPrefix(r.URL.Path, "/api/") {
+			if !strings.HasPrefix(routePath(r), "/api/") {
 				next.ServeHTTP(w, r)
 				return
 			}
 			limited.ServeHTTP(w, r)
 		})
 	}
+}
+
+// routePath is the path chi routes on, cleaned once middleware.CleanPath has run.
+func routePath(r *http.Request) string {
+	if rctx := chi.RouteContext(r.Context()); rctx != nil && rctx.RoutePath != "" {
+		return rctx.RoutePath
+	}
+	return r.URL.Path
 }
 
 func clientIPMiddleware() func(http.Handler) http.Handler {
