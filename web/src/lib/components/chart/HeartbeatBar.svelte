@@ -58,7 +58,10 @@
 		</span>
 		{#if elapsed !== null}
 			<span class={cn('tabular-nums', overdue && 'font-medium text-chart-5')}>
-				{#if overdue}
+				<!-- A missed ping only counts after 1.5 intervals, so down before the deadline means a ping reported a failure. -->
+				{#if monitor.status === 'down' && elapsed <= interval}
+					failure reported
+				{:else if overdue}
 					overdue by {intervalText(Math.round((elapsed - interval) / 1000))}
 				{:else if elapsed > interval}
 					due now
