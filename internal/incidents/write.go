@@ -77,9 +77,13 @@ func AddUpdate(dir, id string, u IncidentUpdate) (string, error) {
 		return "", err
 	}
 	updates := mappingValue(root, "updates")
-	if updates == nil {
+	switch {
+	case updates == nil:
 		updates = &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
 		root.Content = append(root.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: "updates"}, updates)
+	case updates.ShortTag() == "!!null":
+		// An empty `updates:` is a null scalar, and the encoder drops items added to a scalar.
+		updates.Kind, updates.Tag, updates.Value, updates.Style = yaml.SequenceNode, "!!seq", "", 0
 	}
 	updates.Content = append(updates.Content, &update)
 

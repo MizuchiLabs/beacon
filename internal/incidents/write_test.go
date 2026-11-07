@@ -59,6 +59,27 @@ func TestAddUpdateKeepsFileInStep(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestAddUpdateToEmptyUpdates(t *testing.T) {
+	t.Parallel()
+
+	for _, empty := range []string{"updates:", "updates: ~"} {
+		dir := t.TempDir()
+		content := "id: db\ntitle: DB\nseverity: minor\nstatus: investigating\nstarted_at: 2025-01-01T00:00:00Z\n" + empty + "\n"
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "db.yaml"), []byte(content), 0o600))
+
+		path, err := AddUpdate(
+			dir,
+			"db",
+			IncidentUpdate{Message: "Found it", Status: "identified", CreatedAt: time.Now()},
+		)
+		require.NoError(t, err)
+
+		inc, err := parseIncident(path)
+		require.NoError(t, err)
+		assert.Len(t, inc.Updates, 1, "%q must take the new update", empty)
+	}
+}
+
 func TestSlug(t *testing.T) {
 	t.Parallel()
 
