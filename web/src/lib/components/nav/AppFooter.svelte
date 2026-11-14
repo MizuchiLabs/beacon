@@ -1,19 +1,18 @@
 <script lang="ts">
 	import Github from '#lib/assets/github.svelte';
-	import { Button } from '#lib/components/ui/button/index.js';
 </script>
 
-<!-- In the flow of the page. A fixed one covers content on a phone. -->
-<footer class="z-10 flex justify-end px-3 pb-2">
-	<Button
+<!-- GitHub on the left, every other link on the right. In the page flow, a fixed one covers content on a phone. -->
+<footer
+	class="z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 pb-3 text-xs text-muted-foreground"
+>
+	<a
 		href="https://github.com/mizuchilabs/beacon"
 		target="_blank"
 		rel="noopener noreferrer"
-		variant="ghost"
-		size="icon-sm"
-		aria-label="Beacon on GitHub"
-		title="Powered by Beacon"
+		class="flex items-center gap-1.5 rounded-sm font-mono transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
 	>
-		<Github />
-	</Button>
+		<Github class="size-4" />
+		<span>mizuchilabs/<span class="font-medium text-foreground">beacon</span></span>
+	</a>
 </footer>
