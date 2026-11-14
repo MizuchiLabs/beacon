@@ -59,9 +59,9 @@
 	}
 
 	const stroke: Record<MonitorStats['status'], string> = {
-		operational: 'stroke-chart-3',
-		degraded: 'stroke-chart-4',
-		down: 'stroke-chart-5',
+		operational: 'stroke-success',
+		degraded: 'stroke-warning',
+		down: 'stroke-destructive',
 		unknown: 'stroke-muted-foreground'
 	};
 
@@ -93,10 +93,10 @@
 			<h1 class="truncate text-2xl font-semibold tracking-tight sm:text-3xl">{page.phrase}</h1>
 		</div>
 		<div class="flex items-center gap-5 text-sm text-muted-foreground tabular-nums">
-			<span><span class="text-xl font-semibold text-chart-3">{counts.up}</span> up</span>
-			<span><span class="text-xl font-semibold text-chart-4">{counts.degraded}</span> degraded</span
+			<span><span class="text-xl font-semibold text-success">{counts.up}</span> up</span>
+			<span><span class="text-xl font-semibold text-warning">{counts.degraded}</span> degraded</span
 			>
-			<span><span class="text-xl font-semibold text-chart-5">{counts.down}</span> down</span>
+			<span><span class="text-xl font-semibold text-destructive">{counts.down}</span> down</span>
 			<span class="border-l pl-5 text-xl font-semibold text-foreground">{time}</span>
 		</div>
 	</header>
@@ -128,8 +128,8 @@
 					href={resolve(`/?m=${m.id}`)}
 					class={cn(
 						'flex flex-col gap-3 rounded-2xl border bg-card p-4 transition-colors outline-none hover:bg-muted/40 focus-visible:ring-[3px] focus-visible:ring-ring/50',
-						m.status === 'down' && 'border-chart-5/60 bg-chart-5/10 sm:col-span-2',
-						m.status === 'degraded' && 'border-chart-4/50 bg-chart-4/5'
+						m.status === 'down' && 'border-destructive/60 bg-destructive/10 sm:col-span-2',
+						m.status === 'degraded' && 'border-warning/50 bg-warning/5'
 					)}
 				>
 					<div class="flex items-start justify-between gap-3">
@@ -153,7 +153,7 @@
 
 					{#if m.status === 'down'}
 						<div class="flex flex-col gap-1">
-							<span class="text-4xl font-bold tracking-tight text-chart-5 tabular-nums">
+							<span class="text-4xl font-bold tracking-tight text-destructive tabular-nums">
 								{m.down_since ? durationText(m.down_since) : 'Down'}
 							</span>
 							{#if m.last_error}
@@ -167,7 +167,7 @@
 							<span
 								class={cn(
 									'text-3xl font-semibold tracking-tight tabular-nums',
-									m.status === 'degraded' && 'text-chart-4'
+									m.status === 'degraded' && 'text-warning'
 								)}
 							>
 								{#if ms == null}
@@ -197,7 +197,7 @@
 					<div
 						class="mt-auto flex justify-between gap-3 text-sm text-muted-foreground tabular-nums"
 					>
-						<span class={cn(certSoon(m) && 'text-chart-4')}>
+						<span class={cn(certSoon(m) && 'text-warning')}>
 							{#if certSoon(m)}
 								cert expires in {m.days_remaining}d
 							{:else if m.status === 'down' && m.down_since}

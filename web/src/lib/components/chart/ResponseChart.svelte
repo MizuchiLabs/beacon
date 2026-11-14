@@ -75,7 +75,7 @@
 								{
 									type: 'line' as const,
 									y: threshold,
-									props: { line: { class: 'stroke-chart-4 [stroke-dasharray:4_4]' } }
+									props: { line: { class: 'stroke-warning [stroke-dasharray:4_4]' } }
 								}
 							]
 						: [])

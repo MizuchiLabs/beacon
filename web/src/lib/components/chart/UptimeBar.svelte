@@ -131,7 +131,7 @@
 							'relative min-w-0.5 flex-1 overflow-hidden rounded-sm transition-[transform,opacity] duration-150',
 							shown ? 'bg-muted' : p.expected > 0 ? 'bg-muted-foreground/25' : 'bg-muted/60',
 							i === points.length - 1 && 'flex-[1.75]',
-							i === points.length - 1 && alert && 'animate-status-pulse text-chart-5',
+							i === points.length - 1 && alert && 'animate-status-pulse text-destructive',
 							hovered === i ? 'scale-y-110' : hovered !== null && 'opacity-60'
 						)}
 					>
@@ -139,12 +139,12 @@
 							<span
 								class={cn(
 									'pointer-events-none absolute inset-x-0 bottom-0 rounded-sm',
-									slow(shown) ? 'bg-chart-4' : 'bg-chart-3'
+									slow(shown) ? 'bg-warning' : 'bg-success'
 								)}
 								style:height={fillHeight(shown)}
 							></span>
 							<span
-								class="pointer-events-none absolute inset-x-0 top-0 rounded-sm bg-chart-5"
+								class="pointer-events-none absolute inset-x-0 top-0 rounded-sm bg-destructive"
 								style:height={failShare(shown)}
 							></span>
 						{/if}

@@ -57,7 +57,7 @@
 			{/if}
 		</span>
 		{#if elapsed !== null}
-			<span class={cn('tabular-nums', overdue && 'font-medium text-chart-5')}>
+			<span class={cn('tabular-nums', overdue && 'font-medium text-destructive')}>
 				<!-- A missed ping only counts after 1.5 intervals, so down before the deadline means a ping reported a failure. -->
 				{#if monitor.status === 'down' && elapsed <= interval}
 					failure reported
@@ -82,7 +82,7 @@
 		<div
 			class={cn(
 				'h-full rounded-full transition-[width] duration-500',
-				overdue ? 'bg-chart-5' : 'bg-chart-3'
+				overdue ? 'bg-destructive' : 'bg-success'
 			)}
 			style:width="{progress * 100}%"
 		></div>
@@ -94,7 +94,7 @@
 			<span class="flex gap-0.5">
 				{#each recent as run (run.checked_at)}
 					<span
-						class={cn('size-2.5 rounded-[3px]', run.is_up ? 'bg-chart-3' : 'bg-chart-5')}
+						class={cn('size-2.5 rounded-[3px]', run.is_up ? 'bg-success' : 'bg-destructive')}
 						title="{runFormat.format(new Date(run.checked_at))}, {run.is_up
 							? 'ok'
 							: (run.error ?? 'failed')}"

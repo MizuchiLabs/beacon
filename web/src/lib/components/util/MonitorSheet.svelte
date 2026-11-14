@@ -94,7 +94,7 @@
 			.filter((p) => p.down > 0)
 			.map((p) => {
 				const start = Date.parse(p.timestamp);
-				return { start, end: start + step, class: 'fill-chart-5/25' };
+				return { start, end: start + step, class: 'fill-destructive/25' };
 			})
 	);
 
@@ -144,9 +144,9 @@
 		minute: '2-digit'
 	});
 	const fills: Record<string, string> = {
-		down: 'fill-chart-5/10',
-		degraded: 'fill-chart-4/10',
-		maintenance: 'fill-chart-2/10'
+		down: 'fill-destructive/10',
+		degraded: 'fill-warning/10',
+		maintenance: 'fill-info/10'
 	};
 	const incidentMarks = $derived(
 		incidents.map((i) => {
@@ -272,7 +272,7 @@
 					<div class="flex flex-col gap-1">
 						<span class="text-xs text-muted-foreground">Failed checks</span>
 						<span class="text-2xl font-semibold tracking-tight tabular-nums">
-							<span class={cn(failed > 0 && 'text-chart-5')}>{failed}</span>
+							<span class={cn(failed > 0 && 'text-destructive')}>{failed}</span>
 							<span class="text-sm font-medium text-muted-foreground">
 								/ {checks.toLocaleString()}
 							</span>
@@ -285,11 +285,11 @@
 						<h3 class="text-xs font-medium text-muted-foreground">Response time and failures</h3>
 						<span class="flex items-center gap-3 text-xs text-muted-foreground">
 							<span class="flex items-center gap-1.5">
-								<span class="w-3 border-t-2 border-dashed border-chart-4"></span>
+								<span class="w-3 border-t-2 border-dashed border-warning"></span>
 								degraded above {formatMs(monitor.degraded_threshold)}
 							</span>
 							<span class="flex items-center gap-1.5">
-								<span class="h-2.5 w-2 rounded-[2px] bg-chart-5/50"></span>
+								<span class="h-2.5 w-2 rounded-[2px] bg-destructive/50"></span>
 								failed
 							</span>
 						</span>
@@ -332,7 +332,7 @@
 									<dd
 										class={cn(
 											'text-sm font-medium tabular-nums',
-											row.ms > monitor.degraded_threshold && 'text-chart-4'
+											row.ms > monitor.degraded_threshold && 'text-warning'
 										)}
 									>
 										{formatMs(row.ms)}
@@ -388,7 +388,7 @@
 									<span class="text-muted-foreground tabular-nums">
 										{checkTime.format(new Date(check.checked_at))}
 									</span>
-									<span class={cn('font-mono', check.is_up ? 'text-chart-3' : 'text-chart-5')}>
+									<span class={cn('font-mono', check.is_up ? 'text-success' : 'text-destructive')}>
 										{check.status_code || (check.is_up ? 'ok' : 'fail')}
 									</span>
 									{#if check.is_up}

@@ -23,7 +23,7 @@
 	<StatusGlow />
 	<NoiseTexture noiseOpacity={0.1} class="fixed" />
 	<Tooltip.Provider>
-		<div class="flex min-h-screen flex-col">
+		<div class="flex min-h-svh flex-col">
 			<!-- Wall mode runs on a TV, it gets the whole screen. -->
 			{#if page.url.pathname !== resolve('/wall')}
 				<AppHeader />

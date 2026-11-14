@@ -41,7 +41,7 @@ while the bar and the bell stay usable on top of it. -->
 	role="listitem"
 	class={cn(
 		'group relative transition-colors hover:bg-muted/40',
-		monitor.status === 'down' && 'bg-chart-5/5',
+		monitor.status === 'down' && 'bg-destructive/5',
 		flash && 'animate-status-flash'
 	)}
 >

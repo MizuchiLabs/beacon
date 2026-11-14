@@ -47,10 +47,10 @@
 	}
 
 	const tiles: Record<PageStatus, string> = {
-		operational: 'bg-chart-3/15 text-chart-3',
-		degraded: 'bg-chart-4/15 text-chart-4',
-		down: 'bg-chart-5/15 text-chart-5',
-		maintenance: 'bg-chart-2/15 text-chart-2',
+		operational: 'bg-success/15 text-success',
+		degraded: 'bg-warning/15 text-warning',
+		down: 'bg-destructive/15 text-destructive',
+		maintenance: 'bg-info/15 text-info',
 		unknown: 'bg-muted text-muted-foreground'
 	};
 
@@ -202,7 +202,7 @@
 				{#if i > 0}
 					<Separator />
 				{/if}
-				<div class={cn(entry.tone === 'down' && 'bg-chart-5/5')}>
+				<div class={cn(entry.tone === 'down' && 'bg-destructive/5')}>
 					<Item.Root>
 						{#snippet child({ props })}
 							{#if entry.href}

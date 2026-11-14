@@ -24,10 +24,13 @@
 	--accent-foreground: oklch(0.3015 0.0572 282.4176);
 	--destructive: oklch(0.56 0.2 15);
 	--destructive-foreground: oklch(1 0 0);
+	/* Status colors are used as text, so they stay dark enough to read on white. */
+	--success: oklch(0.55 0.15 150);
+	--warning: oklch(0.57 0.14 50);
+	--info: oklch(0.53 0.09 205);
 	--border: oklch(0.9115 0.0216 285.9625);
 	--input: oklch(0.9115 0.0216 285.9625);
 	--ring: oklch(0.5417 0.179 288.0332);
-	/* Chart 2 to 5 double as status text, so they stay dark enough to read on white. */
 	--chart-1: oklch(0.7 0.13 270);
 	--chart-2: oklch(0.53 0.09 205);
 	--chart-3: oklch(0.55 0.15 150);
@@ -77,6 +80,9 @@
 	--accent-foreground: oklch(0.9185 0.0257 285.8834);
 	--destructive: oklch(0.6861 0.2061 14.9941);
 	--destructive-foreground: oklch(1 0 0);
+	--success: oklch(0.75 0.14 150);
+	--warning: oklch(0.78 0.15 50);
+	--info: oklch(0.75 0.12 200);
 	--border: oklch(0.3261 0.0597 282.5832);
 	--input: oklch(0.3261 0.0597 282.5832);
 	--ring: oklch(0.7162 0.1597 290.3962);
@@ -127,6 +133,9 @@
 	--color-accent-foreground: var(--accent-foreground);
 	--color-destructive: var(--destructive);
 	--color-destructive-foreground: var(--destructive-foreground);
+	--color-success: var(--success);
+	--color-warning: var(--warning);
+	--color-info: var(--info);
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
@@ -211,6 +220,11 @@
 	}
 	html {
 		@apply font-sans;
+	}
+	/* Victor Mono draws != as ≠, which misleads in logs and commands. */
+	pre,
+	code {
+		font-variant-ligatures: none;
 	}
 }
 

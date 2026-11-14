@@ -26,31 +26,31 @@ export interface StatusMeta {
 export const statusMeta: Record<PageStatus, StatusMeta> = {
 	operational: {
 		label: 'Operational',
-		dot: 'bg-chart-3',
-		text: 'text-chart-3',
-		badge: 'border-chart-3/40 bg-chart-3/10 text-chart-3',
-		token: '--chart-3'
+		dot: 'bg-success',
+		text: 'text-success',
+		badge: 'border-success/40 bg-success/10 text-success',
+		token: '--success'
 	},
 	degraded: {
 		label: 'Degraded',
-		dot: 'bg-chart-4',
-		text: 'text-chart-4',
-		badge: 'border-chart-4/40 bg-chart-4/10 text-chart-4',
-		token: '--chart-4'
+		dot: 'bg-warning',
+		text: 'text-warning',
+		badge: 'border-warning/40 bg-warning/10 text-warning',
+		token: '--warning'
 	},
 	down: {
 		label: 'Down',
-		dot: 'bg-chart-5',
-		text: 'text-chart-5',
-		badge: 'border-chart-5/40 bg-chart-5/10 text-chart-5',
-		token: '--chart-5'
+		dot: 'bg-destructive',
+		text: 'text-destructive',
+		badge: 'border-destructive/40 bg-destructive/10 text-destructive',
+		token: '--destructive'
 	},
 	maintenance: {
 		label: 'Maintenance',
-		dot: 'bg-chart-2',
-		text: 'text-chart-2',
-		badge: 'border-chart-2/40 bg-chart-2/10 text-chart-2',
-		token: '--chart-2'
+		dot: 'bg-info',
+		text: 'text-info',
+		badge: 'border-info/40 bg-info/10 text-info',
+		token: '--info'
 	},
 	unknown: {
 		label: 'Unknown',
@@ -122,14 +122,14 @@ export function pageStatus(
 // Matches the backend: slower than the monitor's threshold is degraded.
 export function latencyTextClass(ms: number | null | undefined, threshold: number): string {
 	if (ms == null) return 'text-muted-foreground';
-	return ms <= threshold ? 'text-chart-3' : 'text-chart-4';
+	return ms <= threshold ? 'text-success' : 'text-warning';
 }
 
 export function uptimeTextClass(pct: number | null): string {
 	if (pct === null) return 'text-muted-foreground';
-	if (pct >= 99) return 'text-chart-3';
-	if (pct >= 95) return 'text-chart-4';
-	return 'text-chart-5';
+	if (pct >= 99) return 'text-success';
+	if (pct >= 95) return 'text-warning';
+	return 'text-destructive';
 }
 
 // Mirrors checker.CertWarnDays on the backend.
@@ -145,7 +145,7 @@ export function certSoon(monitor: MonitorStats): boolean {
 
 export function certTextClass(days: number | null | undefined): string {
 	if (days == null) return 'text-muted-foreground';
-	return days <= certWarnDays ? 'text-chart-4' : 'text-muted-foreground';
+	return days <= certWarnDays ? 'text-warning' : 'text-muted-foreground';
 }
 
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
@@ -235,7 +235,7 @@ export function incidentSeverity(severity: string | undefined): IncidentBadge {
 		case 'critical':
 			return {
 				variant: 'outline',
-				class: 'border-transparent bg-chart-5 text-background',
+				class: 'border-transparent bg-destructive text-background',
 				label: 'Critical',
 				icon: CircleAlertIcon
 			};
@@ -292,11 +292,11 @@ export function currentStatus(incident: Incident): IncidentBadge {
 
 // Timeline dot color per update status.
 export const updateDot: Record<Incident['status'], string> = {
-	scheduled: 'bg-chart-2',
-	investigating: 'bg-chart-5',
-	identified: 'bg-chart-4',
-	monitoring: 'bg-chart-2',
-	resolved: 'bg-chart-3'
+	scheduled: 'bg-info',
+	investigating: 'bg-destructive',
+	identified: 'bg-warning',
+	monitoring: 'bg-info',
+	resolved: 'bg-success'
 };
 
 export function affectsMonitor(incident: Incident, monitorName: string): boolean {

@@ -45,10 +45,10 @@
 		unknown: CircleHelpIcon
 	};
 	const rings = {
-		operational: 'bg-chart-3/15',
-		degraded: 'bg-chart-4/15',
-		down: 'bg-chart-5/15',
-		maintenance: 'bg-chart-2/15',
+		operational: 'bg-success/15',
+		degraded: 'bg-warning/15',
+		down: 'bg-destructive/15',
+		maintenance: 'bg-info/15',
 		unknown: 'bg-muted'
 	};
 	const Icon = $derived(page.stale ? WifiOffIcon : icons[status]);
@@ -81,7 +81,7 @@
 					<span>{subline}</span>
 					{#if updatedAgo}
 						<span class="hidden items-center gap-2 sm:flex">
-							<span class="size-1.5 animate-status-pulse rounded-full bg-chart-3 text-chart-3"
+							<span class="size-1.5 animate-status-pulse rounded-full bg-success text-success"
 							></span>
 							updated {updatedAgo}
 						</span>

@@ -8,7 +8,7 @@
 	import { pushNotifications } from '#lib/stores/push.svelte.js';
 	import { cn } from '#lib/utils.js';
 	import { Bell, Moon, Sun } from '@lucide/svelte';
-	import { mode, toggleMode } from 'mode-watcher';
+	import { toggleMode } from 'mode-watcher';
 	import { onMount } from 'svelte';
 	import SubscribeModal from './SubscribeModal.svelte';
 
@@ -91,11 +91,8 @@
 				{/if}
 			</Button>
 			<Button variant="ghost" size="icon-sm" onclick={toggleMode} aria-label="Toggle theme">
-				{#if mode.current === 'light'}
-					<Moon />
-				{:else}
-					<Sun />
-				{/if}
+				<Moon class="dark:hidden" />
+				<Sun class="hidden dark:block" />
 			</Button>
 		</div>
 	</div>
