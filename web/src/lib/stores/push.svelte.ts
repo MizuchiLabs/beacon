@@ -60,10 +60,11 @@ class PushNotifications {
 			const subscription = await this.existing();
 			for (const id of monitorIds) {
 				if (subscription) {
-					await unsubscribeFromMonitor({
+					const { error } = await unsubscribeFromMonitor({
 						path: { id },
 						body: { endpoint: subscription.endpoint }
 					});
+					if (error) throw new Error('the server rejected the request');
 				}
 				this.subscribed.delete(id);
 			}
