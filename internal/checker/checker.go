@@ -232,7 +232,8 @@ func (c *Checker) checkDNS(ctx context.Context, host, server string) Result {
 	resolver := net.DefaultResolver
 	if server != "" {
 		if _, _, err := net.SplitHostPort(server); err != nil {
-			server = net.JoinHostPort(server, "53")
+			// JoinHostPort brackets IPv6 itself, so "[::1]" must lose its own first.
+			server = net.JoinHostPort(strings.Trim(server, "[]"), "53")
 		}
 		resolver = &net.Resolver{
 			PreferGo: true,

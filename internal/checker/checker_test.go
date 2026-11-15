@@ -229,6 +229,10 @@ func TestCheckDNS(t *testing.T) {
 
 	result := newTestChecker(false).Check(t.Context(), monitor("dns://beacon.invalid?server=127.0.0.1:1"))
 	require.False(t, result.IsUp, "an unreachable resolver is down")
+
+	result = newTestChecker(false).Check(t.Context(), monitor("dns://beacon.invalid?server=[::1]"))
+	require.False(t, result.IsUp)
+	require.NotContains(t, *result.Error, "[[", "a bracketed IPv6 resolver must not get double brackets")
 }
 
 func TestCheckPing(t *testing.T) {
