@@ -190,7 +190,7 @@ importers:
         version: 3.12.4
       '@lucide/svelte':
         specifier: ^1.69.0
-        version: 1.73.0(svelte@5.57.3(@typescript-eslint/types@8.73.0))
+        version: 1.74.0(svelte@5.57.3(@typescript-eslint/types@8.73.0))
       '@shadcn/lint':
         specifier: ^0.2.5
         version: 0.2.5(@typescript-eslint/parser@8.73.0(eslint@10.15.0(jiti@2.7.0))(typescript@6.0.3)(typescript@7.0.2))(eslint@10.15.0(jiti@2.7.0))
@@ -473,8 +473,8 @@ packages:
   '@layerstack/utils@2.0.0-next.19':
     resolution: {integrity: sha512-HyXCEz9pge4rFWklrSgFr3YIwdE1gP8WM6GPetmnKPDfYLF1/oetRFKI9FqiE+dw4brnULGPKJsVhjM3vQfD4A==}
 
-  '@lucide/svelte@1.73.0':
-    resolution: {integrity: sha512-Rz1uA9aTJ7HA/j2Hf9Dm2OVM8NtkzHnNeIQvVWoUkpf1ZD/7dR9cB4ftjbOiWAeJrKkEAVvTDrcVtITFdx6KAA==}
+  '@lucide/svelte@1.74.0':
+    resolution: {integrity: sha512-J9kteBGbntyvE+xIcpoqOcoOfuat0tFnGzOx+aj0NbydQlt5x+/ayRSwEK0iqaY3RTGavpthEx/l7PQiqT+crg==}
     peerDependencies:
       svelte: ^5
 
@@ -2785,7 +2785,7 @@ snapshots:
       d3-time: 3.1.1
       d3-time-format: 4.1.1
 
-  '@lucide/svelte@1.73.0(svelte@5.57.3(@typescript-eslint/types@8.73.0))':
+  '@lucide/svelte@1.74.0(svelte@5.57.3(@typescript-eslint/types@8.73.0))':
     dependencies:
       svelte: 5.57.3(@typescript-eslint/types@8.73.0)
 
