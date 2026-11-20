@@ -255,8 +255,8 @@ importers:
         specifier: ^10.14.0
         version: 10.15.0(jiti@2.7.0)
       layerchart:
-        specifier: 2.10.1
-        version: 2.10.1(svelte@5.57.3(@typescript-eslint/types@8.73.0))
+        specifier: 2.11.0
+        version: 2.11.0(svelte@5.57.3(@typescript-eslint/types@8.73.0))
       mode-watcher:
         specifier: ^1.1.0
         version: 1.1.0(svelte@5.57.3(@typescript-eslint/types@8.73.0))
@@ -1931,8 +1931,8 @@ packages:
   keyv@5.6.0:
     resolution: {integrity: sha512-CYDD3SOtsHtyXeEORYRx2qBtpDJFjRTGXUtmNEMGyzYOKj1TE3tycdlho7kA1Ufx9OYWZzg52QFBGALTirzDSw==}
 
-  layerchart@2.10.1:
-    resolution: {integrity: sha512-/W1zMbcQdvcUoeMWoBVbIEymLtr7ZCA0bptIFfzPWym/hTid/3sWnrK2qhflNdvPTel4mvr4drvhB6RDlcJxEQ==}
+  layerchart@2.11.0:
+    resolution: {integrity: sha512-j8yFwfF+DbP5stsIfts14c+8gV8cUFTs43yNu0lAZut1EqWaK5Kaa3WT/HxNOVxcxHB+7lpOL9r+doD4P8ekow==}
     peerDependencies:
       svelte: ^5.57.0
 
@@ -3852,7 +3852,7 @@ snapshots:
     dependencies:
       '@keyv/serialize': 1.1.1
 
-  layerchart@2.10.1(svelte@5.57.3(@typescript-eslint/types@8.73.0)):
+  layerchart@2.11.0(svelte@5.57.3(@typescript-eslint/types@8.73.0)):
     dependencies:
       '@dagrejs/dagre': 2.0.4
       '@layerstack/svelte-actions': 1.0.1-next.20
