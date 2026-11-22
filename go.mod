@@ -10,7 +10,7 @@ require (
 	github.com/go-chi/httplog/v3 v3.5.0
 	github.com/go-chi/httprate v0.16.1
 	github.com/go-git/go-git/v5 v5.19.3
-	github.com/mizuchilabs/kata v0.2.0
+	github.com/mizuchilabs/kata v0.2.1
 	github.com/mizuchilabs/sqlite-schema-diff v0.3.6
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.12.1
@@ -19,7 +19,7 @@ require (
 	github.com/vearutop/statigz v1.5.0
 	golang.org/x/net v0.63.0
 	gopkg.in/yaml.v3 v3.0.1
-	modernc.org/sqlite v1.62.0
+	modernc.org/sqlite v1.63.0
 )
 
 require (
